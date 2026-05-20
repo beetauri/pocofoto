@@ -1,0 +1,118 @@
+{
+  "version": 2,
+  "tokens": {
+    "colors": {
+      "bg-primary": {
+        "value": "#f8f9fa",
+        "variable": "--bg-primary"
+      },
+      "bg-secondary": {
+        "value": "#ffffff",
+        "variable": "--bg-secondary"
+      },
+      "bg-card": {
+        "value": "#ffffff",
+        "variable": "--bg-card"
+      },
+      "accent": {
+        "value": "#FFCC00",
+        "variable": "--accent"
+      },
+      "accent-hover": {
+        "value": "#FFD700",
+        "variable": "--accent-hover"
+      },
+      "accent-glow": {
+        "value": "rgba(255, 204, 0, 0.3)",
+        "variable": "--accent-glow"
+      },
+      "success": {
+        "value": "#2ecc71",
+        "variable": "--success"
+      },
+      "warning": {
+        "value": "#f39c12",
+        "variable": "--warning"
+      }
+    },
+    "typography": {
+      "text-primary": {
+        "value": "#111111",
+        "variable": "--text-primary"
+      },
+      "text-secondary": {
+        "value": "rgba(0, 0, 0, 0.65)",
+        "variable": "--text-secondary"
+      },
+      "text-muted": {
+        "value": "rgba(0, 0, 0, 0.4)",
+        "variable": "--text-muted"
+      },
+      "font": {
+        "value": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        "variable": "--font"
+      }
+    },
+    "radii": {
+      "radius-sm": {
+        "value": "12px",
+        "variable": "--radius-sm"
+      },
+      "radius-md": {
+        "value": "20px",
+        "variable": "--radius-md"
+      },
+      "radius-lg": {
+        "value": "28px",
+        "variable": "--radius-lg"
+      },
+      "radius-full": {
+        "value": "9999px",
+        "variable": "--radius-full"
+      }
+    }
+  },
+  "components": {
+    "AuthScreen": {
+      "props": {},
+      "state": {
+        "isLogin": {
+          "type": "boolean"
+        },
+        "email": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "loading": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "HistoryScreen": {
+      "props": {
+        "coupleId": {
+          "type": "string"
+        }
+      },
+      "state": {
+        "photos": {
+          "type": "array"
+        },
+        "loading": {
+          "type": "boolean"
+        },
+        "selectedPhoto": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
