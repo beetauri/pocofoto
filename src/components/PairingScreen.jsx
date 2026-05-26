@@ -1,26 +1,51 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db, doc, setDoc, getDoc, updateDoc, onSnapshot } from '../firebase';
 
 const fadeUp = {
-  initial: { opacity: 0, y: 30 },
+  initial: { opacity: 0, y: 24 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
+  transition: { duration: 0.34, ease: [0.4, 0, 0.2, 1] }
 };
+
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+      <path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 export default function PairingScreen({ user, onPaired }) {
-  const [mode, setMode] = useState(null); // null | 'create' | 'join'
+  const [mode, setMode] = useState(null);
   const [code, setCode] = useState('');
   const [inputCode, setInputCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [waiting, setWaiting] = useState(false);
 
-  // Generate invite code
   const handleCreate = async () => {
     setLoading(true);
     setError('');
@@ -36,13 +61,13 @@ export default function PairingScreen({ user, onPaired }) {
       setMode('create');
       setWaiting(true);
     } catch (err) {
+      console.error(err);
       setError('Failed to create invite');
     } finally {
       setLoading(false);
     }
   };
 
-  // Listen for partner joining
   useEffect(() => {
     if (!waiting || !code) return;
 
@@ -56,7 +81,6 @@ export default function PairingScreen({ user, onPaired }) {
     return () => unsub();
   }, [waiting, code, onPaired]);
 
-  // Join with code
   const handleJoin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -80,12 +104,11 @@ export default function PairingScreen({ user, onPaired }) {
       }
 
       if (invite.creatorId === user.uid) {
-        setError("You can't pair with yourself!");
+        setError("You can't pair with yourself.");
         setLoading(false);
         return;
       }
 
-      // Create couple
       const coupleId = `${invite.creatorId}_${user.uid}`;
       await setDoc(doc(db, 'couples', coupleId), {
         users: [invite.creatorId, user.uid],
@@ -95,15 +118,13 @@ export default function PairingScreen({ user, onPaired }) {
         createdAt: new Date().toISOString()
       });
 
-      // Update both users
       await updateDoc(doc(db, 'users', invite.creatorId), { coupleId });
       await updateDoc(doc(db, 'users', user.uid), { coupleId });
-
-      // Mark invite as used
       await updateDoc(doc(db, 'invites', trimmed), { used: true, coupleId });
 
       onPaired(coupleId);
     } catch (err) {
+      console.error(err);
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
@@ -114,124 +135,96 @@ export default function PairingScreen({ user, onPaired }) {
     navigator.clipboard?.writeText(code);
   };
 
-  return (
-    <div className="screen" style={{ justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-      {/* Top absolute back button when in a sub-mode */}
-      {mode && (
-        <button
-          onClick={() => { setMode(null); setError(''); }}
-          style={{
-            position: 'absolute',
-            top: 'calc(var(--safe-top) + 20px)',
-            left: 20,
-            background: 'var(--glass-bg)',
-            border: '1px solid var(--glass-border)',
-            borderRadius: 'var(--radius-full)',
-            width: 40,
-            height: 40,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: 'var(--text-primary)',
-            fontSize: 18,
-            transition: 'all 0.2s ease',
-            zIndex: 10
-          }}
-          title="Back"
-        >
-          ←
-        </button>
-      )}
+  const title = mode === 'join' ? 'Enter pairing code' : mode === 'create' ? 'Invite your person' : 'Connect your Lockets';
+  const subtitle = mode === 'join'
+    ? 'Paste or type the invite code from your person.'
+    : mode === 'create'
+      ? 'Send this code to link your Lockets.'
+      : 'Create an invite code or enter one you received.';
 
-      <motion.div {...fadeUp} style={{ width: '100%', maxWidth: 400, textAlign: 'center' }}>
-        <motion.div
-          animate={{ y: [0, -6, 0] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ fontSize: 56, marginBottom: 16 }}
-        >
-          💛
-        </motion.div>
-        <h2 style={{ fontSize: 26, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
-          {mode === 'join' ? 'Enter pairing code' : mode === 'create' ? 'Invite your partner' : 'Connect with your person'}
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 40 }}>
-          {mode === 'join' ? 'Paste or type the invite code from your partner' : mode === 'create' ? 'Send this code to your partner to link lockets' : 'Share a code to link your Lockets together'}
-        </p>
+  return (
+    <div className="screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      <AnimatePresence>
+        {mode && (
+          <motion.button
+            className="icon-btn small"
+            type="button"
+            aria-label="Back"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            onClick={() => { setMode(null); setError(''); }}
+            style={{ position: 'absolute', top: 'calc(var(--safe-top) + 20px)', left: 20, zIndex: 10 }}
+          >
+            <BackIcon />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <motion.div {...fadeUp} className="pairing-card" style={{ textAlign: 'center' }}>
+        <div className="brand-lockup" style={{ marginBottom: 34 }}>
+          <div className="brand-mark">
+            <LinkIcon />
+          </div>
+          <h2 style={{ color: 'var(--text-primary)', fontSize: 28, fontWeight: 900, lineHeight: 1.1 }}>
+            {title}
+          </h2>
+          <p className="pairing-subtitle" style={{ marginTop: 10 }}>
+            {subtitle}
+          </p>
+        </div>
 
         {!mode && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <button id="pairing-create" className="btn-primary" onClick={handleCreate} disabled={loading}>
-              {loading ? <div className="spinner" /> : '✨ Create Invite Code'}
+          <div className="form-stack">
+            <button id="pairing-create" className="btn-primary" type="button" onClick={handleCreate} disabled={loading}>
+              {loading ? <div className="spinner" /> : 'Create Invite Code'}
             </button>
-            <button id="pairing-join-toggle" className="btn-ghost" onClick={() => setMode('join')}>
-              🔗 I have a code
+            <button id="pairing-join-toggle" className="btn-ghost" type="button" onClick={() => setMode('join')}>
+              I have a code
             </button>
           </div>
         )}
 
         {mode === 'create' && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-            <div
-              className="glass-card"
-              style={{
-                padding: '32px 24px',
-                marginBottom: 16,
-                textAlign: 'center'
-              }}
-            >
-              <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1.5 }}>
-                Your invite code
-              </p>
-              <div style={{
-                fontSize: 36,
-                fontWeight: 700,
-                letterSpacing: 8,
-                color: 'var(--accent)',
-                fontFamily: 'monospace'
-              }}>
-                {code}
-              </div>
+          <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}>
+            <div className="invite-code-card">
+              <p>Your invite code</p>
+              <strong>{code}</strong>
             </div>
-            <button className="btn-ghost" onClick={copyCode} style={{ marginBottom: 16 }}>
-              📋 Copy Code
+            <button className="btn-ghost" type="button" onClick={copyCode} style={{ gap: 10, marginBottom: 18 }}>
+              <CopyIcon />
+              Copy Code
             </button>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              Waiting for your partner to enter this code...
-            </p>
-            <motion.div
-              animate={{ opacity: [0.3, 1, 0.3] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              style={{ marginTop: 16 }}
-            >
-              <div className="spinner" style={{ margin: '0 auto' }} />
-            </motion.div>
+            <p className="pairing-subtitle">Waiting for your person to enter this code.</p>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
+              <div className="spinner" />
+            </div>
           </motion.div>
         )}
 
         {mode === 'join' && (
           <motion.form
+            className="form-stack"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onSubmit={handleJoin}
-            style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
           >
             <input
               id="pairing-code-input"
               className="input-field"
               type="text"
-              placeholder="Enter 6-character code"
+              placeholder="ABC123"
               value={inputCode}
               onChange={(e) => setInputCode(e.target.value.toUpperCase())}
               maxLength={6}
-              style={{ textAlign: 'center', letterSpacing: 6, fontSize: 22, fontWeight: 600 }}
+              style={{ textAlign: 'center', letterSpacing: 6, fontSize: 22, fontWeight: 900 }}
               autoFocus
             />
             {error && (
-              <p style={{ color: 'var(--accent)', fontSize: 13 }}>{error}</p>
+              <p className="error-text" role="alert">{error}</p>
             )}
             <button id="pairing-join-submit" type="submit" className="btn-primary" disabled={loading || inputCode.length < 6}>
-              {loading ? <div className="spinner" /> : '💛 Connect'}
+              {loading ? <div className="spinner" /> : 'Connect'}
             </button>
           </motion.form>
         )}

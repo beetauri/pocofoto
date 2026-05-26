@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db, onAuthStateChanged, doc, onSnapshot } from './firebase';
 import AuthScreen from './components/AuthScreen';
 import PairingScreen from './components/PairingScreen';
 import MainScreen from './components/MainScreen';
-import { Retune } from 'retune';
+
+const Retune = import.meta.env.DEV
+  ? lazy(() => import('retune').then((module) => ({ default: module.Retune })))
+  : null;
 
 const pageTransition = {
   initial: { opacity: 0, scale: 0.96 },
@@ -107,7 +110,11 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      <Retune />
+      {Retune && (
+        <Suspense fallback={null}>
+          <Retune />
+        </Suspense>
+      )}
     </>
   );
 }

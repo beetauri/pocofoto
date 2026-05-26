@@ -54,11 +54,11 @@ if (USE_REAL_FIREBASE) {
   db = getFirestore(app);
   storage = getStorage(app);
 
-  onAuthStateChanged = (authInst, cb) => realOnAuthStateChanged(auth, cb);
-  createUserWithEmailAndPassword = (authInst, email, password) => realCreateUserWithEmailAndPassword(auth, email, password);
-  signInWithEmailAndPassword = (authInst, email, password) => realSignInWithEmailAndPassword(auth, email, password);
-  signOut = (authInst) => realSignOut(auth);
-  signInWithPopup = (authInst, provider) => realSignInWithPopup(auth, provider);
+  onAuthStateChanged = (_authInst, cb) => realOnAuthStateChanged(auth, cb);
+  createUserWithEmailAndPassword = (_authInst, email, password) => realCreateUserWithEmailAndPassword(auth, email, password);
+  signInWithEmailAndPassword = (_authInst, email, password) => realSignInWithEmailAndPassword(auth, email, password);
+  signOut = (_authInst) => realSignOut(auth);
+  signInWithPopup = (_authInst, provider) => realSignInWithPopup(auth, provider);
   GoogleAuthProvider = realGoogleAuthProvider;
 
   doc = realDoc;

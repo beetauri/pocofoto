@@ -33,11 +33,11 @@ function fireListeners(col, id) {
   if (cbs && cbs.size > 0) {
     const data = getStore(col)[id];
     const snap = { exists: () => !!data, data: () => (data ? { ...data } : undefined), id };
-    cbs.forEach((cb) => { try { cb(snap); } catch {} });
+    cbs.forEach((cb) => { try { cb(snap); } catch { /* Listener errors should not stop sync. */ } });
   }
   const qCbs = colListeners.get(col);
   if (qCbs && qCbs.size > 0) {
-    qCbs.forEach((cb) => { try { cb(); } catch {} });
+    qCbs.forEach((cb) => { try { cb(); } catch { /* Listener errors should not stop sync. */ } });
   }
 }
 
@@ -59,7 +59,9 @@ let curUser = null;
 try {
   const s = sessionStorage.getItem(PREFIX + 'session');
   if (s) curUser = JSON.parse(s);
-} catch {}
+} catch {
+  // Ignore unavailable or malformed session storage state in the mock backend.
+}
 
 export const auth = { get currentUser() { return curUser; } };
 
@@ -113,8 +115,9 @@ export function signOut() {
 // ============================================================
 export const db = {};
 
-export function doc(_db, collection, docId) {
-  return { _c: collection, _id: docId };
+export function doc(_db, ...paths) {
+  const docId = paths[paths.length - 1];
+  return { _c: paths.slice(0, -1).join('/'), _id: docId };
 }
 
 export function setDoc(ref, data) {
@@ -143,6 +146,7 @@ export function updateDoc(ref, data) {
 }
 
 export function onSnapshot(ref, cb, _errCb) {
+  void _errCb;
   if (ref._isQuery || ref._isCol) {
     const colName = ref._c;
     if (!colListeners.has(colName)) colListeners.set(colName, new Set());
@@ -241,12 +245,12 @@ export function getDownloadURL(sRef) {
 // GOOGLE AUTH (MOCK)
 // ============================================================
 export class GoogleAuthProvider {
-  static credentialFromResult(result) {
+  static credentialFromResult(_result) {
     return { accessToken: 'mock-access-token' };
   }
 }
 
-export function signInWithPopup(authInstance, provider) {
+export function signInWithPopup(_authInstance, _provider) {
   return new Promise((resolve, reject) => {
     // Simulated prompt-based popup selection
     const email = window.prompt("Simulated Google Account Selection\nEnter Google email to sign in:", "google-user@test.com");
