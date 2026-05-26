@@ -102,6 +102,14 @@ button {
   padding: calc(var(--safe-top) + 18px) 22px 18px;
 }
 
+.pairing-header {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: min(100%, 440px);
+  transform: translateX(-50%);
+}
+
 .header-title {
   min-width: 0;
   text-align: center;

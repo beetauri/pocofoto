@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db, doc, setDoc, getDoc, updateDoc, onSnapshot } from '../firebase';
+import { db, auth, doc, setDoc, getDoc, updateDoc, onSnapshot, signOut } from '../firebase';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -34,6 +34,35 @@ function CopyIcon() {
   );
 }
 
+function UserIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 21a8 8 0 0 0-16 0" />
+      <circle cx="12" cy="8" r="4" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+      <path d="M5 7h14" />
+      <path d="M5 12h14" />
+      <path d="M5 17h14" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  );
+}
+
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
@@ -45,6 +74,10 @@ export default function PairingScreen({ user, onPaired }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [waiting, setWaiting] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+
+  const displayName = user.email.split('@')[0];
+  const showMenu = Boolean(menuAnchor);
 
   const handleCreate = async () => {
     setLoading(true);
@@ -135,6 +168,10 @@ export default function PairingScreen({ user, onPaired }) {
     navigator.clipboard?.writeText(code);
   };
 
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
   const title = mode === 'join' ? 'Enter pairing code' : mode === 'create' ? 'Invite your person' : 'Connect your Lockets';
   const subtitle = mode === 'join'
     ? 'Paste or type the invite code from your person.'
@@ -144,6 +181,65 @@ export default function PairingScreen({ user, onPaired }) {
 
   return (
     <div className="screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      <header className="app-header pairing-header">
+        <button
+          className="icon-btn"
+          type="button"
+          aria-label="Profile"
+          aria-expanded={menuAnchor === 'profile'}
+          onClick={() => setMenuAnchor(menuAnchor === 'profile' ? null : 'profile')}
+        >
+          <UserIcon />
+        </button>
+        <div className="header-title">
+          <strong>Locket</strong>
+          <span>{displayName}</span>
+        </div>
+        <button
+          className="icon-btn"
+          type="button"
+          aria-label="Open menu"
+          aria-expanded={menuAnchor === 'menu'}
+          onClick={() => setMenuAnchor(menuAnchor === 'menu' ? null : 'menu')}
+        >
+          <MenuIcon />
+        </button>
+      </header>
+
+      <AnimatePresence>
+        {showMenu && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              className={`menu-popover ${menuAnchor === 'profile' ? 'from-profile' : 'from-menu'}`}
+            >
+              <div className="profile-row">
+                <img
+                  className="avatar"
+                  src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`}
+                  alt=""
+                />
+                <div>
+                  <strong>{displayName}</strong>
+                  <span>{user.email}</span>
+                </div>
+              </div>
+              <button className="menu-action" type="button" onClick={handleLogout}>
+                <LogoutIcon />
+                Sign out
+              </button>
+            </motion.div>
+            <div
+              aria-hidden="true"
+              onClick={() => setMenuAnchor(null)}
+              style={{ position: 'fixed', inset: 0, zIndex: 50 }}
+            />
+          </>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {mode && (
           <motion.button
@@ -154,7 +250,7 @@ export default function PairingScreen({ user, onPaired }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -8 }}
             onClick={() => { setMode(null); setError(''); }}
-            style={{ position: 'absolute', top: 'calc(var(--safe-top) + 20px)', left: 20, zIndex: 10 }}
+            style={{ position: 'absolute', top: 'calc(var(--safe-top) + 92px)', left: 20, zIndex: 10 }}
           >
             <BackIcon />
           </motion.button>
