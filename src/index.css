@@ -439,6 +439,11 @@ button {
   -webkit-backdrop-filter: blur(18px);
 }
 
+.like-btn svg {
+  width: 28px;
+  flex-shrink: 0;
+}
+
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -535,7 +540,7 @@ button {
   background: #f2f2f2;
   color: #111;
   cursor: pointer;
-  box-shadow: 0 0 0 4px rgba(0, 0, 0, 1), 0 12px 42px rgba(255, 191, 0, 0.2);
+  box-shadow: inset 0 0 0 5px rgb(0, 0, 0);
   transition: transform 160ms ease, opacity 160ms ease;
 }
 
