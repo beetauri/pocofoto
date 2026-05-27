@@ -124,7 +124,7 @@ export default function PairingScreen({ user, onPaired }) {
       const inviteSnap = await getDoc(doc(db, 'invites', trimmed));
 
       if (!inviteSnap.exists()) {
-        setError('Invalid code. Please try again.');
+        setError('Invalid code. In local mock mode, invite codes only work in tabs from the same normal browser profile.');
         setLoading(false);
         return;
       }

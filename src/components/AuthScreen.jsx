@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, doc, setDoc, getDoc, GoogleAuthProvider, signInWithPopup } from '../firebase';
+import { auth, db, doc, setDoc, getDoc, GoogleAuthProvider, signInWithPopup } from '../firebase';
+
+const USE_MOCK_GOOGLE = import.meta.env.DEV && import.meta.env.VITE_USE_REAL_FIREBASE !== 'true';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -21,42 +23,20 @@ function GoogleIcon() {
 }
 
 export default function AuthScreen() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        await setDoc(doc(db, 'users', cred.user.uid), {
-          email: email,
-          displayName: name || email.split('@')[0],
-          coupleId: null,
-          createdAt: new Date().toISOString()
-        });
-      }
-    } catch (err) {
-      const msg = err.code?.replace('auth/', '').replace(/-/g, ' ') || 'Something went wrong';
-      setError(msg.charAt(0).toUpperCase() + msg.slice(1));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [mockEmail, setMockEmail] = useState(() => {
+    if (!USE_MOCK_GOOGLE) return '';
+    return localStorage.getItem('locket_mock_google_email') || 'google-user@test.com';
+  });
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
     try {
+      if (USE_MOCK_GOOGLE) {
+        localStorage.setItem('locket_mock_google_email', mockEmail.trim() || 'google-user@test.com');
+      }
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       const userSnap = await getDoc(doc(db, 'users', cred.user.uid));
@@ -64,6 +44,8 @@ export default function AuthScreen() {
         await setDoc(doc(db, 'users', cred.user.uid), {
           email: cred.user.email,
           displayName: cred.user.displayName || cred.user.email.split('@')[0],
+          profilePic: cred.user.photoURL || '',
+          provider: 'google',
           coupleId: null,
           createdAt: new Date().toISOString()
         });
@@ -93,71 +75,33 @@ export default function AuthScreen() {
           <p>Share photos with your person.</p>
         </div>
 
-        <form className="form-stack" onSubmit={handleSubmit}>
-          <AnimatePresence mode="wait">
-            {!isLogin && (
-              <motion.div
-                key="name"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.24 }}
-              >
-                <input
-                  id="auth-name"
-                  className="input-field"
-                  type="text"
-                  placeholder="Your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoComplete="name"
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <AnimatePresence>
+          {error && (
+            <motion.p
+              className="error-text"
+              role="alert"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              {error}
+            </motion.p>
+          )}
+        </AnimatePresence>
 
-          <input
-            id="auth-email"
-            className="input-field"
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
-          <input
-            id="auth-password"
-            className="input-field"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            autoComplete={isLogin ? 'current-password' : 'new-password'}
-          />
-
-          <AnimatePresence>
-            {error && (
-              <motion.p
-                className="error-text"
-                role="alert"
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-              >
-                {error}
-              </motion.p>
-            )}
-          </AnimatePresence>
-
-          <button id="auth-submit" type="submit" className="btn-primary" disabled={loading}>
-            {loading ? <div className="spinner" /> : (isLogin ? 'Sign In' : 'Create Account')}
-          </button>
-        </form>
-
-        <div className="divider">OR</div>
+        {USE_MOCK_GOOGLE && (
+          <div className="mock-google-field">
+            <label htmlFor="mock-google-email">Mock Google account</label>
+            <input
+              id="mock-google-email"
+              className="input-field"
+              type="email"
+              value={mockEmail}
+              onChange={(e) => setMockEmail(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+        )}
 
         <motion.button
           id="auth-google"
@@ -169,20 +113,8 @@ export default function AuthScreen() {
           style={{ gap: 10 }}
         >
           <GoogleIcon />
-          {isLogin ? 'Sign In with Google' : 'Sign Up with Google'}
+          {loading ? <div className="spinner" /> : 'Continue with Google'}
         </motion.button>
-
-        <div style={{ textAlign: 'center' }}>
-          <button
-            id="auth-toggle"
-            className="text-toggle"
-            type="button"
-            onClick={() => { setIsLogin(!isLogin); setError(''); }}
-          >
-            {isLogin ? "Don't have an account? " : 'Already have an account? '}
-            <span>{isLogin ? 'Sign Up' : 'Sign In'}</span>
-          </button>
-        </div>
       </motion.div>
     </div>
   );

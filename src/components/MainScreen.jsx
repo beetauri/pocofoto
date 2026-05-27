@@ -1,8 +1,9 @@
-import { lazy, Suspense, useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import HistoryScreen from './HistoryScreen';
 import { db, storage, auth, doc, onSnapshot, updateDoc, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy } from '../firebase';
 
-const HistoryScreen = lazy(() => import('./HistoryScreen'));
+const views = ['history', 'home', 'profile'];
 
 function UserIcon() {
   return (
@@ -13,12 +14,12 @@ function UserIcon() {
   );
 }
 
-function MenuIcon() {
+function HomeIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
-      <path d="M5 7h14" />
-      <path d="M5 12h14" />
-      <path d="M5 17h14" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m3 11 9-8 9 8" />
+      <path d="M5 10v10h14V10" />
+      <path d="M9 20v-6h6v6" />
     </svg>
   );
 }
@@ -30,6 +31,16 @@ function GridIcon() {
       <rect x="14" y="4" width="6" height="6" rx="1.5" />
       <rect x="4" y="14" width="6" height="6" rx="1.5" />
       <rect x="14" y="14" width="6" height="6" rx="1.5" />
+    </svg>
+  );
+}
+
+function MiniShutterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" fill="var(--accent)" />
+      <circle cx="12" cy="12" r="6.4" fill="#111" />
+      <circle cx="12" cy="12" r="4.7" fill="#f4f4f4" />
     </svg>
   );
 }
@@ -61,14 +72,72 @@ function PhotoIcon() {
   );
 }
 
+function FlashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m13 2-8 12h6l-1 8 9-13h-6l1-7Z" />
+    </svg>
+  );
+}
+
+function SwitchCameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 12a8 8 0 0 1 13.7-5.6" />
+      <path d="M17 2v5h5" />
+      <path d="M20 12a8 8 0 0 1-13.7 5.6" />
+      <path d="M7 22v-5H2" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <path d="m16 17 5-5-5-5" />
       <path d="M21 12H9" />
     </svg>
   );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="m19 6-1 14H6L5 6" />
+    </svg>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+  );
+}
+
+function initialsFor(name, email) {
+  const source = name || email || '?';
+  return source
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || '?';
+}
+
+function Avatar({ src, name, email, size = 'md' }) {
+  const [failed, setFailed] = useState(false);
+  if (src && !failed) {
+    return <img className={`profile-avatar ${size}`} src={src} alt="" onError={() => setFailed(true)} />;
+  }
+  return <div className={`profile-avatar initials ${size}`}>{initialsFor(name, email)}</div>;
 }
 
 export default function MainScreen({ user, coupleId }) {
@@ -77,19 +146,23 @@ export default function MainScreen({ user, coupleId }) {
   const [cameraStatus, setCameraStatus] = useState('requesting');
   const [cameraError, setCameraError] = useState('');
   const [cameraStream, setCameraStream] = useState(null);
-  const [menuAnchor, setMenuAnchor] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
   const [toast, setToast] = useState('');
   const [profiles, setProfiles] = useState({});
   const [photos, setPhotos] = useState([]);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
   const [isCameraInView, setIsCameraInView] = useState(true);
   const [pendingScrollPhotoId, setPendingScrollPhotoId] = useState(null);
+  const [activeView, setActiveView] = useState('home');
+  const [facingMode, setFacingMode] = useState('environment');
+  const [flashEnabled, setFlashEnabled] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const fileRef = useRef(null);
+  const profileFileRef = useRef(null);
   const videoRef = useRef(null);
   const feedRef = useRef(null);
   const cameraSlideRef = useRef(null);
   const cameraStreamRef = useRef(null);
+  const requestVersionRef = useRef(0);
   const lastPhotoTimestampRef = useRef(null);
   const lastLikeTimestampRef = useRef(null);
 
@@ -97,15 +170,16 @@ export default function MainScreen({ user, coupleId }) {
   const partnerUid = coupleData?.users?.find(uid => uid !== user.uid);
   const myProfile = profiles[user.uid];
   const partnerProfile = partnerUid ? profiles[partnerUid] : null;
-  const displayName = myProfile?.displayName || user.email.split('@')[0];
+  const displayName = myProfile?.displayName || user.displayName || user.email.split('@')[0];
   const partnerName = partnerProfile?.displayName || 'your person';
-  const showMenu = Boolean(menuAnchor);
+  const profilePic = myProfile?.profilePic || user.photoURL || '';
   const captureDisabled = uploading;
+  const activeIndex = views.indexOf(activeView);
 
-  const showToast = (message, duration = 2500) => {
+  const showToast = useCallback((message, duration = 2500) => {
     setToast(message);
-    setTimeout(() => setToast(''), duration);
-  };
+    window.setTimeout(() => setToast(''), duration);
+  }, []);
 
   const scrollToCamera = useCallback((behavior = 'smooth') => {
     feedRef.current?.scrollTo({ top: 0, behavior });
@@ -114,13 +188,9 @@ export default function MainScreen({ user, coupleId }) {
   const scrollToPhoto = useCallback((photoId, behavior = 'smooth') => {
     if (!photoId) return false;
     const feed = feedRef.current;
-    const target = feedRef.current?.querySelector(`[data-photo-id="${photoId}"]`);
+    const target = feed?.querySelector(`[data-photo-id="${photoId}"]`);
     if (!feed || !target) return false;
-    const slideIndex = Array.from(feed.querySelectorAll('.reels-slide')).indexOf(target);
-    const top = slideIndex >= 0
-      ? slideIndex * feed.clientHeight
-      : target.getBoundingClientRect().top - feed.getBoundingClientRect().top + feed.scrollTop;
-    feed.scrollTo({ top, behavior });
+    feed.scrollTo({ top: target.offsetTop, behavior });
     return true;
   }, []);
 
@@ -134,14 +204,17 @@ export default function MainScreen({ user, coupleId }) {
     const visibleTop = Math.max(feedRect.top, cameraRect.top);
     const visibleBottom = Math.min(feedRect.bottom, cameraRect.bottom);
     const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-    return visibleHeight / Math.max(cameraRect.height, 1) >= 0.6;
+    return visibleHeight / Math.max(cameraRect.height, 1) >= 0.58;
   }, [isCameraInView]);
 
   const stopCameraStream = useCallback((stream) => {
     stream?.getTracks().forEach((track) => track.stop());
   }, []);
 
-  const requestCamera = useCallback(async () => {
+  const requestCamera = useCallback(async (mode = facingMode) => {
+    const requestVersion = requestVersionRef.current + 1;
+    requestVersionRef.current = requestVersion;
+
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraStatus('unavailable');
       setCameraError('Camera is not available in this browser.');
@@ -151,11 +224,22 @@ export default function MainScreen({ user, coupleId }) {
     setCameraStatus('requesting');
     setCameraError('');
 
+    const timeout = new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error('Camera request timed out.')), 10000);
+    });
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false
-      });
+      const stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: mode } },
+          audio: false
+        }),
+        timeout
+      ]);
+      if (requestVersion !== requestVersionRef.current) {
+        stopCameraStream(stream);
+        return;
+      }
       setCameraStream((previous) => {
         stopCameraStream(previous);
         cameraStreamRef.current = stream;
@@ -163,11 +247,19 @@ export default function MainScreen({ user, coupleId }) {
       });
       setCameraStatus('ready');
     } catch (err) {
+      if (requestVersion !== requestVersionRef.current) return;
       const denied = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
+      const timedOut = err?.message === 'Camera request timed out.';
       setCameraStatus(denied ? 'denied' : 'error');
-      setCameraError(denied ? 'Camera access was blocked.' : 'Camera could not start.');
+      setCameraError(
+        denied
+          ? 'Camera access was blocked.'
+          : timedOut
+            ? 'Check the browser camera prompt, or try again.'
+            : 'Camera could not start.'
+      );
     }
-  }, [stopCameraStream]);
+  }, [facingMode, stopCameraStream]);
 
   useEffect(() => {
     if (!coupleId) return;
@@ -178,8 +270,7 @@ export default function MainScreen({ user, coupleId }) {
 
         if (data.senderId && data.senderId !== user.uid && data.timestamp) {
           if (lastPhotoTimestampRef.current && data.timestamp !== lastPhotoTimestampRef.current) {
-            setToast('New photo from your person');
-            setTimeout(() => setToast(''), 3000);
+            showToast('New photo from your person');
           }
           lastPhotoTimestampRef.current = data.timestamp;
         } else if (data.timestamp) {
@@ -188,8 +279,7 @@ export default function MainScreen({ user, coupleId }) {
 
         if (data.lastLike && data.lastLike.userId !== user.uid && data.lastLike.timestamp) {
           if (lastLikeTimestampRef.current && data.lastLike.timestamp !== lastLikeTimestampRef.current) {
-            setToast('Your photo was liked');
-            setTimeout(() => setToast(''), 3000);
+            showToast('Your photo was liked');
           }
           lastLikeTimestampRef.current = data.lastLike.timestamp;
         } else if (data.lastLike?.timestamp) {
@@ -198,16 +288,16 @@ export default function MainScreen({ user, coupleId }) {
       }
     });
     return () => unsub();
-  }, [coupleId, user.uid]);
+  }, [coupleId, user.uid, showToast]);
 
   useEffect(() => {
-    requestCamera();
+    requestCamera(facingMode);
 
     return () => {
       stopCameraStream(cameraStreamRef.current);
       cameraStreamRef.current = null;
     };
-  }, [requestCamera, stopCameraStream]);
+  }, [requestCamera, facingMode, stopCameraStream]);
 
   useEffect(() => {
     const feed = feedRef.current;
@@ -215,13 +305,13 @@ export default function MainScreen({ user, coupleId }) {
     if (!feed || !cameraSlide) return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => setIsCameraInView(entry.isIntersecting && entry.intersectionRatio >= 0.6),
-      { root: feed, threshold: [0, 0.6, 1] }
+      ([entry]) => setIsCameraInView(entry.isIntersecting && entry.intersectionRatio >= 0.58),
+      { root: feed, threshold: [0, 0.58, 1] }
     );
 
     observer.observe(cameraSlide);
     return () => observer.disconnect();
-  }, [showHistory]);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -270,7 +360,7 @@ export default function MainScreen({ user, coupleId }) {
       orderBy('timestamp', 'desc')
     );
     const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const items = snap.docs.map(photoDoc => ({ id: photoDoc.id, ...photoDoc.data() }));
       setPhotos(items);
       setLoadingPhotos(false);
     }, () => {
@@ -280,12 +370,16 @@ export default function MainScreen({ user, coupleId }) {
   }, [coupleId]);
 
   useLayoutEffect(() => {
-    if (!pendingScrollPhotoId || photos.length === 0 || showHistory) return;
+    if (!pendingScrollPhotoId || photos.length === 0 || activeView !== 'home') return;
 
     if (scrollToPhoto(pendingScrollPhotoId, 'auto')) {
       setPendingScrollPhotoId(null);
     }
-  }, [pendingScrollPhotoId, photos, scrollToPhoto, showHistory]);
+  }, [pendingScrollPhotoId, photos, scrollToPhoto, activeView]);
+
+  useEffect(() => {
+    if (activeView !== 'home') setToast('');
+  }, [activeView]);
 
   useEffect(() => {
     if (!coupleId || !photoUrl || loadingPhotos || photos.length > 0) return;
@@ -293,7 +387,7 @@ export default function MainScreen({ user, coupleId }) {
     const seedPhoto = async () => {
       try {
         await addDoc(collection(db, 'couples', coupleId, 'photos'), {
-          photoUrl: photoUrl,
+          photoUrl,
           senderId: coupleData?.senderId || user.uid,
           timestamp: coupleData?.timestamp || new Date().toISOString(),
           liked: coupleData?.liked || false
@@ -305,18 +399,34 @@ export default function MainScreen({ user, coupleId }) {
     seedPhoto();
   }, [coupleId, photoUrl, loadingPhotos, photos.length, coupleData, user.uid]);
 
-  const handleUploadClick = () => {
-    fileRef.current?.click();
-  };
-
-  const handleOpenHistory = () => {
-    setMenuAnchor(null);
-    setShowHistory(true);
-  };
-
-  const handleSelectHistoryPhoto = (photoId) => {
-    setPendingScrollPhotoId(photoId);
-    setShowHistory(false);
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX = 1200;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = (h / w) * MAX; w = MAX; }
+            else { w = (w / h) * MAX; h = MAX; }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Unable to compress image'));
+          }, 'image/jpeg', 0.85);
+        };
+        img.onerror = () => reject(new Error('Unable to read image'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Unable to read image'));
+      reader.readAsDataURL(file);
+    });
   };
 
   const uploadPhotoBlob = async (blob) => {
@@ -343,6 +453,7 @@ export default function MainScreen({ user, coupleId }) {
 
     const createdPhotoId = photoRef?.id || photoRef?._id;
     if (createdPhotoId) {
+      setActiveView('home');
       setPendingScrollPhotoId(createdPhotoId);
       const scrollToCreatedPhoto = () => {
         if (scrollToPhoto(createdPhotoId, 'auto')) {
@@ -350,8 +461,8 @@ export default function MainScreen({ user, coupleId }) {
         }
       };
       requestAnimationFrame(scrollToCreatedPhoto);
-      setTimeout(scrollToCreatedPhoto, 250);
-      setTimeout(scrollToCreatedPhoto, 800);
+      window.setTimeout(scrollToCreatedPhoto, 250);
+      window.setTimeout(scrollToCreatedPhoto, 800);
     }
   };
 
@@ -425,33 +536,46 @@ export default function MainScreen({ user, coupleId }) {
     }
   };
 
-  const compressImage = (file) => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX = 1200;
-          let w = img.width, h = img.height;
-          if (w > MAX || h > MAX) {
-            if (w > h) { h = (h / w) * MAX; w = MAX; }
-            else { w = (w / h) * MAX; h = MAX; }
-          }
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
+  const handleProfilePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const compressed = await compressImage(file);
+      const storageRef = ref(storage, `users/${user.uid}/profile-${Date.now()}.jpg`);
+      await uploadBytes(storageRef, compressed);
+      const url = await getDownloadURL(storageRef);
+      await updateDoc(doc(db, 'users', user.uid), { profilePic: url });
+      showToast('Profile photo updated');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to update profile photo', 3000);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
+  const handleRemoveProfilePhoto = async () => {
+    await updateDoc(doc(db, 'users', user.uid), { profilePic: '' });
+    showToast('Profile photo removed');
+  };
+
+  const handleSelectHistoryPhoto = (photoId) => {
+    setToast('');
+    setPendingScrollPhotoId(photoId);
+    setActiveView('home');
+  };
+
+  const handleSwitchCamera = () => {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    requestCamera(nextMode);
+  };
+
+  const handleToggleFlash = () => {
+    setFlashEnabled((current) => !current);
+    showToast('Flash toggle is a device placeholder for now', 1800);
   };
 
   const handleLikePhoto = async (photo) => {
@@ -481,6 +605,10 @@ export default function MainScreen({ user, coupleId }) {
     }
   };
 
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
   const timeAgo = (date) => {
     if (!date) return '';
     const diff = (Date.now() - date.getTime()) / 1000;
@@ -490,82 +618,46 @@ export default function MainScreen({ user, coupleId }) {
     return date.toLocaleDateString();
   };
 
+  const goToView = (view) => {
+    if (view === 'home' && activeView === 'home' && !isCameraInView) {
+      scrollToCamera();
+      return;
+    }
+    setActiveView(view);
+  };
+
+  const handleDragEnd = (_event, info) => {
+    const offset = info.offset.x;
+    const velocity = info.velocity.x;
+    if (Math.abs(offset) < 70 && Math.abs(velocity) < 420) return;
+    const direction = offset < 0 ? 1 : -1;
+    const nextIndex = Math.min(Math.max(activeIndex + direction, 0), views.length - 1);
+    setActiveView(views[nextIndex]);
+  };
+
   return (
-    <div className="app-shell">
-      {showHistory ? (
-        <Suspense fallback={null}>
+    <div className="app-shell auth-shell">
+      <motion.div
+        className="view-track"
+        animate={{ x: `-${activeIndex * 100}%` }}
+        transition={{ type: 'spring', stiffness: 280, damping: 32 }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.08}
+        onDragEnd={handleDragEnd}
+      >
+        <section className="shell-view">
           <HistoryScreen
             user={user}
             coupleId={coupleId}
-            onClose={() => setShowHistory(false)}
             onSelectPhoto={handleSelectHistoryPhoto}
           />
-        </Suspense>
-      ) : (
-        <>
-          <header className="app-header">
-            <button
-              className="icon-btn"
-              type="button"
-              aria-label="Profile"
-              aria-expanded={menuAnchor === 'profile'}
-              onClick={() => setMenuAnchor(menuAnchor === 'profile' ? null : 'profile')}
-            >
-              <UserIcon />
-            </button>
-            <div className="header-title">
-              <strong>Locket</strong>
-              <span>{partnerUid ? `With ${partnerName}` : displayName}</span>
-            </div>
-            <button
-              id="main-menu-btn"
-              className="icon-btn"
-              type="button"
-              aria-label="Open menu"
-              aria-expanded={menuAnchor === 'menu'}
-              onClick={() => setMenuAnchor(menuAnchor === 'menu' ? null : 'menu')}
-            >
-              <MenuIcon />
-            </button>
-          </header>
+        </section>
 
-          <AnimatePresence>
-            {showMenu && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                  className={`menu-popover ${menuAnchor === 'profile' ? 'from-profile' : 'from-menu'}`}
-                >
-                  <div className="profile-row">
-                    <img
-                      className="avatar"
-                      src={myProfile?.profilePic || `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`}
-                      alt=""
-                    />
-                    <div>
-                      <strong>{displayName}</strong>
-                      <span>{user.email}</span>
-                    </div>
-                  </div>
-                  <button id="main-logout-btn" className="menu-action" type="button" onClick={handleLogout}>
-                    <LogoutIcon />
-                    Sign out
-                  </button>
-                </motion.div>
-                <div
-                  aria-hidden="true"
-                  onClick={() => setMenuAnchor(null)}
-                  style={{ position: 'fixed', inset: 0, zIndex: 50 }}
-                />
-              </>
-            )}
-          </AnimatePresence>
-
+        <section className="shell-view home-screen" aria-label="Home">
           <main className="camera-stage">
             <div className="reels-feed" ref={feedRef}>
-              <div className="reels-slide" ref={cameraSlideRef}>
+              <div className="reels-slide camera-reels-slide" ref={cameraSlideRef}>
                 <motion.article
                   className={`camera-frame camera-live ${cameraStatus !== 'ready' ? 'empty' : ''}`}
                   initial={{ opacity: 0, scale: 0.96 }}
@@ -591,7 +683,7 @@ export default function MainScreen({ user, coupleId }) {
                         <>
                           <strong>{cameraStatus === 'denied' ? 'Camera blocked' : 'Camera unavailable'}</strong>
                           <span>{cameraError || 'Use upload for now, or try camera again.'}</span>
-                          <button className="camera-retry-btn" type="button" onClick={requestCamera}>
+                          <button className="camera-retry-btn" type="button" onClick={() => requestCamera(facingMode)}>
                             Try again
                           </button>
                         </>
@@ -599,6 +691,46 @@ export default function MainScreen({ user, coupleId }) {
                     </div>
                   )}
                 </motion.article>
+
+                <div className="camera-item-controls" aria-label="Camera controls">
+                  <button
+                    className={`camera-tool-btn ${flashEnabled ? 'active' : ''}`}
+                    type="button"
+                    aria-label="Toggle flash"
+                    aria-pressed={flashEnabled}
+                    onClick={handleToggleFlash}
+                  >
+                    <FlashIcon />
+                  </button>
+                  <motion.button
+                    id="main-capture-btn"
+                    className="shutter-btn"
+                    type="button"
+                    aria-label="Capture photo"
+                    onClick={handleCapture}
+                    disabled={captureDisabled}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    {uploading && <div className="spinner" />}
+                  </motion.button>
+                  <button
+                    className="camera-tool-btn"
+                    type="button"
+                    aria-label="Switch camera"
+                    onClick={handleSwitchCamera}
+                  >
+                    <SwitchCameraIcon />
+                  </button>
+                  <button
+                    className="camera-tool-btn"
+                    type="button"
+                    aria-label="Upload photo"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <PhotoIcon />
+                  </button>
+                </div>
               </div>
 
               {loadingPhotos ? (
@@ -661,50 +793,109 @@ export default function MainScreen({ user, coupleId }) {
                 </div>
               )}
             </div>
-
           </main>
+        </section>
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
+        <section className="shell-view">
+          <ProfileView
+            displayName={displayName}
+            email={user.email}
+            profilePic={profilePic}
+            uploading={uploading}
+            onPickPhoto={() => profileFileRef.current?.click()}
+            onRemovePhoto={handleRemoveProfilePhoto}
+            onRequestLogout={() => {
+              setToast('');
+              setConfirmLogout(true);
+            }}
+            onDeletePlaceholder={() => showToast('Account deletion is not available yet')}
           />
+        </section>
+      </motion.div>
 
-          <div className="bottom-controls">
-            <button
-              className="icon-btn"
-              type="button"
-              aria-label="Open history"
-              onClick={handleOpenHistory}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+      <input
+        ref={profileFileRef}
+        type="file"
+        accept="image/*"
+        onChange={handleProfilePhotoChange}
+        style={{ display: 'none' }}
+      />
+
+      <nav className="bottom-nav" aria-label="Primary">
+        <button
+          className={`nav-item ${activeView === 'history' ? 'active' : ''}`}
+          type="button"
+          aria-label="History"
+          aria-current={activeView === 'history' ? 'page' : undefined}
+          onClick={() => goToView('history')}
+        >
+          <GridIcon />
+        </button>
+        <button
+          className={`nav-item home-nav-item ${activeView === 'home' ? 'active' : ''}`}
+          type="button"
+          aria-label={activeView === 'home' && !isCameraInView ? 'Scroll to camera' : 'Home'}
+          aria-current={activeView === 'home' ? 'page' : undefined}
+          onClick={() => goToView('home')}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {isCameraInView ? (
+              <motion.span key="home" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
+                <HomeIcon />
+              </motion.span>
+            ) : (
+              <motion.span key="shutter" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
+                <MiniShutterIcon />
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </button>
+        <button
+          className={`nav-item ${activeView === 'profile' ? 'active' : ''}`}
+          type="button"
+          aria-label="Profile"
+          aria-current={activeView === 'profile' ? 'page' : undefined}
+          onClick={() => goToView('profile')}
+        >
+          <UserIcon />
+        </button>
+      </nav>
+
+      <AnimatePresence>
+        {confirmLogout && (
+          <motion.div
+            className="confirm-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="presentation"
+          >
+            <motion.div
+              className="confirm-sheet"
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="logout-title"
             >
-              <GridIcon />
-            </button>
-            <motion.button
-              id="main-capture-btn"
-              className="shutter-btn"
-              type="button"
-              aria-label="Capture photo"
-              onClick={handleCapture}
-              disabled={captureDisabled}
-              whileTap={{ scale: 0.9 }}
-            >
-              {uploading && <div className="spinner" />}
-            </motion.button>
-            <button
-              className="icon-btn upload-btn"
-              type="button"
-              aria-label="Upload photo"
-              onClick={handleUploadClick}
-              disabled={uploading}
-            >
-              <PhotoIcon />
-            </button>
-          </div>
-        </>
-      )}
+              <h2 id="logout-title">Log out?</h2>
+              <p>You will need to sign in with Google again to use Locket.</p>
+              <div className="confirm-actions">
+                <button className="btn-ghost" type="button" onClick={() => setConfirmLogout(false)}>Cancel</button>
+                <button className="btn-primary danger" type="button" onClick={handleLogout}>Log out</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {toast && (
@@ -719,5 +910,66 @@ export default function MainScreen({ user, coupleId }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function ProfileView({
+  displayName,
+  email,
+  profilePic,
+  uploading,
+  onPickPhoto,
+  onRemovePhoto,
+  onRequestLogout,
+  onDeletePlaceholder
+}) {
+  return (
+    <section className="profile-screen" aria-label="Profile">
+      <div className="profile-hero">
+        <Avatar src={profilePic} name={displayName} email={email} size="lg" />
+        <h1>{displayName}</h1>
+        <p>{email}</p>
+        <div className="google-chip">
+          <GoogleIcon />
+          Google account
+        </div>
+      </div>
+
+      <div className="profile-actions-row">
+        <button className="btn-ghost" type="button" onClick={onPickPhoto} disabled={uploading}>Change photo</button>
+        <button className="btn-ghost" type="button" onClick={onRemovePhoto} disabled={uploading || !profilePic}>Remove</button>
+      </div>
+
+      <div className="profile-info-list">
+        <div className="profile-info-row">
+          <span>Username</span>
+          <strong>{displayName}</strong>
+        </div>
+        <div className="profile-info-row">
+          <span>Email</span>
+          <strong>{email}</strong>
+        </div>
+        <div className="profile-info-row">
+          <span>Sign-in</span>
+          <strong>Google</strong>
+        </div>
+      </div>
+
+      <div className="profile-link-row">
+        <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Notice</a>
+        <a href="#terms" onClick={(e) => e.preventDefault()}>Terms of Use</a>
+      </div>
+
+      <div className="profile-danger-zone">
+        <button className="menu-action profile-menu-action" type="button" onClick={onRequestLogout}>
+          <LogoutIcon />
+          Log out
+        </button>
+        <button className="menu-action profile-menu-action delete" type="button" onClick={onDeletePlaceholder}>
+          <TrashIcon />
+          Delete account
+        </button>
+      </div>
+    </section>
   );
 }

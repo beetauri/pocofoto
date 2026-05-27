@@ -2,15 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { db, collection, query, orderBy, onSnapshot } from '../firebase';
 
-function BackIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  );
-}
-
-export default function HistoryScreen({ user, coupleId, onClose, onSelectPhoto }) {
+export default function HistoryScreen({ user, coupleId, onSelectPhoto }) {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,15 +28,13 @@ export default function HistoryScreen({ user, coupleId, onClose, onSelectPhoto }
   return (
     <motion.section
       className="history-screen"
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 24 }}
+      exit={{ opacity: 0, y: 12 }}
       transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
     >
       <header className="history-header">
-        <button className="icon-btn small" type="button" aria-label="Close history" onClick={onClose}>
-          <BackIcon />
-        </button>
+        <div />
         <h2>History</h2>
         <div />
       </header>

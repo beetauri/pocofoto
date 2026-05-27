@@ -87,7 +87,14 @@ export function createUserWithEmailAndPassword(_a, email, password) {
     const uid = genId();
     users[uid] = { uid, email, password };
     putStore('auth_users', users);
-    const user = { uid, email };
+    const name = email.split('@')[0].replace(/[._-]+/g, ' ');
+    const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+    const user = {
+      uid,
+      email,
+      displayName,
+      photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(email)}`
+    };
     setSession(user);
     resolve({ user });
   });
@@ -251,12 +258,9 @@ export class GoogleAuthProvider {
 }
 
 export function signInWithPopup(_authInstance, _provider) {
-  return new Promise((resolve, reject) => {
-    // Simulated prompt-based popup selection
-    const email = window.prompt("Simulated Google Account Selection\nEnter Google email to sign in:", "google-user@test.com");
-    if (!email) {
-      return reject({ code: 'auth/popup-closed-by-user', message: 'The popup was closed.' });
-    }
+  return new Promise((resolve) => {
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('mockEmail') || localStorage.getItem(PREFIX + 'mock_google_email') || 'google-user@test.com';
     
     // Check or create mock user auth
     const authUsers = getStore('auth_users');
@@ -271,7 +275,14 @@ export function signInWithPopup(_authInstance, _provider) {
       putStore('auth_users', authUsers);
     }
     
-    const user = { uid, email };
+    const name = email.split('@')[0].replace(/[._-]+/g, ' ');
+    const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+    const user = {
+      uid,
+      email,
+      displayName,
+      photoURL: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(email)}`
+    };
     setSession(user);
     
     resolve({
