@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db, doc, setDoc, getDoc, GoogleAuthProvider, signInWithPopup } from '../firebase';
 
-const USE_MOCK_GOOGLE = import.meta.env.DEV && import.meta.env.VITE_USE_REAL_FIREBASE !== 'true';
-
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
   animate: { opacity: 1, y: 0 },
@@ -25,18 +23,11 @@ function GoogleIcon() {
 export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mockEmail, setMockEmail] = useState(() => {
-    if (!USE_MOCK_GOOGLE) return '';
-    return localStorage.getItem('locket_mock_google_email') || 'google-user@test.com';
-  });
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
     try {
-      if (USE_MOCK_GOOGLE) {
-        localStorage.setItem('locket_mock_google_email', mockEmail.trim() || 'google-user@test.com');
-      }
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       const userSnap = await getDoc(doc(db, 'users', cred.user.uid));
@@ -88,20 +79,6 @@ export default function AuthScreen() {
             </motion.p>
           )}
         </AnimatePresence>
-
-        {USE_MOCK_GOOGLE && (
-          <div className="mock-google-field">
-            <label htmlFor="mock-google-email">Mock Google account</label>
-            <input
-              id="mock-google-email"
-              className="input-field"
-              type="email"
-              value={mockEmail}
-              onChange={(e) => setMockEmail(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
-        )}
 
         <motion.button
           id="auth-google"

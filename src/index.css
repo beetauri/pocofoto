@@ -1143,19 +1143,6 @@ button {
   text-align: center;
 }
 
-.mock-google-field {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.mock-google-field label {
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 850;
-  text-align: left;
-}
-
 .invite-code-card {
   margin-bottom: 16px;
   padding: 30px 22px;

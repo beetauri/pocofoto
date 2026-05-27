@@ -7,6 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "lint": "eslint .",
+    "emulators": "sh -c 'if [ -d .firebase-emulator-data ]; then firebase emulators:start --project demo-locket-local --import .firebase-emulator-data --export-on-exit .firebase-emulator-data; else firebase emulators:start --project demo-locket-local --export-on-exit .firebase-emulator-data; fi'",
+    "emulators:fresh": "firebase emulators:start --project demo-locket-local",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "firebase-tools": "^15.19.0",
     "globals": "^17.6.0",
     "vite": "^8.0.12"
   }
