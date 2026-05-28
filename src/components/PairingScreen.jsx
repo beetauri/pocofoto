@@ -1,17 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db, auth, doc, setDoc, getDoc, updateDoc, onSnapshot, signOut } from '../firebase';
+import {
+  auth,
+  db,
+  functions,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  signOut,
+  httpsCallable
+} from '../firebase';
 
 const fadeUp = {
-  initial: { opacity: 0, y: 24 },
+  initial: { opacity: 0, y: 18 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.34, ease: [0.4, 0, 0.2, 1] }
+  transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] }
 };
 
-function BackIcon() {
+function initialsFor(name, email) {
+  const source = name || email || '?';
+  return source
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || '?';
+}
+
+function Avatar({ src, name, email }) {
+  const [failed, setFailed] = useState(false);
+  if (src && !failed) {
+    return <img className="contact-avatar" src={src} alt="" onError={() => setFailed(true)} />;
+  }
+  return <div className="contact-avatar initials">{initialsFor(name, email)}</div>;
+}
+
+function ContactIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m15 18-6-6 6-6" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 11a4 4 0 1 0-8 0" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+      <path d="M19 3v4" />
+      <path d="M21 5h-4" />
     </svg>
   );
 }
@@ -25,6 +56,16 @@ function LinkIcon() {
   );
 }
 
+function LogoutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  );
+}
+
 function CopyIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -34,297 +75,351 @@ function CopyIcon() {
   );
 }
 
-function UserIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20 21a8 8 0 0 0-16 0" />
-      <circle cx="12" cy="8" r="4" />
-    </svg>
-  );
-}
-
-function MenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
-      <path d="M5 7h14" />
-      <path d="M5 12h14" />
-      <path d="M5 17h14" />
-    </svg>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <path d="m16 17 5-5-5-5" />
-      <path d="M21 12H9" />
-    </svg>
-  );
-}
-
-function generateCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+function parseError(err, fallback = 'Something went wrong. Please try again.') {
+  const raw = err?.message || err?.code || fallback;
+  return raw.replace(/^Firebase: /, '').replace(/\.$/, '.');
 }
 
 export default function PairingScreen({ user, onPaired }) {
-  const [mode, setMode] = useState(null);
-  const [code, setCode] = useState('');
-  const [inputCode, setInputCode] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [workingId, setWorkingId] = useState('');
   const [error, setError] = useState('');
-  const [waiting, setWaiting] = useState(false);
-  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [notice, setNotice] = useState('');
+  const [incoming, setIncoming] = useState([]);
+  const [outgoing, setOutgoing] = useState(null);
+  const [codePanel, setCodePanel] = useState(false);
+  const [pairingCode, setPairingCode] = useState('');
+  const [inputCode, setInputCode] = useState('');
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
-  const displayName = user.email.split('@')[0];
-  const showMenu = Boolean(menuAnchor);
+  const displayName = user.displayName || user.email?.split('@')[0] || 'You';
+  const hasPendingOutgoing = Boolean(outgoing);
 
-  const handleCreate = async () => {
-    setLoading(true);
+  const callFunction = useCallback((name, payload = {}) => {
+    return httpsCallable(functions, name)(payload).then((result) => result.data);
+  }, []);
+
+  const loadContacts = useCallback(async () => {
+    setLoadingContacts(true);
     setError('');
     try {
-      const newCode = generateCode();
-      await setDoc(doc(db, 'invites', newCode), {
-        creatorId: user.uid,
-        creatorEmail: user.email,
-        createdAt: new Date().toISOString(),
-        used: false
-      });
-      setCode(newCode);
-      setMode('create');
-      setWaiting(true);
+      const data = await callFunction('listEligibleContacts');
+      setContacts(data.contacts || []);
     } catch (err) {
-      console.error(err);
-      setError('Failed to create invite');
+      setError(parseError(err, 'Could not load contacts.'));
     } finally {
-      setLoading(false);
+      setLoadingContacts(false);
     }
-  };
+  }, [callFunction]);
 
   useEffect(() => {
-    if (!waiting || !code) return;
+    loadContacts();
+  }, [loadContacts]);
 
-    const unsub = onSnapshot(doc(db, 'invites', code), (snap) => {
-      const data = snap.data();
-      if (data?.used && data?.coupleId) {
-        onPaired(data.coupleId);
-      }
+  useEffect(() => {
+    const q = query(
+      collection(db, 'pairingRequests'),
+      where('recipientId', '==', user.uid),
+      where('status', '==', 'pending')
+    );
+    return onSnapshot(q, (snap) => {
+      setIncoming(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
+  }, [user.uid]);
 
-    return () => unsub();
-  }, [waiting, code, onPaired]);
+  useEffect(() => {
+    const q = query(
+      collection(db, 'pairingRequests'),
+      where('senderId', '==', user.uid),
+      where('status', '==', 'pending')
+    );
+    return onSnapshot(q, (snap) => {
+      const requests = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setOutgoing(requests[0] || null);
+    });
+  }, [user.uid]);
 
-  const handleJoin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const sortedIncoming = useMemo(() => {
+    return [...incoming].sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || 0;
+      const bTime = b.createdAt?.toMillis?.() || 0;
+      return bTime - aTime;
+    });
+  }, [incoming]);
+
+  const handleSendRequest = async (contact) => {
+    setWorkingId(contact.uid);
     setError('');
-
+    setNotice('');
     try {
-      const trimmed = inputCode.trim().toUpperCase();
-      const inviteSnap = await getDoc(doc(db, 'invites', trimmed));
-
-      if (!inviteSnap.exists()) {
-        setError('Invalid code. Please try again.');
-        setLoading(false);
-        return;
-      }
-
-      const invite = inviteSnap.data();
-      if (invite.used) {
-        setError('This code has already been used.');
-        setLoading(false);
-        return;
-      }
-
-      if (invite.creatorId === user.uid) {
-        setError("You can't pair with yourself.");
-        setLoading(false);
-        return;
-      }
-
-      const coupleId = `${invite.creatorId}_${user.uid}`;
-      await setDoc(doc(db, 'couples', coupleId), {
-        users: [invite.creatorId, user.uid],
-        currentPhotoUrl: null,
-        senderId: null,
-        timestamp: null,
-        createdAt: new Date().toISOString()
-      });
-
-      await updateDoc(doc(db, 'users', invite.creatorId), { coupleId });
-      await updateDoc(doc(db, 'users', user.uid), { coupleId });
-      await updateDoc(doc(db, 'invites', trimmed), { used: true, coupleId });
-
-      onPaired(coupleId);
+      await callFunction('sendPairingRequest', { recipientId: contact.uid });
+      setNotice(`Pairing invite sent to ${contact.displayName}.`);
     } catch (err) {
-      console.error(err);
-      setError('Something went wrong. Please try again.');
+      setError(parseError(err, 'Could not send pairing invite.'));
     } finally {
-      setLoading(false);
+      setWorkingId('');
     }
   };
 
-  const copyCode = () => {
-    navigator.clipboard?.writeText(code);
+  const handleAccept = async (request) => {
+    setWorkingId(request.id);
+    setError('');
+    try {
+      const data = await callFunction('acceptPairingRequest', { requestId: request.id });
+      if (data.coupleId) onPaired(data.coupleId);
+    } catch (err) {
+      setError(parseError(err, 'Could not accept invite.'));
+    } finally {
+      setWorkingId('');
+    }
+  };
+
+  const handleDecline = async (request) => {
+    setWorkingId(request.id);
+    setError('');
+    try {
+      await callFunction('declinePairingRequest', { requestId: request.id });
+      setNotice('Invite declined');
+    } catch (err) {
+      setError(parseError(err, 'Could not decline invite.'));
+    } finally {
+      setWorkingId('');
+    }
+  };
+
+  const handleCancelOutgoing = async () => {
+    if (!outgoing) return;
+    setWorkingId('cancel');
+    setError('');
+    try {
+      await callFunction('cancelPairingRequest', { requestId: outgoing.id });
+      setNotice('Invite canceled');
+    } catch (err) {
+      setError(parseError(err, 'Could not cancel invite.'));
+    } finally {
+      setWorkingId('');
+    }
+  };
+
+  const handleCreateCode = async () => {
+    setWorkingId('create-code');
+    setError('');
+    setNotice('');
+    try {
+      const data = await callFunction('createPairingCode');
+      setPairingCode(data.code);
+    } catch (err) {
+      setError(parseError(err, 'Could not create pairing code.'));
+    } finally {
+      setWorkingId('');
+    }
+  };
+
+  const handleRedeemCode = async (event) => {
+    event.preventDefault();
+    setWorkingId('redeem-code');
+    setError('');
+    try {
+      const data = await callFunction('redeemPairingCode', { code: inputCode });
+      if (data.coupleId) onPaired(data.coupleId);
+    } catch (err) {
+      setError(parseError(err, 'Could not redeem pairing code.'));
+    } finally {
+      setWorkingId('');
+    }
+  };
+
+  const handleCopyCode = async () => {
+    await navigator.clipboard?.writeText(pairingCode);
+    setNotice('Code copied');
   };
 
   const handleLogout = async () => {
     await signOut(auth);
   };
 
-  const title = mode === 'join' ? 'Enter pairing code' : mode === 'create' ? 'Invite your person' : 'Connect on Pocofoto';
-  const subtitle = mode === 'join'
-    ? 'Paste or type the invite code from your person.'
-    : mode === 'create'
-      ? 'Send this code to link on Pocofoto.'
-      : 'Create an invite code or enter one you received.';
-
   return (
-    <div className="screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-      <header className="app-header pairing-header">
-        <button
-          className="icon-btn"
-          type="button"
-          aria-label="Profile"
-          aria-expanded={menuAnchor === 'profile'}
-          onClick={() => setMenuAnchor(menuAnchor === 'profile' ? null : 'profile')}
-        >
-          <UserIcon />
-        </button>
-        <div className="header-title">
-          <strong>Pocofoto</strong>
-          <span>{displayName}</span>
+    <div className="pairing-discovery screen">
+      <header className="pairing-topbar">
+        <div>
+          <span className="pairing-eyebrow">Signed in as</span>
+          <strong>{displayName}</strong>
         </div>
-        <button
-          className="icon-btn"
-          type="button"
-          aria-label="Open menu"
-          aria-expanded={menuAnchor === 'menu'}
-          onClick={() => setMenuAnchor(menuAnchor === 'menu' ? null : 'menu')}
-        >
-          <MenuIcon />
+        <button className="icon-btn small" type="button" aria-label="Log out" onClick={() => setConfirmLogout(true)}>
+          <LogoutIcon />
         </button>
       </header>
 
-      <AnimatePresence>
-        {showMenu && (
-          <>
-            <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              className={`menu-popover ${menuAnchor === 'profile' ? 'from-profile' : 'from-menu'}`}
-            >
-              <div className="profile-row">
-                <img
-                  className="avatar"
-                  src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`}
-                  alt=""
-                />
-                <div>
-                  <strong>{displayName}</strong>
-                  <span>{user.email}</span>
-                </div>
-              </div>
-              <button className="menu-action" type="button" onClick={handleLogout}>
-                <LogoutIcon />
-                Sign out
-              </button>
-            </motion.div>
-            <div
-              aria-hidden="true"
-              onClick={() => setMenuAnchor(null)}
-              style={{ position: 'fixed', inset: 0, zIndex: 50 }}
-            />
-          </>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {mode && (
-          <motion.button
-            className="icon-btn small"
-            type="button"
-            aria-label="Back"
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -8 }}
-            onClick={() => { setMode(null); setError(''); }}
-            style={{ position: 'absolute', top: 'calc(var(--safe-top) + 92px)', left: 20, zIndex: 10 }}
-          >
-            <BackIcon />
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      <motion.div {...fadeUp} className="pairing-card" style={{ textAlign: 'center' }}>
-        <div className="brand-lockup" style={{ marginBottom: 34 }}>
-          <div className="brand-mark">
-            <LinkIcon />
+      <motion.main {...fadeUp} className="pairing-panel">
+        <section className="pairing-hero">
+          <div className="brand-mark"><ContactIcon /></div>
+          <div>
+            <h1>Find your person</h1>
+            <p>Contacts who already use Pocofoto and are available to pair appear here.</p>
           </div>
-          <h2 style={{ color: 'var(--text-primary)', fontSize: 28, fontWeight: 900, lineHeight: 1.1 }}>
-            {title}
-          </h2>
-          <p className="pairing-subtitle" style={{ marginTop: 10 }}>
-            {subtitle}
-          </p>
+        </section>
+
+        <AnimatePresence>
+          {error && (
+            <motion.p className="error-text" role="alert" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              {error}
+            </motion.p>
+          )}
+          {notice && (
+            <motion.p className="success-text" role="status" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              {notice}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        {sortedIncoming.length > 0 && (
+          <section className="request-stack" aria-label="Incoming pairing requests">
+            <h2>Pairing invites</h2>
+            {sortedIncoming.map((request) => (
+              <article className="request-card" key={request.id}>
+                <Avatar src={request.sender?.profilePic} name={request.sender?.displayName} email={request.sender?.email} />
+                <div>
+                  <strong>{request.sender?.displayName || 'Someone'}</strong>
+                  <span>wants to pair with you</span>
+                </div>
+                <div className="request-actions">
+                  <button className="mini-btn ghost" type="button" onClick={() => handleDecline(request)} disabled={workingId === request.id}>
+                    Decline
+                  </button>
+                  <button className="mini-btn" type="button" onClick={() => handleAccept(request)} disabled={workingId === request.id}>
+                    Accept
+                  </button>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+
+        {outgoing && (
+          <section className="pending-card" aria-label="Outgoing pairing request">
+            <div>
+              <strong>Invite pending</strong>
+              <span>{outgoing.recipient?.displayName || 'Your contact'} has 24 hours to respond.</span>
+            </div>
+            <button className="mini-btn ghost" type="button" onClick={handleCancelOutgoing} disabled={workingId === 'cancel'}>
+              Cancel
+            </button>
+          </section>
+        )}
+
+        <div className="section-heading">
+          <div>
+            <h2>Available contacts</h2>
+            <p>Send an invite to someone who already has Pocofoto.</p>
+          </div>
         </div>
 
-        {!mode && (
-          <div className="form-stack">
-            <button id="pairing-create" className="btn-primary" type="button" onClick={handleCreate} disabled={loading}>
-              {loading ? <div className="spinner" /> : 'Create Invite Code'}
-            </button>
-            <button id="pairing-join-toggle" className="btn-ghost" type="button" onClick={() => setMode('join')}>
-              I have a code
-            </button>
+        {loadingContacts ? (
+          <div className="contact-empty">
+            <div className="spinner" />
+            <span>Loading contacts</span>
+          </div>
+        ) : contacts.length === 0 ? (
+          <div className="contact-empty">
+            <LinkIcon />
+            <strong>No available contacts yet</strong>
+            <span>Use a pairing code if your person is not showing up.</span>
+          </div>
+        ) : (
+          <div className="contact-list">
+            {contacts.map((contact) => (
+              <article className="contact-row" key={contact.uid}>
+                <Avatar src={contact.profilePic} name={contact.displayName} email={contact.email} />
+                <div className="contact-copy">
+                  <strong>{contact.displayName}</strong>
+                  <span>{contact.email}</span>
+                </div>
+                <button
+                  className="mini-btn"
+                  type="button"
+                  onClick={() => handleSendRequest(contact)}
+                  disabled={hasPendingOutgoing || workingId === contact.uid}
+                >
+                  {workingId === contact.uid ? 'Sending' : 'Pair'}
+                </button>
+              </article>
+            ))}
           </div>
         )}
 
-        {mode === 'create' && (
-          <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}>
-            <div className="invite-code-card">
-              <p>Your invite code</p>
-              <strong>{code}</strong>
+        <section className="code-fallback">
+          <div className="code-fallback-intro">
+            <div>
+              <h2>Pair with a code</h2>
+              <p>Use this when your person is not listed in contacts.</p>
             </div>
-            <button className="btn-ghost" type="button" onClick={copyCode} style={{ gap: 10, marginBottom: 18 }}>
-              <CopyIcon />
-              Copy Code
+            <button id="pairing-join-toggle" className="btn-ghost code-toggle" type="button" onClick={() => setCodePanel((value) => !value)} aria-expanded={codePanel}>
+              <LinkIcon />
+              {codePanel ? 'Hide' : 'Pair with code'}
             </button>
-            <p className="pairing-subtitle">Waiting for your person to enter this code.</p>
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
-              <div className="spinner" />
-            </div>
+          </div>
+          <AnimatePresence>
+            {codePanel && (
+              <motion.div className="code-panel" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                <div className="code-option-card">
+                  <div className="code-option-copy">
+                    <strong>Share your code</strong>
+                    <span>Create a one-time code and send it to your person.</span>
+                  </div>
+                  <button id="pairing-create" className="btn-primary" type="button" onClick={handleCreateCode} disabled={workingId === 'create-code'}>
+                    {workingId === 'create-code' ? <div className="spinner" /> : 'Create code'}
+                  </button>
+                  {pairingCode && (
+                    <div className="invite-code-card">
+                      <p>Give them this code</p>
+                      <strong>{pairingCode}</strong>
+                      <button className="btn-ghost" type="button" onClick={handleCopyCode}>
+                        <CopyIcon />
+                        Copy code
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <form className="code-option-card code-entry-form" onSubmit={handleRedeemCode}>
+                  <div className="code-option-copy">
+                    <label htmlFor="pairing-code-input">Enter their code</label>
+                    <span>Type the six characters they shared with you.</span>
+                  </div>
+                  <input
+                    id="pairing-code-input"
+                    className="input-field"
+                    type="text"
+                    placeholder="ABC123"
+                    value={inputCode}
+                    onChange={(event) => setInputCode(event.target.value.toUpperCase())}
+                    maxLength={6}
+                    style={{ textAlign: 'center', letterSpacing: 6, fontSize: 22, fontWeight: 900 }}
+                  />
+                  <button id="pairing-join-submit" className="btn-primary" type="submit" disabled={workingId === 'redeem-code' || inputCode.length < 6}>
+                    {workingId === 'redeem-code' ? <div className="spinner" /> : 'Connect'}
+                  </button>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+      </motion.main>
+
+      <AnimatePresence>
+        {confirmLogout && (
+          <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-title" initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}>
+              <h2 id="logout-title">Log out?</h2>
+              <p>You will need to sign in again to pair or share photos.</p>
+              <div className="dialog-actions">
+                <button className="btn-ghost" type="button" onClick={() => setConfirmLogout(false)}>Cancel</button>
+                <button className="btn-primary" type="button" onClick={handleLogout}>Log out</button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
-
-        {mode === 'join' && (
-          <motion.form
-            className="form-stack"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            onSubmit={handleJoin}
-          >
-            <input
-              id="pairing-code-input"
-              className="input-field"
-              type="text"
-              placeholder="ABC123"
-              value={inputCode}
-              onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-              maxLength={6}
-              style={{ textAlign: 'center', letterSpacing: 6, fontSize: 22, fontWeight: 900 }}
-              autoFocus
-            />
-            {error && (
-              <p className="error-text" role="alert">{error}</p>
-            )}
-            <button id="pairing-join-submit" type="submit" className="btn-primary" disabled={loading || inputCode.length < 6}>
-              {loading ? <div className="spinner" /> : 'Connect'}
-            </button>
-          </motion.form>
-        )}
-      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

@@ -283,6 +283,7 @@ button {
 }
 
 .btn-ghost {
+  gap: 4px;
   border: 1px solid var(--glass-border);
   background: var(--bg-control);
   color: var(--text-primary);
@@ -1201,6 +1202,407 @@ button {
   font-size: 36px;
   font-weight: 900;
   letter-spacing: 7px;
+}
+
+.pairing-discovery {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 440px;
+  margin: 0 auto;
+  padding-inline: 20px;
+}
+
+.pairing-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 4px 0 18px;
+}
+
+.pairing-topbar div {
+  min-width: 0;
+}
+
+.pairing-topbar strong,
+.pairing-topbar span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pairing-topbar strong {
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.pairing-eyebrow {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.pairing-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  padding-bottom: 22px;
+}
+
+.pairing-hero {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 0 8px;
+}
+
+.pairing-hero .brand-mark {
+  width: 66px;
+  height: 66px;
+  margin: 0;
+  border-radius: 22px;
+}
+
+.pairing-hero .brand-mark svg {
+  width: 34px;
+  height: 34px;
+}
+
+.pairing-hero h1 {
+  color: var(--text-primary);
+  font-size: 30px;
+  font-weight: 950;
+  line-height: 1.02;
+}
+
+.pairing-hero p {
+  margin-top: 7px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.36;
+}
+
+.success-text {
+  color: #70e29f;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-heading div {
+  min-width: 0;
+}
+
+.section-heading h2,
+.request-stack h2 {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.section-heading p {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.mini-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  transition: transform 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+
+.mini-btn {
+  min-width: 70px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: var(--btn-text);
+}
+
+.mini-btn.ghost {
+  border: 1px solid var(--border);
+  background: var(--bg-control);
+  color: var(--text-primary);
+}
+
+.mini-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.contact-list,
+.request-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.contact-row,
+.request-card,
+.pending-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-card);
+}
+
+.contact-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border: 2px solid rgba(157, 170, 255, 0.68);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #30334b, #1f1f1f);
+  color: #fff;
+  object-fit: cover;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.contact-avatar.initials {
+  letter-spacing: 0;
+}
+
+.contact-copy,
+.request-card > div,
+.pending-card > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.contact-copy strong,
+.contact-copy span,
+.request-card strong,
+.request-card span,
+.pending-card strong,
+.pending-card span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-copy strong,
+.request-card strong,
+.pending-card strong {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.contact-copy span,
+.request-card span,
+.pending-card span {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.request-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.pending-card {
+  background: rgba(157, 170, 255, 0.1);
+  border-color: rgba(157, 170, 255, 0.24);
+}
+
+.contact-empty {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 160px;
+  padding: 28px 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.contact-empty svg {
+  width: 34px;
+  height: 34px;
+  color: var(--text-primary);
+}
+
+.contact-empty strong {
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.contact-empty span {
+  max-width: 260px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.36;
+}
+
+.code-fallback {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.code-fallback-intro {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.code-fallback-intro h2 {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.code-fallback-intro p,
+.code-option-copy span {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.code-toggle {
+  width: auto;
+  min-height: 42px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.code-panel {
+  display: grid;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.code-option-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-card);
+}
+
+.code-option-copy strong,
+.code-option-copy label {
+  display: block;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.code-option-card .btn-primary {
+  min-height: 48px;
+}
+
+.code-panel .invite-code-card {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 0;
+  padding: 22px;
+}
+
+.code-panel .invite-code-card .btn-ghost {
+  min-height: 46px;
+}
+
+.confirm-dialog {
+  width: min(100% - 40px, 390px);
+  padding: 22px;
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
+  background: rgba(24, 24, 25, 0.98);
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.5);
+}
+
+.confirm-dialog h2 {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.confirm-dialog p {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.38;
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+@media (max-width: 390px) {
+  .code-fallback-intro {
+    grid-template-columns: 1fr;
+  }
+
+  .code-toggle {
+    width: 100%;
+  }
+
+  .request-card {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .request-actions {
+    width: 100%;
+  }
+
+  .request-actions .mini-btn {
+    flex: 1;
+  }
 }
 
 @media (max-height: 720px) {
