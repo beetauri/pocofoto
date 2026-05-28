@@ -164,6 +164,18 @@ export default function MainScreen({ user, coupleId }) {
   const requestVersionRef = useRef(0);
   const lastPhotoTimestampRef = useRef(null);
   const lastLikeTimestampRef = useRef(null);
+  const swipeRef = useRef({
+    axis: null,
+    currentX: 0,
+    currentY: 0,
+    input: null,
+    pointerId: null,
+    startIndex: 1,
+    startTime: 0,
+    startX: 0,
+    startY: 0,
+    tracking: false
+  });
 
   const photoUrl = coupleData?.currentPhotoUrl;
   const partnerUid = coupleData?.users?.find(uid => uid !== user.uid);
@@ -607,13 +619,117 @@ export default function MainScreen({ user, coupleId }) {
     setActiveView(view);
   };
 
-  const handlePanEnd = (_event, info) => {
-    const offset = info.offset.x;
-    const velocity = info.velocity.x;
-    if (Math.abs(offset) < 70 && Math.abs(velocity) < 420) return;
-    const direction = offset < 0 ? 1 : -1;
-    const nextIndex = Math.min(Math.max(activeIndex + direction, 0), views.length - 1);
+  const resetSwipe = () => {
+    swipeRef.current.tracking = false;
+    swipeRef.current.axis = null;
+    swipeRef.current.input = null;
+    swipeRef.current.pointerId = null;
+  };
+
+  const beginSwipe = (input, x, y, pointerId = null) => {
+    swipeRef.current = {
+      axis: null,
+      currentX: x,
+      currentY: y,
+      input,
+      pointerId,
+      startIndex: activeIndex,
+      startTime: performance.now(),
+      startX: x,
+      startY: y,
+      tracking: true
+    };
+  };
+
+  const updateSwipe = (x, y) => {
+    const swipe = swipeRef.current;
+    if (!swipe.tracking) return null;
+
+    swipe.currentX = x;
+    swipe.currentY = y;
+
+    const dx = x - swipe.startX;
+    const dy = y - swipe.startY;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    if (!swipe.axis && Math.max(absX, absY) > 8) {
+      swipe.axis = absX > absY * 1.25 ? 'horizontal' : 'vertical';
+    }
+
+    return swipe.axis;
+  };
+
+  const finishSwipe = (x = swipeRef.current.currentX) => {
+    const swipe = swipeRef.current;
+    if (!swipe.tracking) return null;
+
+    const dx = x - swipe.startX;
+    const elapsed = Math.max(performance.now() - swipe.startTime, 1);
+    const velocity = dx / elapsed;
+
+    if (swipe.axis !== 'horizontal') {
+      resetSwipe();
+      return null;
+    }
+
+    const shouldSwitch = Math.abs(dx) >= 70 || Math.abs(velocity) >= 0.55;
+    if (!shouldSwitch) {
+      resetSwipe();
+      return null;
+    }
+
+    const direction = dx < 0 ? 1 : -1;
+    const nextIndex = Math.min(Math.max(swipe.startIndex + direction, 0), views.length - 1);
     setActiveView(views[nextIndex]);
+    resetSwipe();
+    return nextIndex;
+  };
+
+  const handleSwipeTouchStart = (event) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    beginSwipe('touch', touch.clientX, touch.clientY);
+  };
+
+  const handleSwipeTouchMove = (event) => {
+    if (event.touches.length !== 1 || swipeRef.current.input !== 'touch') return;
+    const touch = event.touches[0];
+    if (updateSwipe(touch.clientX, touch.clientY) === 'horizontal') {
+      event.preventDefault();
+    }
+  };
+
+  const handleSwipeTouchEnd = (event) => {
+    if (swipeRef.current.input !== 'touch') return;
+    const touch = event.changedTouches[0];
+    const nextIndex = finishSwipe(touch?.clientX);
+    if (nextIndex !== null) {
+      event.preventDefault();
+    }
+  };
+
+  const handleSwipePointerDown = (event) => {
+    if (!event.isPrimary || event.pointerType === 'touch' || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    beginSwipe('pointer', event.clientX, event.clientY, event.pointerId);
+  };
+
+  const handleSwipePointerMove = (event) => {
+    const swipe = swipeRef.current;
+    if (swipe.input !== 'pointer' || !swipe.tracking || event.pointerId !== swipe.pointerId) return;
+    if (updateSwipe(event.clientX, event.clientY) === 'horizontal') {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    }
+  };
+
+  const handleSwipePointerUp = (event) => {
+    const swipe = swipeRef.current;
+    if (swipe.input !== 'pointer' || !swipe.tracking || event.pointerId !== swipe.pointerId) return;
+    const nextIndex = finishSwipe(event.clientX);
+    if (nextIndex !== null) {
+      event.preventDefault();
+    }
   };
 
   return (
@@ -622,7 +738,14 @@ export default function MainScreen({ user, coupleId }) {
         className="view-track"
         animate={{ x: `-${activeIndex * 100}%` }}
         transition={{ type: 'spring', stiffness: 280, damping: 32 }}
-        onPanEnd={handlePanEnd}
+        onPointerDown={handleSwipePointerDown}
+        onPointerMove={handleSwipePointerMove}
+        onPointerUp={handleSwipePointerUp}
+        onPointerCancel={resetSwipe}
+        onTouchStart={handleSwipeTouchStart}
+        onTouchMove={handleSwipeTouchMove}
+        onTouchEnd={handleSwipeTouchEnd}
+        onTouchCancel={resetSwipe}
       >
         <section className="shell-view">
           <HistoryScreen
