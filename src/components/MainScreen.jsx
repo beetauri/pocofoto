@@ -156,7 +156,6 @@ export default function MainScreen({ user, coupleId }) {
   const [facingMode, setFacingMode] = useState('environment');
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const fileRef = useRef(null);
   const profileFileRef = useRef(null);
   const videoRef = useRef(null);
   const feedRef = useRef(null);
@@ -518,24 +517,6 @@ export default function MainScreen({ user, coupleId }) {
     }
   };
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-
-    try {
-      const compressed = await compressImage(file);
-      await uploadPhotoBlob(compressed);
-      showToast('Photo sent');
-    } catch (err) {
-      console.error(err);
-      showToast('Failed to upload photo', 3000);
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
-  };
-
   const handleProfilePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -682,7 +663,7 @@ export default function MainScreen({ user, coupleId }) {
                       ) : (
                         <>
                           <strong>{cameraStatus === 'denied' ? 'Camera blocked' : 'Camera unavailable'}</strong>
-                          <span>{cameraError || 'Use upload for now, or try camera again.'}</span>
+                          <span>{cameraError || 'Check camera access, then try again.'}</span>
                           <button className="camera-retry-btn" type="button" onClick={() => requestCamera(facingMode)}>
                             Try again
                           </button>
@@ -720,15 +701,6 @@ export default function MainScreen({ user, coupleId }) {
                     onClick={handleSwitchCamera}
                   >
                     <SwitchCameraIcon />
-                  </button>
-                  <button
-                    className="camera-tool-btn"
-                    type="button"
-                    aria-label="Upload photo"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                  >
-                    <PhotoIcon />
                   </button>
                 </div>
               </div>
@@ -813,13 +785,6 @@ export default function MainScreen({ user, coupleId }) {
         </section>
       </motion.div>
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        style={{ display: 'none' }}
-      />
       <input
         ref={profileFileRef}
         type="file"
