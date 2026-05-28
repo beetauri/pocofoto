@@ -725,7 +725,7 @@ export default function MainScreen({ user, coupleId }) {
                         initial={{ opacity: 0, scale: 0.96 }}
                         animate={{ opacity: 1, scale: 1 }}
                       >
-                        <img src={photo.photoUrl} alt="Shared moment" loading="eager" />
+                        <img src={photo.photoUrl} alt="Shared moment" loading="eager" draggable={false} />
                         <div className="photo-gradient">
                           <div className="photo-meta">
                             <strong>{isPhotoMine ? 'You' : senderName}</strong>

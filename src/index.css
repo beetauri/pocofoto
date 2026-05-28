@@ -105,6 +105,11 @@ button {
   will-change: transform;
 }
 
+.view-track img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 .shell-view {
   position: relative;
   flex: 0 0 100%;

@@ -63,7 +63,7 @@ export default function HistoryScreen({ user, coupleId, onSelectPhoto }) {
               onClick={() => onSelectPhoto?.(photo.id)}
               aria-label="Open photo"
             >
-              <img src={photo.photoUrl} alt="" />
+              <img src={photo.photoUrl} alt="" draggable={false} />
               {photo.senderId === user.uid && (
                 <span className="history-badge">You</span>
               )}
