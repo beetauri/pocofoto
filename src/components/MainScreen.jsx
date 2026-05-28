@@ -607,7 +607,7 @@ export default function MainScreen({ user, coupleId }) {
     setActiveView(view);
   };
 
-  const handleDragEnd = (_event, info) => {
+  const handlePanEnd = (_event, info) => {
     const offset = info.offset.x;
     const velocity = info.velocity.x;
     if (Math.abs(offset) < 70 && Math.abs(velocity) < 420) return;
@@ -622,10 +622,7 @@ export default function MainScreen({ user, coupleId }) {
         className="view-track"
         animate={{ x: `-${activeIndex * 100}%` }}
         transition={{ type: 'spring', stiffness: 280, damping: 32 }}
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.08}
-        onDragEnd={handleDragEnd}
+        onPanEnd={handlePanEnd}
       >
         <section className="shell-view">
           <HistoryScreen
