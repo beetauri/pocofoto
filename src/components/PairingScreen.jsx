@@ -172,11 +172,11 @@ export default function PairingScreen({ user, onPaired }) {
     await signOut(auth);
   };
 
-  const title = mode === 'join' ? 'Enter pairing code' : mode === 'create' ? 'Invite your person' : 'Connect your Lockets';
+  const title = mode === 'join' ? 'Enter pairing code' : mode === 'create' ? 'Invite your person' : 'Connect on Pocofoto';
   const subtitle = mode === 'join'
     ? 'Paste or type the invite code from your person.'
     : mode === 'create'
-      ? 'Send this code to link your Lockets.'
+      ? 'Send this code to link on Pocofoto.'
       : 'Create an invite code or enter one you received.';
 
   return (
@@ -192,7 +192,7 @@ export default function PairingScreen({ user, onPaired }) {
           <UserIcon />
         </button>
         <div className="header-title">
-          <strong>Locket</strong>
+          <strong>Pocofoto</strong>
           <span>{displayName}</span>
         </div>
         <button

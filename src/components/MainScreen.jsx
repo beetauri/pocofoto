@@ -972,7 +972,7 @@ export default function MainScreen({ user, coupleId }) {
               aria-labelledby="logout-title"
             >
               <h2 id="logout-title">Log out?</h2>
-              <p>You will need to sign in with Google again to use Locket.</p>
+              <p>You will need to sign in with Google again to use Pocofoto.</p>
               <div className="confirm-actions">
                 <button className="btn-ghost" type="button" onClick={() => setConfirmLogout(false)}>Cancel</button>
                 <button className="btn-primary danger" type="button" onClick={handleLogout}>Log out</button>

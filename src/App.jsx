@@ -29,11 +29,11 @@ function LoadingScreen() {
       <motion.div
         animate={{ scale: [1, 1.2, 1], rotate: [0, 360] }}
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        style={{ fontSize: 48 }}
+        className="loading-logo-mark"
       >
-        💛
+        <img src="/pocofoto-icon.svg" alt="" />
       </motion.div>
-      <span className="logo-text" style={{ fontSize: 28 }}>Locket</span>
+      <span className="logo-text" style={{ fontSize: 28 }}>Pocofoto</span>
       <div className="spinner" style={{ marginTop: 8 }} />
     </div>
   );

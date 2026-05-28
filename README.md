@@ -1,4 +1,4 @@
-# Locket App
+# Pocofoto App
 
 Mobile-first photo sharing app built with React, Vite, Firebase Auth, Firestore, and Storage.
 

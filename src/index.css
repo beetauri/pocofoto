@@ -5,9 +5,9 @@
   --bg-card-soft: #1f1f1f;
   --bg-control: #2a2a2c;
   --bg-control-hover: #353538;
-  --accent: #ffbf00;
-  --accent-hover: #ffd24a;
-  --accent-glow: rgba(255, 191, 0, 0.34);
+  --accent: #9DAAFF;
+  --accent-hover: #B7C1FF;
+  --accent-glow: rgba(157, 170, 255, 0.34);
   --danger: #ff5a5f;
   --text-primary: #f8f8f8;
   --text-secondary: rgba(255, 255, 255, 0.72);
@@ -168,6 +168,18 @@ button {
   letter-spacing: 0;
 }
 
+.loading-logo-mark {
+  width: 64px;
+  height: 64px;
+}
+
+.loading-logo-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -244,7 +256,7 @@ button {
 .btn-primary {
   background: var(--accent);
   color: var(--btn-text);
-  box-shadow: 0 12px 34px rgba(255, 191, 0, 0.24);
+  box-shadow: 0 12px 34px rgba(157, 170, 255, 0.24);
 }
 
 .btn-primary:hover {
@@ -294,9 +306,9 @@ button {
 }
 
 .input-field:focus {
-  border-color: rgba(255, 191, 0, 0.68);
+  border-color: rgba(157, 170, 255, 0.68);
   background: #1b1b1b;
-  box-shadow: 0 0 0 4px rgba(255, 191, 0, 0.12);
+  box-shadow: 0 0 0 4px rgba(157, 170, 255, 0.12);
 }
 
 .spinner {
@@ -816,7 +828,7 @@ button {
   overflow-y: auto;
   padding: calc(var(--safe-top) + 22px) 24px calc(var(--safe-bottom) + 138px);
   background:
-    radial-gradient(circle at 50% 0%, rgba(255, 191, 0, 0.1), transparent 25%),
+    radial-gradient(circle at 50% 0%, rgba(157, 170, 255, 0.1), transparent 25%),
     var(--bg-primary);
 }
 
@@ -832,9 +844,9 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid rgba(255, 191, 0, 0.8);
+  border: 3px solid rgba(157, 170, 255, 0.8);
   border-radius: 50%;
-  background: linear-gradient(145deg, #3a332a, #1f1f1f);
+  background: linear-gradient(145deg, #30334b, #1f1f1f);
   color: #fff;
   object-fit: cover;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.26);
@@ -1081,14 +1093,21 @@ button {
   margin-bottom: 14px;
   border-radius: 26px;
   background: var(--accent);
-  color: #7a5600;
+  color: #1c2144;
   font-size: 40px;
-  box-shadow: 0 16px 48px rgba(255, 191, 0, 0.2);
+  box-shadow: 0 16px 48px rgba(157, 170, 255, 0.2);
 }
 
 .brand-mark svg {
   width: 42px;
   height: 42px;
+}
+
+.brand-mark img {
+  display: block;
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
 }
 
 .brand-lockup p,
