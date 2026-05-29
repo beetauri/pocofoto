@@ -31,6 +31,17 @@ import {
   getDownloadURL as realGetDownloadURL,
   connectStorageEmulator
 } from 'firebase/storage';
+import {
+  getFunctions,
+  httpsCallable as realHttpsCallable,
+  connectFunctionsEmulator
+} from 'firebase/functions';
+import {
+  getMessaging,
+  getToken as realGetToken,
+  isSupported as realMessagingIsSupported,
+  onMessage as realOnMessage
+} from 'firebase/messaging';
 
 const USE_FIREBASE_EMULATORS = import.meta.env.DEV
   && import.meta.env.VITE_USE_REAL_FIREBASE !== 'true'
@@ -53,12 +64,14 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const functions = getFunctions(app);
 
 if (USE_FIREBASE_EMULATORS) {
   const emulatorState = globalThis.__LOCKET_FIREBASE_EMULATORS__ || {
     auth: false,
     firestore: false,
-    storage: false
+    storage: false,
+    functions: false
   };
 
   if (!emulatorState.auth) {
@@ -74,6 +87,11 @@ if (USE_FIREBASE_EMULATORS) {
   if (!emulatorState.storage) {
     connectStorageEmulator(storage, '127.0.0.1', 9199);
     emulatorState.storage = true;
+  }
+
+  if (!emulatorState.functions) {
+    connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+    emulatorState.functions = true;
   }
 
   globalThis.__LOCKET_FIREBASE_EMULATORS__ = emulatorState;
@@ -101,9 +119,22 @@ const orderBy = realOrderBy;
 const ref = realRef;
 const uploadBytes = realUploadBytes;
 const getDownloadURL = realGetDownloadURL;
+const httpsCallable = (_functionsInst, name) => realHttpsCallable(functions, name);
+const messagingIsSupported = realMessagingIsSupported;
+const getMessagingToken = async (options) => {
+  const supported = await realMessagingIsSupported();
+  if (!supported) return null;
+  return realGetToken(getMessaging(app), options);
+};
+const onForegroundMessage = async (handler) => {
+  const supported = await realMessagingIsSupported();
+  if (!supported) return () => {};
+  return realOnMessage(getMessaging(app), handler);
+};
 
 export {
-  auth, db, storage,
+  app, auth, db, storage, functions,
+  USE_FIREBASE_EMULATORS,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -113,4 +144,8 @@ export {
   doc, setDoc, getDoc, updateDoc, onSnapshot,
   collection, query, where, getDocs, addDoc, orderBy,
   ref, uploadBytes, getDownloadURL,
+  httpsCallable,
+  messagingIsSupported,
+  getMessagingToken,
+  onForegroundMessage,
 };

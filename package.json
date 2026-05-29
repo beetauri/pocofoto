@@ -7,6 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "lint": "eslint .",
+    "lint:functions": "npm --prefix functions run lint",
     "emulators": "sh -c 'if [ -d .firebase-emulator-data ]; then firebase emulators:start --project demo-locket-local --import .firebase-emulator-data --export-on-exit .firebase-emulator-data; else firebase emulators:start --project demo-locket-local --export-on-exit .firebase-emulator-data; fi'",
     "emulators:fresh": "firebase emulators:start --project demo-locket-local",
     "preview": "vite preview"

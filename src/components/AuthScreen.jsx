@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { auth, db, doc, setDoc, getDoc, GoogleAuthProvider, signInWithPopup } from '../firebase';
+import {
+  auth,
+  db,
+  doc,
+  setDoc,
+  getDoc,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  functions,
+  httpsCallable,
+  USE_FIREBASE_EMULATORS
+} from '../firebase';
+import { requestAndRegisterPushToken } from '../pushNotifications';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -29,19 +42,45 @@ export default function AuthScreen() {
     setError('');
     try {
       const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/contacts.readonly');
+      provider.setCustomParameters({ prompt: 'consent' });
       const cred = await signInWithPopup(auth, provider);
+      const oauthCredential = GoogleAuthProvider.credentialFromResult(cred);
+      const accessToken = oauthCredential?.accessToken;
+      if (!accessToken) {
+        throw new Error('Google Contacts permission is required to finish signup.');
+      }
+
       const userSnap = await getDoc(doc(db, 'users', cred.user.uid));
-      if (!userSnap.exists()) {
-        await setDoc(doc(db, 'users', cred.user.uid), {
-          email: cred.user.email,
-          displayName: cred.user.displayName || cred.user.email.split('@')[0],
-          profilePic: cred.user.photoURL || '',
-          provider: 'google',
-          coupleId: null,
-          createdAt: new Date().toISOString()
-        });
+      const normalizedEmail = cred.user.email?.trim().toLowerCase() || '';
+      await setDoc(doc(db, 'users', cred.user.uid), {
+        email: cred.user.email,
+        normalizedEmail,
+        displayName: cred.user.displayName || cred.user.email.split('@')[0],
+        profilePic: cred.user.photoURL || '',
+        provider: 'google',
+        coupleId: userSnap.exists() ? (userSnap.data().coupleId || null) : null,
+        createdAt: userSnap.exists() ? (userSnap.data().createdAt || new Date().toISOString()) : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const mockContacts = USE_FIREBASE_EMULATORS
+        ? [
+            { email: 'alice@example.com', displayName: 'Alice Example' },
+            { email: 'bob@example.com', displayName: 'Bob Example' }
+          ].filter((contact) => contact.email !== normalizedEmail)
+        : undefined;
+      await httpsCallable(functions, 'importGoogleContacts')({ accessToken, mockContacts });
+
+      try {
+        await requestAndRegisterPushToken();
+      } catch (pushErr) {
+        console.warn('Push registration skipped.', pushErr);
       }
     } catch (err) {
+      if (auth.currentUser) {
+        await signOut(auth);
+      }
       if (err.code !== 'auth/popup-closed-by-user') {
         const msg = err.code?.replace('auth/', '').replace(/-/g, ' ') || err.message || 'Google sign-in failed';
         setError(msg.charAt(0).toUpperCase() + msg.slice(1));
