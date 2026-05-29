@@ -18,8 +18,8 @@ messaging.onBackgroundMessage((payload) => {
   const title = payload.notification?.title || 'Pocofoto';
   const options = {
     body: payload.notification?.body || 'You have a new update.',
-    icon: '/pocofoto-192.png',
-    badge: '/pocofoto-192.png',
+    icon: '/pocoface-192.png',
+    badge: '/pocoface-192.png',
     data: payload.data || {}
   };
 

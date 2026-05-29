@@ -23,7 +23,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'pocofoto-icon.svg', 'pocofoto-192.png', 'pocofoto-512.png'],
+      includeAssets: ['pocofoto-logotype.svg', 'pocoface-icon-1024.png', 'pocoface-192.png', 'pocoface-512.png'],
       manifest: {
         name: 'Pocofoto — Photo Sharing for Two',
         short_name: 'Pocofoto',
@@ -36,17 +36,17 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'pocofoto-192.png',
+            src: 'pocoface-192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'pocofoto-512.png',
+            src: 'pocoface-512.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: 'pocofoto-512.png',
+            src: 'pocoface-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

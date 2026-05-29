@@ -31,9 +31,9 @@ function LoadingScreen() {
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         className="loading-logo-mark"
       >
-        <img src="/pocofoto-icon.svg" alt="" />
+        <img src="/pocoface-icon-1024.png" alt="" />
       </motion.div>
-      <span className="logo-text" style={{ fontSize: 28 }}>Pocofoto</span>
+      <img className="logo-lockup-image loading-logotype" src="/pocofoto-logotype.svg" alt="Pocofoto" />
       <div className="spinner" style={{ marginTop: 8 }} />
     </div>
   );

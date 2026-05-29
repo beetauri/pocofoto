@@ -99,9 +99,9 @@ export default function AuthScreen() {
             animate={{ scale: [1, 1.04, 1] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <img src="/pocofoto-icon.svg" alt="" />
+            <img src="/pocoface-icon-1024.png" alt="" />
           </motion.div>
-          <h1 className="logo-text">Pocofoto</h1>
+          <img className="logo-lockup-image" src="/pocofoto-logotype.svg" alt="Pocofoto" />
           <p>Share photos with your person.</p>
         </div>
 
