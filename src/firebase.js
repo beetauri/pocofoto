@@ -58,7 +58,8 @@ const firebaseConfig = {
   projectId,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '386325909807',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:386325909807:web:f1d5f429e41f637bd751da'
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:386325909807:web:f1d5f429e41f637bd751da',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-7RS2MJ6VPT'
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
