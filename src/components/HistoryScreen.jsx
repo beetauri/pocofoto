@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { db, collection, query, orderBy, onSnapshot } from '../firebase';
+import { trackEvent } from '../analytics';
 
 export default function HistoryScreen({ user, coupleId, onSelectPhoto }) {
   const [photos, setPhotos] = useState([]);
@@ -60,7 +61,10 @@ export default function HistoryScreen({ user, coupleId, onSelectPhoto }) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.025 }}
               key={photo.id}
-              onClick={() => onSelectPhoto?.(photo.id)}
+              onClick={() => {
+                trackEvent('history_photo_opened', { photoId: photo.id });
+                onSelectPhoto?.(photo.id);
+              }}
               aria-label="Open photo"
             >
               <img src={photo.photoUrl} alt="" draggable={false} />

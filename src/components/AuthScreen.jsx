@@ -13,6 +13,7 @@ import {
   httpsCallable,
   USE_FIREBASE_EMULATORS
 } from '../firebase';
+import { identifyUser, trackEvent } from '../analytics';
 import { requestAndRegisterPushToken } from '../pushNotifications';
 
 const fadeUp = {
@@ -41,6 +42,7 @@ export default function AuthScreen() {
     setLoading(true);
     setError('');
     try {
+      trackEvent('signup_login_attempted', { provider: 'google' });
       const provider = new GoogleAuthProvider();
       provider.addScope('https://www.googleapis.com/auth/contacts.readonly');
       provider.setCustomParameters({ prompt: 'consent' });
@@ -63,6 +65,14 @@ export default function AuthScreen() {
         createdAt: userSnap.exists() ? (userSnap.data().createdAt || new Date().toISOString()) : new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
+      identifyUser(cred.user.uid, {
+        email: cred.user.email || '',
+        displayName: cred.user.displayName || ''
+      });
+      trackEvent('signup_login_succeeded', {
+        provider: 'google',
+        hasExistingProfile: userSnap.exists()
+      });
 
       const mockContacts = USE_FIREBASE_EMULATORS
         ? [
@@ -82,6 +92,10 @@ export default function AuthScreen() {
         await signOut(auth);
       }
       if (err.code !== 'auth/popup-closed-by-user') {
+        trackEvent('signup_login_failed', {
+          provider: 'google',
+          errorCode: err.code || 'unknown'
+        });
         const msg = err.code?.replace('auth/', '').replace(/-/g, ' ') || err.message || 'Google sign-in failed';
         setError(msg.charAt(0).toUpperCase() + msg.slice(1));
       }

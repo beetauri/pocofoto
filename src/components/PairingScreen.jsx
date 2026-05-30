@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   auth,
@@ -13,6 +13,7 @@ import {
   signOut,
   httpsCallable
 } from '../firebase';
+import { trackEvent } from '../analytics';
 
 const fadeUp = {
   initial: { opacity: 0, y: 18 },
@@ -97,6 +98,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
 
   const displayName = user.displayName || user.email?.split('@')[0] || 'You';
   const hasPendingOutgoing = Boolean(outgoing);
+  const trackedEntryRef = useRef(false);
 
   const callFunction = useCallback((name, payload = {}) => {
     return httpsCallable(functions, name)(payload).then((result) => result.data);
@@ -118,6 +120,12 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
   useEffect(() => {
     loadContacts();
   }, [loadContacts]);
+
+  useEffect(() => {
+    if (trackedEntryRef.current) return;
+    trackedEntryRef.current = true;
+    trackEvent('pairing_flow_entry', { userId: user.uid });
+  }, [user.uid]);
 
   useEffect(() => {
     if (!initialNotice) return;
@@ -183,6 +191,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
     setNotice('');
     try {
       await callFunction('sendPairingRequest', { recipientId: contact.uid });
+      trackEvent('pairing_request_sent', { recipientId: contact.uid });
       setNotice(`Pairing invite sent to ${contact.displayName}.`);
     } catch (err) {
       setError(parseError(err, 'Could not send pairing invite.'));
@@ -197,6 +206,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
     try {
       const data = await callFunction('acceptPairingRequest', { requestId: request.id });
       if (data.coupleId) onPaired(data.coupleId);
+      trackEvent('pairing_request_accepted', { requestId: request.id, coupleId: data.coupleId || null });
     } catch (err) {
       setError(parseError(err, 'Could not accept invite.'));
     } finally {
@@ -209,6 +219,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
     setError('');
     try {
       await callFunction('declinePairingRequest', { requestId: request.id });
+      trackEvent('pairing_request_declined', { requestId: request.id });
       setNotice('Invite declined');
     } catch (err) {
       setError(parseError(err, 'Could not decline invite.'));
@@ -223,6 +234,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
     setError('');
     try {
       await callFunction('cancelPairingRequest', { requestId: outgoing.id });
+      trackEvent('pairing_request_canceled', { requestId: outgoing.id });
       setNotice('Invite canceled');
     } catch (err) {
       setError(parseError(err, 'Could not cancel invite.'));
@@ -238,6 +250,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
     try {
       const data = await callFunction('createPairingCode');
       setPairingCode(data.code);
+      trackEvent('pairing_code_created');
     } catch (err) {
       setError(parseError(err, 'Could not create pairing code.'));
     } finally {
@@ -252,6 +265,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
     try {
       const data = await callFunction('redeemPairingCode', { code: inputCode });
       if (data.coupleId) onPaired(data.coupleId);
+      trackEvent('pairing_code_redeemed', { coupleId: data.coupleId || null });
     } catch (err) {
       setError(parseError(err, 'Could not redeem pairing code.'));
     } finally {

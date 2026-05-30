@@ -1,6 +1,7 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db, onAuthStateChanged, doc, onSnapshot } from './firebase';
+import { initAnalytics, trackEvent, identifyUser, resetAnalytics } from './analytics';
 import AuthScreen from './components/AuthScreen';
 import PairingScreen from './components/PairingScreen';
 import MainScreen from './components/MainScreen';
@@ -45,12 +46,23 @@ export default function App() {
   const [coupleId, setCoupleId] = useState(null);
   const [checkingPair, setCheckingPair] = useState(false);
   const [pairingNotice, setPairingNotice] = useState('');
+  const trackedAppOpen = useRef(false);
+
+  useEffect(() => {
+    initAnalytics();
+    if (!trackedAppOpen.current) {
+      trackEvent('app_open');
+      trackedAppOpen.current = true;
+    }
+  }, []);
 
   // Listen for auth changes
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       if (!firebaseUser) {
+        trackEvent('auth_signed_out');
+        resetAnalytics();
         setCoupleId(null);
         setPairingNotice('');
         setLoading(false);
@@ -62,6 +74,14 @@ export default function App() {
   // Check if user is paired
   useEffect(() => {
     if (!user) return;
+    identifyUser(user.uid, {
+      email: user.email || '',
+      displayName: user.displayName || ''
+    });
+    trackEvent('session_started', {
+      userId: user.uid,
+      hasCoupleId: Boolean(coupleId)
+    });
     setCheckingPair(true);
 
     const unsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
@@ -78,30 +98,35 @@ export default function App() {
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user, coupleId]);
 
   const handlePaired = (newCoupleId) => {
     setPairingNotice('');
     setCoupleId(newCoupleId);
+    trackEvent('pairing_completed', { coupleId: newCoupleId });
   };
 
   const handlePairingRemoved = (message = 'Pairing removed. You can pair again whenever you are ready.') => {
     setPairingNotice(message);
     setCoupleId(null);
+    trackEvent('pairing_removed');
   };
 
   const handleNoticeConsumed = useCallback(() => {
     setPairingNotice('');
   }, []);
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  // Determine screen
   let screen = 'auth';
   if (user && !coupleId && !checkingPair) screen = 'pairing';
   if (user && coupleId) screen = 'main';
+
+  useEffect(() => {
+    trackEvent('screen_view', { screen });
+  }, [screen]);
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <>

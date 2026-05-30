@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react
 import { motion, AnimatePresence } from 'framer-motion';
 import HistoryScreen from './HistoryScreen';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
+import { trackEvent } from '../analytics';
 
 const views = ['history', 'home', 'profile'];
 
@@ -385,6 +386,10 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   }, [activeView]);
 
   useEffect(() => {
+    trackEvent('main_view_changed', { view: activeView });
+  }, [activeView]);
+
+  useEffect(() => {
     if (!coupleId || !photoUrl || loadingPhotos || photos.length > 0) return;
 
     const seedPhoto = async () => {
@@ -455,6 +460,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     });
 
     const createdPhotoId = photoRef?.id || photoRef?._id;
+    trackEvent('photo_sent', { coupleId, photoId: createdPhotoId || null });
     if (createdPhotoId) {
       setActiveView('home');
       setPendingScrollPhotoId(createdPhotoId);
@@ -532,6 +538,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
       const url = await getDownloadURL(storageRef);
       await updateDoc(doc(db, 'users', user.uid), { profilePic: url });
       showToast('Profile photo updated');
+      trackEvent('profile_photo_updated');
     } catch (err) {
       console.error(err);
       showToast('Failed to update profile photo', 3000);
@@ -544,6 +551,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const handleRemoveProfilePhoto = async () => {
     await updateDoc(doc(db, 'users', user.uid), { profilePic: '' });
     showToast('Profile photo removed');
+    trackEvent('profile_photo_removed');
   };
 
   const handleSelectHistoryPhoto = (photoId) => {
@@ -556,6 +564,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     const nextMode = facingMode === 'environment' ? 'user' : 'environment';
     setFacingMode(nextMode);
     requestCamera(nextMode);
+    trackEvent('camera_switched', { facingMode: nextMode });
   };
 
   const handleToggleFlash = () => {
@@ -584,6 +593,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
 
       if (!isLiked) {
         showToast('Photo liked', 1500);
+        trackEvent('photo_liked', { photoId: photo.id });
       }
     } catch (err) {
       console.error(err);
@@ -601,6 +611,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
       await httpsCallable(functions, 'removePairing')();
       setConfirmRemovePairing(false);
       onPairingRemoved?.('Pairing removed. You can pair again whenever you are ready.');
+      trackEvent('pairing_remove_confirmed');
     } catch (err) {
       console.error('Failed to remove pairing:', err);
       const message = err?.message?.replace(/^Firebase: /, '') || 'Failed to remove pairing.';

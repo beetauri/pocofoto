@@ -42,6 +42,7 @@ import {
   isSupported as realMessagingIsSupported,
   onMessage as realOnMessage
 } from 'firebase/messaging';
+import { getAnalytics, isSupported as analyticsIsSupported } from 'firebase/analytics';
 
 const USE_FIREBASE_EMULATORS = import.meta.env.DEV
   && import.meta.env.VITE_USE_REAL_FIREBASE !== 'true'
@@ -61,6 +62,7 @@ const firebaseConfig = {
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const analytics = typeof window !== 'undefined' && await analyticsIsSupported() ? getAnalytics(app) : null;
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
@@ -133,7 +135,7 @@ const onForegroundMessage = async (handler) => {
 };
 
 export {
-  app, auth, db, storage, functions,
+  app, analytics, auth, db, storage, functions,
   USE_FIREBASE_EMULATORS,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
