@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db, onAuthStateChanged, doc, onSnapshot } from './firebase';
 import AuthScreen from './components/AuthScreen';
@@ -44,6 +44,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [coupleId, setCoupleId] = useState(null);
   const [checkingPair, setCheckingPair] = useState(false);
+  const [pairingNotice, setPairingNotice] = useState('');
 
   // Listen for auth changes
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function App() {
       setUser(firebaseUser);
       if (!firebaseUser) {
         setCoupleId(null);
+        setPairingNotice('');
         setLoading(false);
       }
     });
@@ -79,8 +81,18 @@ export default function App() {
   }, [user]);
 
   const handlePaired = (newCoupleId) => {
+    setPairingNotice('');
     setCoupleId(newCoupleId);
   };
+
+  const handlePairingRemoved = (message = 'Pairing removed. You can pair again whenever you are ready.') => {
+    setPairingNotice(message);
+    setCoupleId(null);
+  };
+
+  const handleNoticeConsumed = useCallback(() => {
+    setPairingNotice('');
+  }, []);
 
   if (loading) {
     return <LoadingScreen />;
@@ -101,12 +113,21 @@ export default function App() {
         )}
         {screen === 'pairing' && (
           <motion.div key="pairing" {...pageTransition} style={{ height: '100%' }}>
-            <PairingScreen user={user} onPaired={handlePaired} />
+            <PairingScreen
+              user={user}
+              onPaired={handlePaired}
+              initialNotice={pairingNotice}
+              onNoticeConsumed={handleNoticeConsumed}
+            />
           </motion.div>
         )}
         {screen === 'main' && (
           <motion.div key="main" {...pageTransition} style={{ height: '100%' }}>
-            <MainScreen user={user} coupleId={coupleId} />
+            <MainScreen
+              user={user}
+              coupleId={coupleId}
+              onPairingRemoved={handlePairingRemoved}
+            />
           </motion.div>
         )}
       </AnimatePresence>

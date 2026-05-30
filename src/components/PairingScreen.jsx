@@ -5,9 +5,11 @@ import {
   db,
   functions,
   collection,
+  doc,
   query,
   where,
   onSnapshot,
+  updateDoc,
   signOut,
   httpsCallable
 } from '../firebase';
@@ -80,7 +82,7 @@ function parseError(err, fallback = 'Something went wrong. Please try again.') {
   return raw.replace(/^Firebase: /, '').replace(/\.$/, '.');
 }
 
-export default function PairingScreen({ user, onPaired }) {
+export default function PairingScreen({ user, onPaired, initialNotice = '', onNoticeConsumed }) {
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [workingId, setWorkingId] = useState('');
@@ -116,6 +118,33 @@ export default function PairingScreen({ user, onPaired }) {
   useEffect(() => {
     loadContacts();
   }, [loadContacts]);
+
+  useEffect(() => {
+    if (!initialNotice) return;
+    setNotice(initialNotice);
+    onNoticeConsumed?.();
+  }, [initialNotice, onNoticeConsumed]);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'users', user.uid, 'notifications'),
+      where('type', '==', 'pairing_removed'),
+      where('status', '==', 'unread')
+    );
+    return onSnapshot(q, (snap) => {
+      const notification = snap.docs[0];
+      if (!notification) return;
+      const data = notification.data();
+      const initiatorName = data.initiator?.displayName || 'Your previous partner';
+      setNotice(`${initiatorName} removed the pairing. You can pair again whenever you are ready.`);
+      updateDoc(doc(db, 'users', user.uid, 'notifications', notification.id), {
+        status: 'resolved',
+        resolvedAt: new Date().toISOString()
+      }).catch((err) => {
+        console.warn('Could not resolve pairing removed notification.', err);
+      });
+    });
+  }, [user.uid]);
 
   useEffect(() => {
     const q = query(

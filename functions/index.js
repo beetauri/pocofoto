@@ -107,6 +107,33 @@ async function invalidatePendingRequestsForUsers(userIds, reason, skipRequestId 
   }
 }
 
+async function invalidateActiveCodesForUsers(userIds, reason) {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  const refs = new Map();
+
+  for (const uid of uniqueIds) {
+    const codeSnap = await db.collection('pairingCodes')
+      .where('creatorId', '==', uid)
+      .where('status', '==', 'active')
+      .get();
+    codeSnap.forEach((doc) => refs.set(doc.id, doc.ref));
+  }
+
+  const batch = db.batch();
+  let count = 0;
+  for (const ref of refs.values()) {
+    batch.update(ref, {
+      status: reason,
+      resolvedAt: FieldValue.serverTimestamp()
+    });
+    count += 1;
+  }
+
+  if (count > 0) {
+    await batch.commit();
+  }
+}
+
 async function notifyPairingRequest(requestRef, sender, recipientId) {
   const notificationRef = db
     .collection('users')
@@ -186,8 +213,70 @@ async function createCoupleForUsers(uidA, uidB, source) {
   });
 
   await invalidatePendingRequestsForUsers([uidA, uidB], 'canceled');
+  await invalidateActiveCodesForUsers([uidA, uidB], 'canceled');
   return coupleId;
 }
+
+export const removePairing = onCall(async (request) => {
+  const uid = requireUid(request);
+  const user = await getUser(uid);
+  const coupleId = user.coupleId;
+  if (!coupleId || typeof coupleId !== 'string') {
+    throw new HttpsError('failed-precondition', 'You are not currently paired.');
+  }
+
+  const coupleRef = db.doc(`couples/${coupleId}`);
+  let memberIds = [];
+
+  await db.runTransaction(async (transaction) => {
+    const coupleSnap = await transaction.get(coupleRef);
+    if (!coupleSnap.exists) {
+      throw new HttpsError('not-found', 'Pairing record not found.');
+    }
+
+    const couple = coupleSnap.data();
+    const users = Array.isArray(couple.users) ? couple.users : [];
+    if (!users.includes(uid)) {
+      throw new HttpsError('permission-denied', 'You are not a member of this pairing.');
+    }
+    memberIds = users;
+
+    const userRefs = users.map((memberUid) => db.doc(`users/${memberUid}`));
+    const userSnaps = await Promise.all(userRefs.map((ref) => transaction.get(ref)));
+    userSnaps.forEach((snap, index) => {
+      if (!snap.exists) return;
+      transaction.update(userRefs[index], {
+        coupleId: null,
+        lastUnpairedAt: FieldValue.serverTimestamp(),
+        lastUnpairedCoupleId: coupleId
+      });
+    });
+
+    transaction.update(coupleRef, {
+      status: 'archived',
+      archivedAt: FieldValue.serverTimestamp(),
+      archivedBy: uid,
+      active: false
+    });
+  });
+
+  const partnerIds = memberIds.filter((memberUid) => memberUid !== uid);
+  await invalidatePendingRequestsForUsers([uid, ...partnerIds], 'canceled');
+  await invalidateActiveCodesForUsers([uid, ...partnerIds], 'canceled');
+
+  const initiator = displaySnapshot(user);
+  await Promise.all(partnerIds.map((partnerId) => {
+    return db.collection(`users/${partnerId}/notifications`).add({
+      type: 'pairing_removed',
+      status: 'unread',
+      coupleId,
+      initiator,
+      createdAt: FieldValue.serverTimestamp()
+    });
+  }));
+
+  return { ok: true, coupleId };
+});
 
 export const importGoogleContacts = onCall(async (request) => {
   const uid = requireUid(request);

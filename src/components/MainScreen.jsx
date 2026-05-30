@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import HistoryScreen from './HistoryScreen';
-import { db, storage, auth, doc, onSnapshot, updateDoc, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy } from '../firebase';
+import { db, storage, auth, functions, doc, onSnapshot, updateDoc, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
 
 const views = ['history', 'home', 'profile'];
 
@@ -101,6 +101,17 @@ function LogoutIcon() {
   );
 }
 
+function UnlinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 17H7a5 5 0 0 1 0-10h2" />
+      <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
+      <path d="m8 12 8 0" />
+      <path d="m3 3 18 18" />
+    </svg>
+  );
+}
+
 function initialsFor(name, email) {
   const source = name || email || '?';
   return source
@@ -119,7 +130,7 @@ function Avatar({ src, name, email, size = 'md' }) {
   return <div className={`profile-avatar initials ${size}`}>{initialsFor(name, email)}</div>;
 }
 
-export default function MainScreen({ user, coupleId }) {
+export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [cameraStatus, setCameraStatus] = useState('requesting');
@@ -135,6 +146,8 @@ export default function MainScreen({ user, coupleId }) {
   const [facingMode, setFacingMode] = useState('environment');
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmRemovePairing, setConfirmRemovePairing] = useState(false);
+  const [removingPairing, setRemovingPairing] = useState(false);
   const profileFileRef = useRef(null);
   const videoRef = useRef(null);
   const feedRef = useRef(null);
@@ -581,6 +594,22 @@ export default function MainScreen({ user, coupleId }) {
     await signOut(auth);
   };
 
+  const handleRemovePairing = async () => {
+    if (removingPairing) return;
+    setRemovingPairing(true);
+    try {
+      await httpsCallable(functions, 'removePairing')();
+      setConfirmRemovePairing(false);
+      onPairingRemoved?.('Pairing removed. You can pair again whenever you are ready.');
+    } catch (err) {
+      console.error('Failed to remove pairing:', err);
+      const message = err?.message?.replace(/^Firebase: /, '') || 'Failed to remove pairing.';
+      showToast(message, 3200);
+    } finally {
+      setRemovingPairing(false);
+    }
+  };
+
   const timeAgo = (date) => {
     if (!date) return '';
     const diff = (Date.now() - date.getTime()) / 1000;
@@ -879,7 +908,10 @@ export default function MainScreen({ user, coupleId }) {
               setToast('');
               setConfirmLogout(true);
             }}
-            onDeletePlaceholder={() => showToast('Account deletion is not available yet')}
+            onRequestRemovePairing={() => {
+              setToast('');
+              setConfirmRemovePairing(true);
+            }}
           />
         </section>
       </motion.div>
@@ -962,6 +994,39 @@ export default function MainScreen({ user, coupleId }) {
       </AnimatePresence>
 
       <AnimatePresence>
+        {confirmRemovePairing && (
+          <motion.div
+            className="confirm-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="presentation"
+          >
+            <motion.div
+              className="confirm-sheet"
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="remove-pairing-title"
+            >
+              <h2 id="remove-pairing-title">Remove pairing?</h2>
+              <p>Old shared history will no longer be visible. Both of you can pair again whenever you are ready.</p>
+              <div className="confirm-actions">
+                <button className="btn-ghost" type="button" onClick={() => setConfirmRemovePairing(false)} disabled={removingPairing}>
+                  Cancel
+                </button>
+                <button className="btn-primary danger" type="button" onClick={handleRemovePairing} disabled={removingPairing}>
+                  {removingPairing ? 'Removing...' : 'Remove pairing'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {toast && (
           <motion.div
             className="toast"
@@ -985,7 +1050,7 @@ function ProfileView({
   onPickPhoto,
   onRemovePhoto,
   onRequestLogout,
-  onDeletePlaceholder
+  onRequestRemovePairing
 }) {
   return (
     <section className="profile-screen" aria-label="Profile">
@@ -1025,8 +1090,9 @@ function ProfileView({
           <LogoutIcon />
           Log out
         </button>
-        <button className="menu-action profile-menu-action delete" type="button" onClick={onDeletePlaceholder}>
-          Delete account
+        <button className="menu-action profile-menu-action delete" type="button" onClick={onRequestRemovePairing}>
+          <UnlinkIcon />
+          Remove pairing
         </button>
       </div>
     </section>
