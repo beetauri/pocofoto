@@ -24,6 +24,26 @@
   --font: Inter, ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --viewport-height: 100%;
+  --app-shell-max: 440px;
+  --media-frame-max: 100%;
+  --camera-frame-height: min(64vh, 590px);
+  --bottom-nav-height: 74px;
+  --bottom-nav-offset: max(18px, 5%, var(--safe-bottom));
+  --bottom-nav-reserve: calc(var(--bottom-nav-height) + var(--bottom-nav-offset) + 20px);
+}
+
+@supports (height: 100svh) {
+  :root {
+    --viewport-height: 100svh;
+  }
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --viewport-height: 100dvh;
+    --camera-frame-height: min(64dvh, 590px);
+  }
 }
 
 *, *::before, *::after {
@@ -35,6 +55,7 @@
 html, body, #root {
   width: 100%;
   height: 100%;
+  min-height: var(--viewport-height);
   overflow: hidden;
 }
 
@@ -71,8 +92,8 @@ button {
 
 .screen {
   flex: 1;
-  min-height: 100%;
-  height: 100%;
+  min-height: var(--viewport-height);
+  height: var(--viewport-height);
   overflow-y: auto;
   padding: calc(var(--safe-top) + 20px) 22px calc(var(--safe-bottom) + 22px);
   background:
@@ -85,8 +106,9 @@ button {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  max-width: 440px;
+  width: min(100vw, var(--app-shell-max));
+  height: var(--viewport-height);
+  max-width: var(--app-shell-max);
   margin: 0 auto;
   overflow: hidden;
   background: var(--bg-primary);
@@ -100,6 +122,7 @@ button {
   display: flex;
   flex: 1;
   width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   touch-action: pan-y;
@@ -369,8 +392,8 @@ button {
 
 .camera-frame {
   position: relative;
-  width: 100%;
-  height: min(64vh, 590px);
+  width: min(100%, var(--media-frame-max));
+  height: var(--camera-frame-height);
   min-height: 320px;
   flex: 0 0 auto;
   overflow: hidden;
@@ -539,7 +562,7 @@ button {
   overflow-y: scroll;
   scroll-behavior: smooth;
   scroll-snap-type: y mandatory;
-  padding: calc(var(--safe-top) + 22px) 20px calc(var(--safe-bottom) + 122px);
+  padding: calc(var(--safe-top) + 22px) 20px var(--bottom-nav-reserve);
   scrollbar-width: none;
 }
 
@@ -569,9 +592,9 @@ button {
   justify-content: center;
   gap: 24px;
   height: fit-content;
-  min-height: 100vh;
-  padding-top: var(--safe-top);
-  padding-bottom: var(--safe-top);
+  min-height: var(--viewport-height);
+  padding-top: calc(var(--safe-top) + 12px);
+  padding-bottom: var(--bottom-nav-reserve);
 }
 
 .camera-item-controls {
@@ -579,7 +602,7 @@ button {
   grid-template-columns: 56px 1fr 56px;
   align-items: center;
   gap: 14px;
-  width: 100%;
+  width: min(100%, var(--media-frame-max));
   padding: 0 4px;
 }
 
@@ -634,7 +657,7 @@ button {
 .bottom-nav {
   position: absolute;
   left: 50%;
-  bottom: max(var(--safe-bottom), 5%);
+  bottom: var(--bottom-nav-offset);
   z-index: 90;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -825,7 +848,7 @@ button {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: calc(var(--safe-top) + 18px) 20px calc(var(--safe-bottom) + 116px);
+  padding: calc(var(--safe-top) + 18px) 20px var(--bottom-nav-reserve);
   background: var(--bg-primary);
 }
 
@@ -854,7 +877,7 @@ button {
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  padding: calc(var(--safe-top) + 22px) 24px calc(var(--safe-bottom) + 138px);
+  padding: calc(var(--safe-top) + 22px) 24px var(--bottom-nav-reserve);
   background:
     radial-gradient(circle at 50% 0%, rgba(157, 170, 255, 0.1), transparent 25%),
     var(--bg-primary);
@@ -1620,6 +1643,12 @@ button {
 }
 
 @media (max-height: 720px) {
+  :root {
+    --bottom-nav-offset: max(12px, var(--safe-bottom));
+    --bottom-nav-reserve: calc(var(--bottom-nav-height) + var(--bottom-nav-offset) + 12px);
+    --camera-frame-height: min(58dvh, 500px);
+  }
+
   .app-header {
     padding-bottom: 12px;
   }
@@ -1639,6 +1668,13 @@ button {
 }
 
 @media (min-width: 700px) {
+  :root {
+    --app-shell-max: 720px;
+    --media-frame-max: 560px;
+    --bottom-nav-offset: max(20px, 4%, var(--safe-bottom));
+    --bottom-nav-reserve: calc(var(--bottom-nav-height) + var(--bottom-nav-offset) + 24px);
+  }
+
   body {
     background: #050505;
   }
@@ -1650,6 +1686,44 @@ button {
 
   .app-shell,
   .screen {
-    width: min(100vw, 440px);
+    width: min(calc(100vw - 32px), var(--app-shell-max));
+  }
+
+  .auth-card,
+  .pairing-card {
+    max-width: 480px;
+  }
+
+  .pairing-discovery {
+    max-width: 560px;
+  }
+
+  .history-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .profile-screen {
+    padding-inline: clamp(24px, 7vw, 56px);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-shell-max: 860px;
+    --media-frame-max: 620px;
+  }
+
+  .auth-card,
+  .pairing-card {
+    max-width: 520px;
+  }
+
+  .pairing-discovery {
+    max-width: 640px;
+  }
+
+  .history-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
