@@ -784,12 +784,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
                   animate={{ opacity: 1, scale: 1 }}
                 >
                   {cameraStatus === 'ready' ? (
-                    <>
-                      <video ref={videoRef} playsInline muted autoPlay />
-                      <div className="camera-live-overlay">
-                        <span>Live camera</span>
-                      </div>
-                    </>
+                    <video ref={videoRef} playsInline muted autoPlay />
                   ) : (
                     <div className="empty-state camera-state">
                       <PhotoIcon />
