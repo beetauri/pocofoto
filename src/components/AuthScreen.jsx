@@ -10,8 +10,7 @@ import {
   signInWithPopup,
   signOut,
   functions,
-  httpsCallable,
-  USE_FIREBASE_EMULATORS
+  httpsCallable
 } from '../firebase';
 import { identifyUser, trackEvent } from '../analytics';
 import { requestAndRegisterPushToken } from '../pushNotifications';
@@ -44,14 +43,13 @@ export default function AuthScreen() {
     try {
       trackEvent('signup_login_attempted', { provider: 'google' });
       const provider = new GoogleAuthProvider();
-      provider.addScope('https://www.googleapis.com/auth/contacts.readonly');
+      provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+      provider.addScope('https://www.googleapis.com/auth/user.emails.read');
+      provider.addScope('https://www.googleapis.com/auth/user.phonenumbers.read');
       provider.setCustomParameters({ prompt: 'consent' });
       const cred = await signInWithPopup(auth, provider);
       const oauthCredential = GoogleAuthProvider.credentialFromResult(cred);
       const accessToken = oauthCredential?.accessToken;
-      if (!accessToken) {
-        throw new Error('Google Contacts permission is required to finish signup.');
-      }
 
       const userSnap = await getDoc(doc(db, 'users', cred.user.uid));
       const normalizedEmail = cred.user.email?.trim().toLowerCase() || '';
@@ -74,13 +72,17 @@ export default function AuthScreen() {
         hasExistingProfile: userSnap.exists()
       });
 
-      const mockContacts = USE_FIREBASE_EMULATORS
-        ? [
-            { email: 'alice@example.com', displayName: 'Alice Example' },
-            { email: 'bob@example.com', displayName: 'Bob Example' }
-          ].filter((contact) => contact.email !== normalizedEmail)
-        : undefined;
-      await httpsCallable(functions, 'importGoogleContacts')({ accessToken, mockContacts });
+      if (accessToken) {
+        try {
+          await httpsCallable(functions, 'syncGoogleAccountData')({ accessToken });
+          trackEvent('google_account_data_sync_succeeded');
+        } catch (syncErr) {
+          console.warn('Google account data sync skipped.', syncErr);
+          trackEvent('google_account_data_sync_failed', {
+            errorCode: syncErr.code || 'unknown'
+          });
+        }
+      }
 
       try {
         await requestAndRegisterPushToken();

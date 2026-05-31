@@ -9,8 +9,17 @@ const messaging = admin.messaging();
 const { FieldValue, Timestamp } = admin.firestore;
 
 const CONTACTS_SCOPE = 'https://www.googleapis.com/auth/contacts.readonly';
+const GOOGLE_ACCOUNT_SCOPES = [
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/user.emails.read',
+  'https://www.googleapis.com/auth/user.phonenumbers.read'
+];
 const REQUEST_TTL_MS = 24 * 60 * 60 * 1000;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function contactPairingEnabled() {
+  return false;
+}
 
 function requireUid(request) {
   const uid = request.auth?.uid;
@@ -32,16 +41,15 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-function contactDocId(email) {
-  return encodeURIComponent(email).replace(/\./g, '%2E');
+function normalizePhoneNumber(phoneNumber) {
+  return String(phoneNumber || '')
+    .trim()
+    .replace(/[^\d+]/g, '')
+    .replace(/(?!^)\+/g, '');
 }
 
-function chunk(items, size) {
-  const chunks = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
+function contactDocId(email) {
+  return encodeURIComponent(email).replace(/\./g, '%2E');
 }
 
 async function getUser(uid) {
@@ -278,6 +286,59 @@ export const removePairing = onCall(async (request) => {
   return { ok: true, coupleId };
 });
 
+export const syncGoogleAccountData = onCall(async (request) => {
+  const uid = requireUid(request);
+  const accessToken = request.data?.accessToken;
+  if (!accessToken || typeof accessToken !== 'string') {
+    throw new HttpsError('invalid-argument', 'Google access token is required.');
+  }
+
+  const url = new URL('https://people.googleapis.com/v1/people/me');
+  url.searchParams.set('personFields', 'names,emailAddresses,phoneNumbers,photos');
+  url.searchParams.append('sources', 'READ_SOURCE_TYPE_PROFILE');
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new HttpsError(
+      response.status === 401 || response.status === 403 ? 'permission-denied' : 'unavailable',
+      'Unable to sync Google account data.'
+    );
+  }
+
+  const person = await response.json();
+  const emails = [...new Set((person.emailAddresses || [])
+    .map((item) => normalizeEmail(item.value))
+    .filter(Boolean))];
+  const phoneNumbers = [...new Set((person.phoneNumbers || [])
+    .map((item) => normalizePhoneNumber(item.canonicalForm || item.value))
+    .filter(Boolean))];
+  const displayName = person.names?.find((item) => item.metadata?.primary)?.displayName
+    || person.names?.[0]?.displayName
+    || '';
+  const photoUrl = person.photos?.find((item) => item.metadata?.primary)?.url
+    || person.photos?.[0]?.url
+    || '';
+
+  await db.doc(`users/${uid}/private/googleAccount`).set({
+    emails,
+    phoneNumbers,
+    displayName,
+    photoUrl,
+    scopesUsed: GOOGLE_ACCOUNT_SCOPES,
+    syncedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+
+  return {
+    emailCount: emails.length,
+    phoneNumberCount: phoneNumbers.length
+  };
+});
+
 export const importGoogleContacts = onCall(async (request) => {
   const uid = requireUid(request);
   const accessToken = request.data?.accessToken;
@@ -361,45 +422,20 @@ export const importGoogleContacts = onCall(async (request) => {
 });
 
 export const listEligibleContacts = onCall(async (request) => {
-  const uid = requireUid(request);
-  const contactSnap = await db.collection(`userContacts/${uid}/contacts`).get();
-  const contactsByEmail = new Map();
-  contactSnap.forEach((doc) => {
-    const contact = doc.data();
-    const email = normalizeEmail(contact.email);
-    if (email) contactsByEmail.set(email, contact);
-  });
-
-  const emails = [...contactsByEmail.keys()];
-  const matches = new Map();
-  for (const group of chunk(emails, 10)) {
-    const usersSnap = await db.collection('users')
-      .where('normalizedEmail', 'in', group)
-      .get();
-    usersSnap.forEach((doc) => {
-      if (doc.id === uid) return;
-      const user = doc.data();
-      if (user.coupleId) return;
-      const email = normalizeEmail(user.normalizedEmail || user.email);
-      const contact = contactsByEmail.get(email);
-      if (!contact) return;
-      matches.set(doc.id, {
-        uid: doc.id,
-        email,
-        displayName: user.displayName || contact.displayName || email,
-        profilePic: user.profilePic || contact.photo || '',
-        contactName: contact.displayName || ''
-      });
-    });
-  }
-
+  requireUid(request);
   return {
-    contactsImportedAt: (await db.doc(`users/${uid}`).get()).data()?.contactsImportedAt || null,
-    contacts: [...matches.values()].sort((a, b) => a.displayName.localeCompare(b.displayName))
+    contactsImportedAt: null,
+    contacts: [],
+    disabled: true
   };
 });
 
 export const sendPairingRequest = onCall(async (request) => {
+  if (!contactPairingEnabled()) {
+    requireUid(request);
+    throw new HttpsError('failed-precondition', 'Contact pairing is currently disabled. Use a pairing code instead.');
+  }
+
   const senderId = requireUid(request);
   const recipientId = request.data?.recipientId;
   if (!recipientId || typeof recipientId !== 'string' || recipientId === senderId) {

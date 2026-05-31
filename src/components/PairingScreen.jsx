@@ -85,6 +85,7 @@ function parseError(err, fallback = 'Something went wrong. Please try again.') {
 
 export default function PairingScreen({ user, onPaired, initialNotice = '', onNoticeConsumed }) {
   const [contacts, setContacts] = useState([]);
+  const [contactPairingDisabled, setContactPairingDisabled] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [workingId, setWorkingId] = useState('');
   const [error, setError] = useState('');
@@ -110,6 +111,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
     try {
       const data = await callFunction('listEligibleContacts');
       setContacts(data.contacts || []);
+      setContactPairingDisabled(Boolean(data.disabled));
     } catch (err) {
       setError(parseError(err, 'Could not load contacts.'));
     } finally {
@@ -354,7 +356,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
         <div className="section-heading">
           <div>
             <h2>Available contacts</h2>
-            <p>Send an invite to someone who already has Pocofoto.</p>
+            <p>{contactPairingDisabled ? 'Use a pairing code while contact pairing is paused.' : 'Send an invite to someone who already has Pocofoto.'}</p>
           </div>
         </div>
 
@@ -362,6 +364,12 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
           <div className="contact-empty">
             <div className="spinner" />
             <span>Loading contacts</span>
+          </div>
+        ) : contactPairingDisabled ? (
+          <div className="contact-empty">
+            <LinkIcon />
+            <strong>Contact pairing is paused</strong>
+            <span>Use a pairing code to connect for now.</span>
           </div>
         ) : contacts.length === 0 ? (
           <div className="contact-empty">

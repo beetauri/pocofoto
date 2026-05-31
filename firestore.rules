@@ -52,6 +52,11 @@ service cloud.firestore {
       allow update: if ownUid(uid) && onlyOwnProfileFields();
       allow delete: if false;
 
+      match /private/{documentId} {
+        allow read: if ownUid(uid);
+        allow write: if false;
+      }
+
       match /notifications/{notificationId} {
         allow read: if ownUid(uid);
         allow update: if ownUid(uid)
