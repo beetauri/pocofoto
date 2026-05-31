@@ -428,6 +428,9 @@ button {
 }
 
 .camera-live {
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
   background:
     radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.08), transparent 34%),
     #111111;

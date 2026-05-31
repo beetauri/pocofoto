@@ -17,7 +17,7 @@ function UserIcon() {
 
 function HomeIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m3 11 9-8 9 8" />
       <path d="M5 10v10h14V10" />
       <path d="M9 20v-6h6v6" />
@@ -27,7 +27,7 @@ function HomeIcon() {
 
 function GridIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="4" y="4" width="6" height="6" rx="1.5" />
       <rect x="14" y="4" width="6" height="6" rx="1.5" />
       <rect x="4" y="14" width="6" height="6" rx="1.5" />
@@ -56,7 +56,7 @@ function HeartIcon({ filled = false }) {
 
 function SendIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M22 2 11 13" />
       <path d="m22 2-7 20-4-9-9-4 20-7Z" />
     </svg>
@@ -75,7 +75,7 @@ function PhotoIcon() {
 
 function FlashIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m13 2-8 12h6l-1 8 9-13h-6l1-7Z" />
     </svg>
   );
@@ -94,7 +94,7 @@ function SwitchCameraIcon() {
 
 function LogoutIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <path d="m16 17 5-5-5-5" />
       <path d="M21 12H9" />
@@ -104,7 +104,7 @@ function LogoutIcon() {
 
 function UnlinkIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M9 17H7a5 5 0 0 1 0-10h2" />
       <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
       <path d="m8 12 8 0" />
