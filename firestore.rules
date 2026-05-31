@@ -35,9 +35,7 @@ service cloud.firestore {
           'profilePic',
           'provider',
           'createdAt',
-          'updatedAt',
-          'contactsImportedAt',
-          'contactsCount'
+          'updatedAt'
         ]);
     }
 

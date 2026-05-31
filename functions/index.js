@@ -5,21 +5,10 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 admin.initializeApp();
 
 const db = admin.firestore();
-const messaging = admin.messaging();
 const { FieldValue, Timestamp } = admin.firestore;
 
-const CONTACTS_SCOPE = 'https://www.googleapis.com/auth/contacts.readonly';
-const GOOGLE_ACCOUNT_SCOPES = [
-  'https://www.googleapis.com/auth/userinfo.profile',
-  'https://www.googleapis.com/auth/user.emails.read',
-  'https://www.googleapis.com/auth/user.phonenumbers.read'
-];
 const REQUEST_TTL_MS = 24 * 60 * 60 * 1000;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-function contactPairingEnabled() {
-  return false;
-}
 
 function requireUid(request) {
   const uid = request.auth?.uid;
@@ -35,21 +24,6 @@ function nowIso() {
 
 function expiresAtFromNow() {
   return Timestamp.fromMillis(Date.now() + REQUEST_TTL_MS);
-}
-
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
-}
-
-function normalizePhoneNumber(phoneNumber) {
-  return String(phoneNumber || '')
-    .trim()
-    .replace(/[^\d+]/g, '')
-    .replace(/(?!^)\+/g, '');
-}
-
-function contactDocId(email) {
-  return encodeURIComponent(email).replace(/\./g, '%2E');
 }
 
 async function getUser(uid) {
@@ -140,54 +114,6 @@ async function invalidateActiveCodesForUsers(userIds, reason) {
   if (count > 0) {
     await batch.commit();
   }
-}
-
-async function notifyPairingRequest(requestRef, sender, recipientId) {
-  const notificationRef = db
-    .collection('users')
-    .doc(recipientId)
-    .collection('notifications')
-    .doc(requestRef.id);
-
-  await notificationRef.set({
-    type: 'pairing_request',
-    requestId: requestRef.id,
-    status: 'unread',
-    sender: displaySnapshot(sender),
-    createdAt: FieldValue.serverTimestamp()
-  });
-
-  const tokensSnap = await db.collection(`users/${recipientId}/fcmTokens`).get();
-  const tokens = tokensSnap.docs.map((doc) => doc.data().token).filter(Boolean);
-  if (tokens.length === 0) return;
-
-  const response = await messaging.sendEachForMulticast({
-    tokens,
-    notification: {
-      title: 'New pairing invite',
-      body: `${sender.displayName || sender.email || 'Someone'} wants to pair with you on Pocofoto.`
-    },
-    webpush: {
-      fcmOptions: {
-        link: '/?pairing=requests'
-      }
-    },
-    data: {
-      type: 'pairing_request',
-      requestId: requestRef.id
-    }
-  });
-
-  const staleDeletes = [];
-  response.responses.forEach((result, index) => {
-    if (!result.success && [
-      'messaging/registration-token-not-registered',
-      'messaging/invalid-registration-token'
-    ].includes(result.error?.code)) {
-      staleDeletes.push(tokensSnap.docs[index].ref.delete());
-    }
-  });
-  await Promise.all(staleDeletes);
 }
 
 async function createCoupleForUsers(uidA, uidB, source) {
@@ -284,195 +210,6 @@ export const removePairing = onCall(async (request) => {
   }));
 
   return { ok: true, coupleId };
-});
-
-export const syncGoogleAccountData = onCall(async (request) => {
-  const uid = requireUid(request);
-  const accessToken = request.data?.accessToken;
-  if (!accessToken || typeof accessToken !== 'string') {
-    throw new HttpsError('invalid-argument', 'Google access token is required.');
-  }
-
-  const url = new URL('https://people.googleapis.com/v1/people/me');
-  url.searchParams.set('personFields', 'names,emailAddresses,phoneNumbers,photos');
-  url.searchParams.append('sources', 'READ_SOURCE_TYPE_PROFILE');
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    }
-  });
-
-  if (!response.ok) {
-    throw new HttpsError(
-      response.status === 401 || response.status === 403 ? 'permission-denied' : 'unavailable',
-      'Unable to sync Google account data.'
-    );
-  }
-
-  const person = await response.json();
-  const emails = [...new Set((person.emailAddresses || [])
-    .map((item) => normalizeEmail(item.value))
-    .filter(Boolean))];
-  const phoneNumbers = [...new Set((person.phoneNumbers || [])
-    .map((item) => normalizePhoneNumber(item.canonicalForm || item.value))
-    .filter(Boolean))];
-  const displayName = person.names?.find((item) => item.metadata?.primary)?.displayName
-    || person.names?.[0]?.displayName
-    || '';
-  const photoUrl = person.photos?.find((item) => item.metadata?.primary)?.url
-    || person.photos?.[0]?.url
-    || '';
-
-  await db.doc(`users/${uid}/private/googleAccount`).set({
-    emails,
-    phoneNumbers,
-    displayName,
-    photoUrl,
-    scopesUsed: GOOGLE_ACCOUNT_SCOPES,
-    syncedAt: FieldValue.serverTimestamp()
-  }, { merge: true });
-
-  return {
-    emailCount: emails.length,
-    phoneNumberCount: phoneNumbers.length
-  };
-});
-
-export const importGoogleContacts = onCall(async (request) => {
-  const uid = requireUid(request);
-  const accessToken = request.data?.accessToken;
-  if (!accessToken || typeof accessToken !== 'string') {
-    throw new HttpsError('invalid-argument', 'Google Contacts access token is required.');
-  }
-
-  const contacts = new Map();
-  if (process.env.FUNCTIONS_EMULATOR === 'true' && Array.isArray(request.data?.mockContacts)) {
-    for (const contact of request.data.mockContacts) {
-      const email = normalizeEmail(contact.email);
-      if (email) {
-        contacts.set(email, {
-          email,
-          displayName: contact.displayName || '',
-          photo: contact.photo || ''
-        });
-      }
-    }
-  } else {
-  let pageToken = '';
-  do {
-    const url = new URL('https://people.googleapis.com/v1/people/me/connections');
-    url.searchParams.set('pageSize', '1000');
-    url.searchParams.set('personFields', 'names,emailAddresses,photos');
-    if (pageToken) url.searchParams.set('pageToken', pageToken);
-
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new HttpsError(
-        response.status === 401 || response.status === 403 ? 'permission-denied' : 'unavailable',
-        `Unable to import Google contacts with ${CONTACTS_SCOPE}.`
-      );
-    }
-
-    const payload = await response.json();
-    for (const person of payload.connections || []) {
-      const name = person.names?.find((item) => item.metadata?.primary)?.displayName
-        || person.names?.[0]?.displayName
-        || '';
-      const photo = person.photos?.find((item) => item.metadata?.primary)?.url
-        || person.photos?.[0]?.url
-        || '';
-      for (const item of person.emailAddresses || []) {
-        const email = normalizeEmail(item.value);
-        if (email) contacts.set(email, { email, displayName: name, photo });
-      }
-    }
-    pageToken = payload.nextPageToken || '';
-  } while (pageToken);
-  }
-
-  const existing = await db.collection(`userContacts/${uid}/contacts`).get();
-  const writer = db.bulkWriter();
-  const importedIds = new Set([...contacts.keys()].map(contactDocId));
-  existing.docs.forEach((doc) => {
-    if (!importedIds.has(doc.id)) writer.delete(doc.ref);
-  });
-
-  const importedAt = FieldValue.serverTimestamp();
-  for (const contact of contacts.values()) {
-    writer.set(db.doc(`userContacts/${uid}/contacts/${contactDocId(contact.email)}`), {
-      ...contact,
-      importedAt
-    });
-  }
-  await writer.close();
-
-  await db.doc(`users/${uid}`).set({
-    contactsImportedAt: importedAt,
-    contactsCount: contacts.size,
-    updatedAt: importedAt
-  }, { merge: true });
-
-  return { count: contacts.size };
-});
-
-export const listEligibleContacts = onCall(async (request) => {
-  requireUid(request);
-  return {
-    contactsImportedAt: null,
-    contacts: [],
-    disabled: true
-  };
-});
-
-export const sendPairingRequest = onCall(async (request) => {
-  if (!contactPairingEnabled()) {
-    requireUid(request);
-    throw new HttpsError('failed-precondition', 'Contact pairing is currently disabled. Use a pairing code instead.');
-  }
-
-  const senderId = requireUid(request);
-  const recipientId = request.data?.recipientId;
-  if (!recipientId || typeof recipientId !== 'string' || recipientId === senderId) {
-    throw new HttpsError('invalid-argument', 'A valid recipient is required.');
-  }
-
-  const sender = await getUser(senderId);
-  const recipient = await getUser(recipientId);
-  assertUnpaired(sender, 'You');
-  assertUnpaired(recipient, 'This user');
-
-  const contactRef = db.doc(`userContacts/${senderId}/contacts/${contactDocId(normalizeEmail(recipient.email))}`);
-  if (!(await contactRef.get()).exists) {
-    throw new HttpsError('permission-denied', 'Recipient must be in your imported Google contacts.');
-  }
-
-  const activeOutgoing = await db.collection('pairingRequests')
-    .where('senderId', '==', senderId)
-    .where('status', '==', 'pending')
-    .limit(1)
-    .get();
-  if (!activeOutgoing.empty) {
-    throw new HttpsError('failed-precondition', 'You already have a pending pairing request.');
-  }
-
-  const requestRef = await db.collection('pairingRequests').add({
-    senderId,
-    recipientId,
-    status: 'pending',
-    sender: displaySnapshot(sender),
-    recipient: displaySnapshot(recipient),
-    expiresAt: expiresAtFromNow(),
-    createdAt: FieldValue.serverTimestamp()
-  });
-
-  await notifyPairingRequest(requestRef, sender, recipientId);
-  return { requestId: requestRef.id };
 });
 
 export const acceptPairingRequest = onCall(async (request) => {
