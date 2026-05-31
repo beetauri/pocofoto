@@ -1,16 +1,91 @@
-# React + Vite
+# Pocofoto App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Mobile-first photo sharing app built with React, Vite, Firebase Auth, Firestore, and Storage.
 
-Currently, two official plugins are available:
+## Local Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Local development uses Firebase Local Emulator Suite by default. The app connects to:
 
-## React Compiler
+- Auth emulator: `127.0.0.1:9099`
+- Firestore emulator: `127.0.0.1:8080`
+- Storage emulator: `127.0.0.1:9199`
+- Emulator UI: `127.0.0.1:4000`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js and npm
+- Java 21 or newer for `firebase-tools`
+- Project dependencies installed with `npm install`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+This machine was found with Java 8 during setup. `firebase-tools` 15 requires Java 21 or newer, so upgrade Java before starting the emulators.
+
+### Run Locally
+
+Terminal 1:
+
+```sh
+npm run emulators
+```
+
+Terminal 2:
+
+```sh
+npm run dev
+```
+
+Open the Vite URL shown in the terminal, usually `http://localhost:5173/`.
+
+### Fresh Emulator State
+
+Use this when you want no imported persisted emulator data:
+
+```sh
+npm run emulators:fresh
+```
+
+The normal `npm run emulators` command imports `.firebase-emulator-data` when it exists and exports emulator state back to that directory on exit. The directory is ignored by git.
+
+### Auth Emulator
+
+Use `Continue with Google` in the app. In local development, Firebase Auth emulator handles the local Google-provider sign-in flow. You can also inspect users in the Emulator UI.
+
+To test pairing:
+
+1. Sign in as user A and create an invite code.
+2. Open a second normal or incognito browser window.
+3. Sign in as user B through the Auth emulator.
+4. Enter user A's invite code.
+5. Confirm `users`, `invites`, `couples`, and `couples/{id}/photos` appear in the Firestore emulator.
+
+## Firebase Modes
+
+By default in Vite dev, the app connects to Firebase emulators.
+
+Set either flag to bypass emulator connections:
+
+```sh
+VITE_USE_REAL_FIREBASE=true
+```
+
+or:
+
+```sh
+VITE_USE_FIREBASE_EMULATORS=false
+```
+
+Production builds use hosted Firebase unless explicitly configured otherwise.
+
+## Scripts
+
+```sh
+npm run dev
+npm run lint
+npm run build
+npm run preview
+npm run emulators
+npm run emulators:fresh
+```
+
+## Security Rules
+
+The included Firestore and Storage rules are permissive prototype rules: authenticated users can read and write app data and files. Tighten these before production deployment.

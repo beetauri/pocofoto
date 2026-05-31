@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "sixth-bonbon-402909"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

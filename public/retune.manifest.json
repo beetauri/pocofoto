@@ -15,15 +15,15 @@
         "variable": "--bg-card"
       },
       "accent": {
-        "value": "#FFCC00",
+        "value": "#9DAAFF",
         "variable": "--accent"
       },
       "accent-hover": {
-        "value": "#FFD700",
+        "value": "#B7C1FF",
         "variable": "--accent-hover"
       },
       "accent-glow": {
-        "value": "rgba(255, 204, 0, 0.3)",
+        "value": "rgba(157, 170, 255, 0.34)",
         "variable": "--accent-glow"
       },
       "success": {
