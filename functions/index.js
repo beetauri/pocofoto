@@ -1,10 +1,12 @@
 import admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 
 admin.initializeApp();
 
 const db = admin.firestore();
+const messaging = admin.messaging();
 const { FieldValue, Timestamp } = admin.firestore;
 
 const REQUEST_TTL_MS = 24 * 60 * 60 * 1000;
@@ -52,6 +54,32 @@ function displaySnapshot(user) {
     displayName: user.displayName || user.email || 'Pocofoto user',
     profilePic: user.profilePic || ''
   };
+}
+
+async function deleteStaleFcmTokens(tokenDocs, responses) {
+  const staleDeletes = [];
+  responses.forEach((result, index) => {
+    if (!result.success && [
+      'messaging/registration-token-not-registered',
+      'messaging/invalid-registration-token'
+    ].includes(result.error?.code)) {
+      staleDeletes.push(tokenDocs[index].ref.delete());
+    }
+  });
+  await Promise.all(staleDeletes);
+}
+
+async function sendMulticastToUser(uid, message) {
+  const tokensSnap = await db.collection(`users/${uid}/fcmTokens`).get();
+  const tokenDocs = tokensSnap.docs.filter((doc) => doc.data().token);
+  const tokens = tokenDocs.map((doc) => doc.data().token);
+  if (tokens.length === 0) return;
+
+  const response = await messaging.sendEachForMulticast({
+    tokens,
+    ...message
+  });
+  await deleteStaleFcmTokens(tokenDocs, response.responses);
 }
 
 async function invalidatePendingRequestsForUsers(userIds, reason, skipRequestId = null) {
@@ -150,6 +178,41 @@ async function createCoupleForUsers(uidA, uidB, source) {
   await invalidateActiveCodesForUsers([uidA, uidB], 'canceled');
   return coupleId;
 }
+
+export const notifyPhotoReceived = onDocumentCreated('couples/{coupleId}/photos/{photoId}', async (event) => {
+  const photo = event.data?.data();
+  const senderId = photo?.senderId;
+  const { coupleId, photoId } = event.params;
+  if (!senderId || !coupleId || !photoId) return;
+
+  const coupleSnap = await db.doc(`couples/${coupleId}`).get();
+  if (!coupleSnap.exists) return;
+
+  const users = Array.isArray(coupleSnap.data().users) ? coupleSnap.data().users : [];
+  const recipientId = users.find((uid) => uid !== senderId);
+  if (!recipientId) return;
+
+  const senderSnap = await db.doc(`users/${senderId}`).get();
+  const sender = senderSnap.exists ? { id: senderId, ...senderSnap.data() } : { id: senderId };
+  const senderName = sender.displayName || sender.email || 'Your person';
+
+  await sendMulticastToUser(recipientId, {
+    notification: {
+      title: "You've got a new photo!",
+      body: `${senderName} sent you a photo.`
+    },
+    webpush: {
+      fcmOptions: {
+        link: '/'
+      }
+    },
+    data: {
+      type: 'photo_received',
+      coupleId,
+      photoId
+    }
+  });
+});
 
 export const removePairing = onCall(async (request) => {
   const uid = requireUid(request);

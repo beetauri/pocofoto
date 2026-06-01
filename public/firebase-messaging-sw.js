@@ -28,7 +28,10 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = new URL('/?pairing=requests', self.location.origin).href;
+  const targetPath = event.notification.data?.type === 'pairing_request'
+    ? '/?pairing=requests'
+    : '/';
+  const url = new URL(targetPath, self.location.origin).href;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
