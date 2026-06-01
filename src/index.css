@@ -819,6 +819,7 @@ button {
   flex-direction: column;
   flex: 1;
   width: 100%;
+  height: 100%;
   min-height: 0;
   overflow-y: auto;
   padding: calc(var(--safe-top) + 18px) 20px calc(var(--safe-bottom) + 116px);
