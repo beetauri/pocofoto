@@ -27,15 +27,10 @@ function LoadingScreen() {
       justifyContent: 'center',
       gap: 24
     }}>
-      <motion.div
-        animate={{ scale: [1, 1.2, 1], rotate: [0, 360] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        className="loading-logo-mark"
-      >
+      <div className="loading-logo-mark">
         <img src="/pocoface-icon-1024.png" alt="" />
-      </motion.div>
+      </div>
       <img className="logo-lockup-image loading-logotype" src="/pocofoto-logotype.svg" alt="Pocofoto" />
-      <div className="spinner" style={{ marginTop: 8 }} />
     </div>
   );
 }
