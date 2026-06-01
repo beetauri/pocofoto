@@ -3,7 +3,7 @@ import { logEvent } from 'firebase/analytics';
 import { analytics } from './firebase';
 
 const posthogKey = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN || import.meta.env.VITE_POSTHOG_KEY || 'phc_qw8P4JmxPeFvWd7ev5w8nY32JsqXCJpvsH4oVJg5i9TF';
-const posthogHost = import.meta.env.VITE_POSTHOG_HOST || 'https://pocofoto.com.tr';
+const posthogHost = import.meta.env.VITE_POSTHOG_HOST || 'https://p.pocofoto.com.tr';
 
 let initialized = false;
 
