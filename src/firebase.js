@@ -56,7 +56,7 @@ const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (USE_FIREBASE_EMULATORS ? 'demo-key' : 'AIzaSyCMAV8uQ8RelzrnIRxr9MyzrX5uFlDcDRw'),
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
   projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '386325909807',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:386325909807:web:f1d5f429e41f637bd751da',
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-7RS2MJ6VPT'
