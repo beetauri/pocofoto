@@ -479,6 +479,10 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
+      if (facingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const blob = await new Promise((resolve, reject) => {
@@ -750,7 +754,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
             <div className="reels-feed" ref={feedRef}>
               <div className="reels-slide camera-reels-slide" ref={cameraSlideRef}>
                 <motion.article
-                  className={`camera-frame camera-live ${cameraStatus !== 'ready' ? 'empty' : ''}`}
+                  className={`camera-frame camera-live ${facingMode === 'user' ? 'front-camera' : ''} ${cameraStatus !== 'ready' ? 'empty' : ''}`}
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                 >
