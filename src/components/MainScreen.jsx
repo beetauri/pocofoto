@@ -1,39 +1,34 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Grid2X2 as LucideGridIcon,
+  Heart as LucideHeartIcon,
+  Home as LucideHomeIcon,
+  Image as LucidePhotoIcon,
+  Link2Off as LucideUnlinkIcon,
+  LogOut as LucideLogoutIcon,
+  RefreshCw as LucideSwitchCameraIcon,
+  Send as LucideSendIcon,
+  User as LucideUserIcon,
+  Zap as LucideFlashIcon
+} from 'lucide-react';
 import HistoryScreen from './HistoryScreen';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
 
 const views = ['history', 'home', 'profile'];
+const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 
 function UserIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20 21a8 8 0 0 0-16 0" />
-      <circle cx="12" cy="8" r="4" />
-    </svg>
-  );
+  return <LucideUserIcon {...lucideIconProps} />;
 }
 
 function HomeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m3 11 9-8 9 8" />
-      <path d="M5 10v10h14V10" />
-      <path d="M9 20v-6h6v6" />
-    </svg>
-  );
+  return <LucideHomeIcon {...lucideIconProps} />;
 }
 
 function GridIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="4" y="4" width="6" height="6" rx="1.5" />
-      <rect x="14" y="4" width="6" height="6" rx="1.5" />
-      <rect x="4" y="14" width="6" height="6" rx="1.5" />
-      <rect x="14" y="14" width="6" height="6" rx="1.5" />
-    </svg>
-  );
+  return <LucideGridIcon {...lucideIconProps} />;
 }
 
 function MiniShutterIcon() {
@@ -47,70 +42,31 @@ function MiniShutterIcon() {
 }
 
 function HeartIcon({ filled = false }) {
-  return (
-    <svg viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" />
-    </svg>
-  );
+  return <LucideHeartIcon fill={filled ? 'currentColor' : 'none'} strokeWidth={2.4} aria-hidden="true" />;
 }
 
 function SendIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M22 2 11 13" />
-      <path d="m22 2-7 20-4-9-9-4 20-7Z" />
-    </svg>
-  );
+  return <LucideSendIcon {...lucideIconProps} />;
 }
 
 function PhotoIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="5" width="18" height="14" rx="3" />
-      <circle cx="9" cy="10" r="2" />
-      <path d="m21 15-4.2-4.2a2 2 0 0 0-2.8 0L5 19" />
-    </svg>
-  );
+  return <LucidePhotoIcon {...lucideIconProps} />;
 }
 
 function FlashIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m13 2-8 12h6l-1 8 9-13h-6l1-7Z" />
-    </svg>
-  );
+  return <LucideFlashIcon {...lucideIconProps} />;
 }
 
 function SwitchCameraIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 12a8 8 0 0 1 13.7-5.6" />
-      <path d="M17 2v5h5" />
-      <path d="M20 12a8 8 0 0 1-13.7 5.6" />
-      <path d="M7 22v-5H2" />
-    </svg>
-  );
+  return <LucideSwitchCameraIcon {...lucideIconProps} />;
 }
 
 function LogoutIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <path d="m16 17 5-5-5-5" />
-      <path d="M21 12H9" />
-    </svg>
-  );
+  return <LucideLogoutIcon {...lucideIconProps} />;
 }
 
 function UnlinkIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M9 17H7a5 5 0 0 1 0-10h2" />
-      <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
-      <path d="m8 12 8 0" />
-      <path d="m3 3 18 18" />
-    </svg>
-  );
+  return <LucideUnlinkIcon {...lucideIconProps} />;
 }
 
 function initialsFor(name, email) {
