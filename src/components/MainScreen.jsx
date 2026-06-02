@@ -147,7 +147,11 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const partnerProfile = partnerUid ? profiles[partnerUid] : null;
   const displayName = myProfile?.displayName || user.displayName || user.email.split('@')[0];
   const partnerName = partnerProfile?.displayName || 'your person';
+  const partnerEmail = partnerProfile?.email || partnerProfile?.normalizedEmail || '';
+  const partnerPhoto = partnerProfile?.profilePic || partnerProfile?.photoURL || '';
   const profilePic = myProfile?.profilePic || user.photoURL || '';
+  const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
+  const buildCommit = import.meta.env.VITE_APP_COMMIT || 'dev';
   const captureDisabled = uploading;
   const activeIndex = views.indexOf(activeView);
 
@@ -882,6 +886,11 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
             displayName={displayName}
             email={user.email}
             profilePic={profilePic}
+            partnerName={partnerName}
+            partnerEmail={partnerEmail}
+            partnerPic={partnerPhoto}
+            buildVersion={buildVersion}
+            buildCommit={buildCommit}
             uploading={uploading}
             onPickPhoto={() => profileFileRef.current?.click()}
             onRemovePhoto={handleRemoveProfilePhoto}
@@ -1027,6 +1036,11 @@ function ProfileView({
   displayName,
   email,
   profilePic,
+  partnerName,
+  partnerEmail,
+  partnerPic,
+  buildVersion,
+  buildCommit,
   uploading,
   onPickPhoto,
   onRemovePhoto,
@@ -1044,6 +1058,17 @@ function ProfileView({
       <div className="profile-actions-row">
         <button className="btn-ghost" type="button" onClick={onPickPhoto} disabled={uploading}>Change photo</button>
         <button className="btn-ghost" type="button" onClick={onRemovePhoto} disabled={uploading || !profilePic}>Remove</button>
+      </div>
+
+      <div className="profile-partner-card">
+        <span className="profile-card-label">Paired with</span>
+        <div className="profile-partner-row">
+          <Avatar src={partnerPic} name={partnerName} email={partnerEmail} size="md" />
+          <div className="profile-partner-copy">
+            <strong>{partnerName}</strong>
+            <span>{partnerEmail || 'Google account email hidden'}</span>
+          </div>
+        </div>
       </div>
 
       <div className="profile-info-list">
@@ -1075,6 +1100,11 @@ function ProfileView({
           <UnlinkIcon />
           Remove pairing
         </button>
+      </div>
+
+      <div className="profile-version">
+        <span>Version</span>
+        <strong>v{buildVersion} ({buildCommit})</strong>
       </div>
     </section>
   );

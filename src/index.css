@@ -944,6 +944,56 @@ button {
   font-size: 14px;
 }
 
+.profile-partner-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-card);
+}
+
+.profile-card-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.profile-partner-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.profile-partner-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-partner-copy strong,
+.profile-partner-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-partner-copy strong {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.profile-partner-copy span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .profile-info-list {
   display: grid;
   gap: 8px;
@@ -993,6 +1043,7 @@ button {
 .profile-danger-zone {
   display: grid;
   gap: 8px;
+  margin-top: 4px;
 }
 
 .profile-menu-action {
@@ -1018,6 +1069,30 @@ button {
   background: transparent;
   color: var(--danger);
   text-decoration: underline;
+}
+
+.profile-version {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.profile-version span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.profile-version strong {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .confirm-backdrop {

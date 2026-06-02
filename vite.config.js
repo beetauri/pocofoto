@@ -1,8 +1,30 @@
+import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+
+function getGitCommit() {
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      cwd: new URL('.', import.meta.url),
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).toString().trim()
+  } catch {
+    return 'dev'
+  }
+}
+
+const buildVersion = packageJson.version || '0.0.0'
+const buildCommit = getGitCommit()
+
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildVersion),
+    'import.meta.env.VITE_APP_COMMIT': JSON.stringify(buildCommit)
+  },
   build: {
     rollupOptions: {
       output: {
