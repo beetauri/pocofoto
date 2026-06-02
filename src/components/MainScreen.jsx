@@ -1069,6 +1069,10 @@ function ProfileView({
             <span>{partnerEmail || 'Google account email hidden'}</span>
           </div>
         </div>
+        <button className="profile-unpair-button" type="button" onClick={onRequestRemovePairing}>
+          <UnlinkIcon />
+          Remove pairing
+        </button>
       </div>
 
       <div className="profile-info-list">
@@ -1095,10 +1099,6 @@ function ProfileView({
         <button className="menu-action profile-menu-action" type="button" onClick={onRequestLogout}>
           <LogoutIcon />
           Log out
-        </button>
-        <button className="menu-action profile-menu-action delete" type="button" onClick={onRequestRemovePairing}>
-          <UnlinkIcon />
-          Remove pairing
         </button>
       </div>
 

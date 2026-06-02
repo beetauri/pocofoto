@@ -70,6 +70,8 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
   const [confirmLogout, setConfirmLogout] = useState(false);
 
   const displayName = user.displayName || user.email?.split('@')[0] || 'You';
+  const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
+  const buildCommit = import.meta.env.VITE_APP_COMMIT || 'dev';
   const trackedEntryRef = useRef(false);
 
   const callFunction = useCallback((name, payload = {}) => {
@@ -340,6 +342,11 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
           </div>
         </section>
       </motion.main>
+
+      <div className="screen-version">
+        <span>Version</span>
+        <strong>v{buildVersion} ({buildCommit})</strong>
+      </div>
 
       <AnimatePresence>
         {confirmLogout && (

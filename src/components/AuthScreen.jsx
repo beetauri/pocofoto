@@ -34,6 +34,8 @@ function GoogleIcon() {
 export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
+  const buildCommit = import.meta.env.VITE_APP_COMMIT || 'dev';
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -87,7 +89,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="screen auth-screen">
       <motion.div {...fadeUp} className="auth-card">
         <div className="brand-lockup">
           <motion.div
@@ -128,6 +130,10 @@ export default function AuthScreen() {
           {loading ? <div className="spinner" /> : 'Continue with Google'}
         </motion.button>
       </motion.div>
+      <div className="screen-version">
+        <span>Version</span>
+        <strong>v{buildVersion} ({buildCommit})</strong>
+      </div>
     </div>
   );
 }
