@@ -67,7 +67,10 @@ export default function AuthScreen() {
       });
 
       try {
-        await requestAndRegisterPushToken();
+        const pushResult = await requestAndRegisterPushToken();
+        console.debug('Push registration result.', {
+          status: pushResult.ok ? 'registered' : pushResult.reason
+        });
       } catch (pushErr) {
         console.warn('Push registration skipped.', pushErr);
       }

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { auth, db, onAuthStateChanged, doc, onSnapshot } from './firebase';
+import { auth, db, onAuthStateChanged, doc, onSnapshot, onForegroundMessage } from './firebase';
 import { initAnalytics, trackEvent, identifyUser, resetAnalytics } from './analytics';
 import AuthScreen from './components/AuthScreen';
 import PairingScreen from './components/PairingScreen';
@@ -41,6 +41,7 @@ export default function App() {
   const [coupleId, setCoupleId] = useState(null);
   const [checkingPair, setCheckingPair] = useState(false);
   const [pairingNotice, setPairingNotice] = useState('');
+  const [foregroundToast, setForegroundToast] = useState('');
   const trackedAppOpen = useRef(false);
 
   useEffect(() => {
@@ -94,6 +95,40 @@ export default function App() {
 
     return () => unsub();
   }, [user, coupleId]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    let unsubscribe = null;
+    let active = true;
+
+    onForegroundMessage((payload) => {
+      console.debug('Foreground push received.', {
+        type: payload?.data?.type || null,
+        notificationTitle: payload?.notification?.title || null
+      });
+      trackEvent('push_foreground_received', {
+        type: payload?.data?.type || 'unknown'
+      });
+      const message = payload?.data?.type === 'photo_received'
+        ? 'New photo from your person'
+        : (payload?.notification?.body || 'New Pocofoto update');
+      setForegroundToast(message);
+      window.setTimeout(() => setForegroundToast(''), 3200);
+    }).then((handlerUnsubscribe) => {
+      if (!active) {
+        handlerUnsubscribe?.();
+        return;
+      }
+      unsubscribe = handlerUnsubscribe;
+    }).catch((err) => {
+      console.warn('Foreground push listener skipped.', err);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, [user]);
 
   const handlePaired = (newCoupleId) => {
     setPairingNotice('');
@@ -156,6 +191,18 @@ export default function App() {
           <Retune />
         </Suspense>
       )}
+      <AnimatePresence>
+        {foregroundToast && (
+          <motion.div
+            className="toast"
+            initial={{ opacity: 0, y: 18, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 18, x: '-50%' }}
+          >
+            {foregroundToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

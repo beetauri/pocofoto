@@ -56,6 +56,10 @@ function displaySnapshot(user) {
   };
 }
 
+function summarizeUserAgent(userAgent = '') {
+  return String(userAgent).slice(0, 180);
+}
+
 async function deleteStaleFcmTokens(tokenDocs, responses) {
   const staleDeletes = [];
   responses.forEach((result, index) => {
@@ -67,19 +71,53 @@ async function deleteStaleFcmTokens(tokenDocs, responses) {
     }
   });
   await Promise.all(staleDeletes);
+  return staleDeletes.length;
 }
 
-async function sendMulticastToUser(uid, message) {
+async function sendMulticastToUser(uid, message, context = {}) {
   const tokensSnap = await db.collection(`users/${uid}/fcmTokens`).get();
   const tokenDocs = tokensSnap.docs.filter((doc) => doc.data().token);
   const tokens = tokenDocs.map((doc) => doc.data().token);
-  if (tokens.length === 0) return;
+  console.log('fcm_multicast_tokens_loaded', {
+    ...context,
+    recipientId: uid,
+    tokenCount: tokens.length
+  });
+  if (tokens.length === 0) {
+    return { tokenCount: 0, successCount: 0, failureCount: 0, staleDeletedCount: 0 };
+  }
 
   const response = await messaging.sendEachForMulticast({
     tokens,
     ...message
   });
-  await deleteStaleFcmTokens(tokenDocs, response.responses);
+  const failureDetails = response.responses
+    .map((result, index) => result.success ? null : {
+      tokenIndex: index,
+      code: result.error?.code || 'unknown',
+      message: result.error?.message || ''
+    })
+    .filter(Boolean);
+  console.log('fcm_multicast_send_result', {
+    ...context,
+    recipientId: uid,
+    tokenCount: tokens.length,
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    failureDetails
+  });
+  const staleDeletedCount = await deleteStaleFcmTokens(tokenDocs, response.responses);
+  console.log('fcm_multicast_stale_cleanup', {
+    ...context,
+    recipientId: uid,
+    staleDeletedCount
+  });
+  return {
+    tokenCount: tokens.length,
+    successCount: response.successCount,
+    failureCount: response.failureCount,
+    staleDeletedCount
+  };
 }
 
 async function invalidatePendingRequestsForUsers(userIds, reason, skipRequestId = null) {
@@ -183,20 +221,55 @@ export const notifyPhotoReceived = onDocumentCreated('couples/{coupleId}/photos/
   const photo = event.data?.data();
   const senderId = photo?.senderId;
   const { coupleId, photoId } = event.params;
-  if (!senderId || !coupleId || !photoId) return;
+  console.log('notify_photo_received_started', {
+    coupleId,
+    photoId,
+    senderId: senderId || null
+  });
+  if (!senderId || !coupleId || !photoId) {
+    console.log('notify_photo_received_skipped', {
+      reason: 'missing_required_fields',
+      coupleId: coupleId || null,
+      photoId: photoId || null,
+      senderId: senderId || null
+    });
+    return;
+  }
 
   const coupleSnap = await db.doc(`couples/${coupleId}`).get();
-  if (!coupleSnap.exists) return;
+  if (!coupleSnap.exists) {
+    console.log('notify_photo_received_skipped', {
+      reason: 'couple_not_found',
+      coupleId,
+      photoId,
+      senderId
+    });
+    return;
+  }
 
   const users = Array.isArray(coupleSnap.data().users) ? coupleSnap.data().users : [];
   const recipientId = users.find((uid) => uid !== senderId);
-  if (!recipientId) return;
+  if (!recipientId) {
+    console.log('notify_photo_received_skipped', {
+      reason: 'recipient_not_found',
+      coupleId,
+      photoId,
+      senderId
+    });
+    return;
+  }
+  console.log('notify_photo_received_recipient_resolved', {
+    coupleId,
+    photoId,
+    senderId,
+    recipientId
+  });
 
   const senderSnap = await db.doc(`users/${senderId}`).get();
   const sender = senderSnap.exists ? { id: senderId, ...senderSnap.data() } : { id: senderId };
   const senderName = sender.displayName || sender.email || 'Your person';
 
-  await sendMulticastToUser(recipientId, {
+  const sendResult = await sendMulticastToUser(recipientId, {
     notification: {
       title: "You've got a new photo!",
       body: `${senderName} sent you a photo.`
@@ -211,6 +284,18 @@ export const notifyPhotoReceived = onDocumentCreated('couples/{coupleId}/photos/
       coupleId,
       photoId
     }
+  }, {
+    notificationType: 'photo_received',
+    coupleId,
+    photoId,
+    senderId
+  });
+  console.log('notify_photo_received_completed', {
+    coupleId,
+    photoId,
+    senderId,
+    recipientId,
+    ...sendResult
   });
 });
 
@@ -420,15 +505,28 @@ export const registerFcmToken = onCall(async (request) => {
   const uid = requireUid(request);
   const token = request.data?.token;
   if (!token || typeof token !== 'string') {
+    console.log('fcm_token_registration_rejected', {
+      uid,
+      reason: 'missing_token'
+    });
     throw new HttpsError('invalid-argument', 'FCM token is required.');
   }
   const tokenId = encodeURIComponent(token).replace(/\./g, '%2E').slice(0, 1400);
+  console.log('fcm_token_registration_started', {
+    uid,
+    tokenIdLength: tokenId.length,
+    userAgent: summarizeUserAgent(request.data?.userAgent || '')
+  });
   await db.doc(`users/${uid}/fcmTokens/${tokenId}`).set({
     token,
     userAgent: request.data?.userAgent || '',
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp()
   }, { merge: true });
+  console.log('fcm_token_registration_completed', {
+    uid,
+    tokenIdLength: tokenId.length
+  });
   return { ok: true };
 });
 

@@ -25,5 +25,5 @@ export async function requestAndRegisterPushToken() {
     token,
     userAgent: navigator.userAgent
   });
-  return { ok: true, token };
+  return { ok: true, reason: 'registered' };
 }
