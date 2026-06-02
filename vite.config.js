@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import process from 'node:process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -7,6 +8,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
 function getGitCommit() {
+  if (process.env.CF_PAGES_COMMIT_SHA) {
+    return process.env.CF_PAGES_COMMIT_SHA.slice(0, 7)
+  }
+
   try {
     return execSync('git rev-parse --short HEAD', {
       cwd: new URL('.', import.meta.url),
