@@ -1,10 +1,14 @@
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
 function getGitCommit() {
@@ -26,6 +30,11 @@ const buildVersion = packageJson.version || '0.0.0'
 const buildCommit = getGitCommit()
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildVersion),
     'import.meta.env.VITE_APP_COMMIT': JSON.stringify(buildCommit)
@@ -48,6 +57,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['pocofoto-logotype.svg', 'pocoface-icon-1024.png', 'pocoface-192.png', 'pocoface-512.png'],
