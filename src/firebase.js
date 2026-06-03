@@ -7,6 +7,7 @@ import {
   onAuthStateChanged as realOnAuthStateChanged,
   signInWithPopup as realSignInWithPopup,
   GoogleAuthProvider as realGoogleAuthProvider,
+  updateProfile as realUpdateProfile,
   connectAuthEmulator
 } from 'firebase/auth';
 import {
@@ -105,6 +106,7 @@ const createUserWithEmailAndPassword = (_authInst, email, password) => realCreat
 const signInWithEmailAndPassword = (_authInst, email, password) => realSignInWithEmailAndPassword(auth, email, password);
 const signOut = (_authInst) => realSignOut(auth);
 const signInWithPopup = (_authInst, provider) => realSignInWithPopup(auth, provider);
+const updateProfile = (user, profile) => realUpdateProfile(user, profile);
 const GoogleAuthProvider = realGoogleAuthProvider;
 
 const doc = realDoc;
@@ -143,6 +145,7 @@ export {
   signInWithEmailAndPassword,
   signOut,
   signInWithPopup,
+  updateProfile,
   GoogleAuthProvider,
   doc, setDoc, getDoc, updateDoc, onSnapshot,
   collection, query, where, getDocs, addDoc, orderBy,

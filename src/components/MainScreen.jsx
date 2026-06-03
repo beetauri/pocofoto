@@ -2,17 +2,20 @@ import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart as LucideHeartIcon,
+  Check as LucideCheckIcon,
   Image as LucidePhotoIcon,
   LayoutGrid as LucideGridIcon,
   Link2Off as LucideUnlinkIcon,
   LogOut as LucideLogoutIcon,
+  Pencil as LucidePencilIcon,
   RefreshCw as LucideSwitchCameraIcon,
   Send as LucideSendIcon,
+  X as LucideXIcon,
   UserRound as LucideUserIcon,
   Zap as LucideFlashIcon
 } from 'lucide-react';
 import HistoryScreen from './HistoryScreen';
-import { db, storage, auth, functions, doc, onSnapshot, updateDoc, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
+import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
 
 const views = ['history', 'home', 'profile'];
@@ -20,6 +23,18 @@ const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
+}
+
+function CheckIcon() {
+  return <LucideCheckIcon {...lucideIconProps} />;
+}
+
+function PencilIcon() {
+  return <LucidePencilIcon {...lucideIconProps} />;
+}
+
+function XIcon() {
+  return <LucideXIcon {...lucideIconProps} />;
 }
 
 function HomeIcon() {
@@ -533,6 +548,25 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     trackEvent('profile_photo_removed');
   };
 
+  const handleSaveDisplayName = async (nextDisplayName) => {
+    const displayNameValue = nextDisplayName.trim();
+    await updateDoc(doc(db, 'users', user.uid), {
+      displayName: displayNameValue,
+      updatedAt: new Date().toISOString()
+    });
+
+    try {
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: displayNameValue });
+      }
+    } catch (err) {
+      console.warn('Could not sync Firebase Auth display name.', err);
+    }
+
+    showToast('Display name updated');
+    trackEvent('display_name_updated');
+  };
+
   const handleSelectHistoryPhoto = (photoId) => {
     setToast('');
     setPendingScrollPhotoId(photoId);
@@ -894,6 +928,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
             uploading={uploading}
             onPickPhoto={() => profileFileRef.current?.click()}
             onRemovePhoto={handleRemoveProfilePhoto}
+            onSaveDisplayName={handleSaveDisplayName}
             onRequestLogout={() => {
               setToast('');
               setConfirmLogout(true);
@@ -1044,9 +1079,52 @@ function ProfileView({
   uploading,
   onPickPhoto,
   onRemovePhoto,
+  onSaveDisplayName,
   onRequestLogout,
   onRequestRemovePairing
 }) {
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(displayName);
+  const [nameError, setNameError] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
+  useEffect(() => {
+    if (editingName) return;
+    setDraftName(displayName);
+  }, [displayName, editingName]);
+
+  const handleStartNameEdit = () => {
+    setDraftName(displayName);
+    setNameError('');
+    setEditingName(true);
+  };
+
+  const handleCancelNameEdit = () => {
+    setDraftName(displayName);
+    setNameError('');
+    setEditingName(false);
+  };
+
+  const handleSaveName = async () => {
+    const trimmedName = draftName.trim();
+    if (trimmedName.length < 2 || trimmedName.length > 30) {
+      setNameError('Display name must be 2-30 characters.');
+      return;
+    }
+
+    setSavingName(true);
+    setNameError('');
+    try {
+      await onSaveDisplayName(trimmedName);
+      setEditingName(false);
+    } catch (err) {
+      console.error(err);
+      setNameError('Could not update display name.');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   return (
     <section className="profile-screen" aria-label="Profile">
       <div className="profile-hero">
@@ -1076,9 +1154,48 @@ function ProfileView({
       </div>
 
       <div className="profile-info-list">
-        <div className="profile-info-row">
-          <span>Username</span>
-          <strong>{displayName}</strong>
+        <div className={`profile-info-row profile-editable-row${editingName ? ' editing' : ''}`}>
+          <span>Display name</span>
+          {editingName ? (
+            <>
+              <div className="profile-edit-row">
+                <input
+                  className="profile-name-input"
+                  type="text"
+                  value={draftName}
+                  minLength={2}
+                  maxLength={30}
+                  autoFocus
+                  disabled={savingName}
+                  onChange={(event) => {
+                    setDraftName(event.target.value);
+                    setNameError('');
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') handleSaveName();
+                    if (event.key === 'Escape') handleCancelNameEdit();
+                  }}
+                  aria-label="Display name"
+                />
+                <div className="profile-edit-actions">
+                  <button className="profile-edit-icon" type="button" aria-label="Cancel display name edit" onClick={handleCancelNameEdit} disabled={savingName}>
+                    <XIcon />
+                  </button>
+                  <button className="profile-edit-icon save" type="button" aria-label="Save display name" onClick={handleSaveName} disabled={savingName}>
+                    {savingName ? <div className="spinner small" /> : <CheckIcon />}
+                  </button>
+                </div>
+              </div>
+              {nameError && <p className="profile-inline-error">{nameError}</p>}
+            </>
+          ) : (
+            <div className="profile-value-row">
+              <strong>{displayName}</strong>
+              <button className="profile-edit-icon" type="button" aria-label="Edit display name" onClick={handleStartNameEdit}>
+                <PencilIcon />
+              </button>
+            </div>
+          )}
         </div>
         <div className="profile-info-row">
           <span>Email</span>

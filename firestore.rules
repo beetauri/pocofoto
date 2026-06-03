@@ -39,6 +39,14 @@ service cloud.firestore {
         ]);
     }
 
+    function validDisplayNameUpdate() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName'])
+        || (request.resource.data.displayName is string
+          && request.resource.data.displayName.size() >= 2
+          && request.resource.data.displayName.size() <= 30
+          && request.resource.data.displayName.matches('.*\\S.*'));
+    }
+
     match /users/{uid} {
       allow create: if ownUid(uid)
         && request.resource.data.coupleId == null
@@ -47,7 +55,7 @@ service cloud.firestore {
         || (signedIn()
           && resource.data.coupleId is string
           && resource.data.coupleId == currentCoupleId());
-      allow update: if ownUid(uid) && onlyOwnProfileFields();
+      allow update: if ownUid(uid) && onlyOwnProfileFields() && validDisplayNameUpdate();
       allow delete: if false;
 
       match /private/{documentId} {

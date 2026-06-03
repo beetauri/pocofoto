@@ -377,6 +377,12 @@ button {
   animation: spin 0.85s linear infinite;
 }
 
+.spinner.small {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -1088,6 +1094,80 @@ button {
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.profile-editable-row.editing {
+  gap: 8px;
+}
+
+.profile-value-row,
+.profile-edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.profile-name-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.profile-name-input:focus {
+  border-color: rgba(157, 170, 255, 0.68);
+  box-shadow: 0 0 0 3px rgba(157, 170, 255, 0.12);
+}
+
+.profile-edit-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.profile-edit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--bg-control);
+  color: var(--text-secondary);
+}
+
+.profile-edit-icon:hover {
+  background: var(--bg-control-hover);
+  color: var(--text-primary);
+}
+
+.profile-edit-icon.save {
+  background: var(--accent);
+  color: var(--btn-text);
+}
+
+.profile-edit-icon:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.profile-edit-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-inline-error {
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.3;
 }
 
 .profile-link-row {
