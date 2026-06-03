@@ -1219,12 +1219,18 @@ button:not(:disabled),
 }
 
 .profile-link-row {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
   margin: 16px 0;
 }
 
-.profile-link-row button {
-  min-height: 56px;
+.profile-link-row a {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .profile-danger-zone {
