@@ -74,50 +74,78 @@ async function deleteStaleFcmTokens(tokenDocs, responses) {
   return staleDeletes.length;
 }
 
-async function sendMulticastToUser(uid, message, context = {}) {
-  const tokensSnap = await db.collection(`users/${uid}/fcmTokens`).get();
-  const tokenDocs = tokensSnap.docs.filter((doc) => doc.data().token);
-  const tokens = tokenDocs.map((doc) => doc.data().token);
-  console.log('fcm_multicast_tokens_loaded', {
-    ...context,
-    recipientId: uid,
-    tokenCount: tokens.length
-  });
-  if (tokens.length === 0) {
-    return { tokenCount: 0, successCount: 0, failureCount: 0, staleDeletedCount: 0 };
-  }
-
-  const response = await messaging.sendEachForMulticast({
-    tokens,
-    ...message
-  });
-  const failureDetails = response.responses
+function summarizePushFailures(responses) {
+  const failureDetails = responses
     .map((result, index) => result.success ? null : {
       tokenIndex: index,
       code: result.error?.code || 'unknown',
       message: result.error?.message || ''
     })
     .filter(Boolean);
-  console.log('fcm_multicast_send_result', {
+  const failureCodes = [...new Set(failureDetails.map((failure) => failure.code))];
+  return { failureDetails, failureCodes };
+}
+
+async function sendMulticastToUser(uid, message, context = {}) {
+  console.log('push_send_started', {
+    ...context,
+    recipientId: uid
+  });
+  const tokensSnap = await db.collection(`users/${uid}/fcmTokens`).get();
+  const tokenDocs = tokensSnap.docs.filter((doc) => doc.data().token);
+  const tokens = tokenDocs.map((doc) => doc.data().token);
+  console.log('push_send_tokens_loaded', {
     ...context,
     recipientId: uid,
-    tokenCount: tokens.length,
-    successCount: response.successCount,
-    failureCount: response.failureCount,
-    failureDetails
+    tokenCount: tokens.length
   });
-  const staleDeletedCount = await deleteStaleFcmTokens(tokenDocs, response.responses);
-  console.log('fcm_multicast_stale_cleanup', {
-    ...context,
-    recipientId: uid,
-    staleDeletedCount
-  });
-  return {
-    tokenCount: tokens.length,
-    successCount: response.successCount,
-    failureCount: response.failureCount,
-    staleDeletedCount
-  };
+  if (tokens.length === 0) {
+    console.log('push_send_completed', {
+      ...context,
+      recipientId: uid,
+      tokenCount: 0,
+      successCount: 0,
+      failureCount: 0,
+      staleDeletedCount: 0,
+      failureCodes: []
+    });
+    return { tokenCount: 0, successCount: 0, failureCount: 0, staleDeletedCount: 0, failureCodes: [] };
+  }
+
+  try {
+    const response = await messaging.sendEachForMulticast({
+      tokens,
+      ...message
+    });
+    const { failureDetails, failureCodes } = summarizePushFailures(response.responses);
+    const staleDeletedCount = await deleteStaleFcmTokens(tokenDocs, response.responses);
+    console.log('push_send_completed', {
+      ...context,
+      recipientId: uid,
+      tokenCount: tokens.length,
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      staleDeletedCount,
+      failureCodes,
+      failureDetails
+    });
+    return {
+      tokenCount: tokens.length,
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      staleDeletedCount,
+      failureCodes
+    };
+  } catch (err) {
+    console.error('push_send_failed', {
+      ...context,
+      recipientId: uid,
+      tokenCount: tokens.length,
+      code: err?.code || 'unknown',
+      message: err?.message || ''
+    });
+    throw err;
+  }
 }
 
 async function invalidatePendingRequestsForUsers(userIds, reason, skipRequestId = null) {
@@ -358,6 +386,58 @@ export const removePairing = onCall(async (request) => {
   }));
 
   return { ok: true, coupleId };
+});
+
+export const sendTestPushNotification = onCall(async (request) => {
+  const senderId = requireUid(request);
+  const sender = await getUser(senderId);
+  const coupleId = sender.coupleId;
+  if (!coupleId || typeof coupleId !== 'string') {
+    throw new HttpsError('failed-precondition', 'You are not currently paired.');
+  }
+
+  const coupleSnap = await db.doc(`couples/${coupleId}`).get();
+  if (!coupleSnap.exists) {
+    throw new HttpsError('not-found', 'Pairing record not found.');
+  }
+
+  const users = Array.isArray(coupleSnap.data().users) ? coupleSnap.data().users : [];
+  if (!users.includes(senderId)) {
+    throw new HttpsError('permission-denied', 'You are not a member of this pairing.');
+  }
+  const recipientId = users.find((uid) => uid !== senderId);
+  if (!recipientId) {
+    throw new HttpsError('failed-precondition', 'Paired user not found.');
+  }
+
+  const senderName = sender.displayName || sender.email || 'Your person';
+  const context = {
+    notificationType: 'debug_test',
+    coupleId,
+    senderId
+  };
+  const sendResult = await sendMulticastToUser(recipientId, {
+    notification: {
+      title: 'Debug push from Pocofoto',
+      body: `${senderName} sent a test notification.`
+    },
+    webpush: {
+      fcmOptions: {
+        link: '/'
+      }
+    },
+    data: {
+      type: 'debug_test',
+      coupleId,
+      senderId
+    }
+  }, context);
+
+  return {
+    ok: true,
+    recipientId,
+    ...sendResult
+  };
 });
 
 export const acceptPairingRequest = onCall(async (request) => {

@@ -27,3 +27,9 @@ export async function requestAndRegisterPushToken() {
   });
   return { ok: true, reason: 'registered' };
 }
+
+export async function sendTestPushNotification() {
+  const callSendTestPushNotification = httpsCallable(functions, 'sendTestPushNotification');
+  const response = await callSendTestPushNotification();
+  return response.data;
+}

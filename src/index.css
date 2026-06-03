@@ -1185,6 +1185,42 @@ button {
   text-decoration: none;
 }
 
+.profile-debug-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 14px;
+  border: 1px solid rgba(157, 170, 255, 0.22);
+  border-radius: 18px;
+  background: rgba(157, 170, 255, 0.08);
+}
+
+.profile-debug-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-debug-actions .btn-ghost {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+
+.profile-debug-actions .btn-ghost:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.profile-debug-result {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .profile-danger-zone {
   display: grid;
   gap: 8px;

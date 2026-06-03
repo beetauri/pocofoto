@@ -75,6 +75,16 @@ VITE_USE_FIREBASE_EMULATORS=false
 
 Production builds use hosted Firebase unless explicitly configured otherwise.
 
+## Push Debug Panel
+
+The temporary Profile push debug panel is hidden unless this build-time Vite flag is enabled:
+
+```sh
+VITE_ENABLE_PUSH_DEBUG=true
+```
+
+For local dev, add it to `.env` and restart `npm run dev`. For Cloudflare Pages, add it under Pages -> `pocofoto` -> Settings -> Environment variables, then redeploy because `VITE_` values are baked into the built JavaScript. The Firebase Function `sendTestPushNotification` must also be deployed before the test-send button can work.
+
 ## Scripts
 
 ```sh

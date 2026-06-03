@@ -17,9 +17,11 @@ import {
 import HistoryScreen from './HistoryScreen';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
+import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNotifications';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
+const pushDebugEnabled = import.meta.env.VITE_ENABLE_PUSH_DEBUG === 'true';
 
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
@@ -135,6 +137,9 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmRemovePairing, setConfirmRemovePairing] = useState(false);
   const [removingPairing, setRemovingPairing] = useState(false);
+  const [registeringPushDebug, setRegisteringPushDebug] = useState(false);
+  const [sendingPushDebug, setSendingPushDebug] = useState(false);
+  const [pushDebugResult, setPushDebugResult] = useState('');
   const profileFileRef = useRef(null);
   const videoRef = useRef(null);
   const feedRef = useRef(null);
@@ -634,6 +639,69 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     }
   };
 
+  const formatPushDebugResult = (result) => {
+    const tokenCount = result?.tokenCount ?? 0;
+    const successCount = result?.successCount ?? 0;
+    const failureCount = result?.failureCount ?? 0;
+    const staleDeletedCount = result?.staleDeletedCount ?? 0;
+    const failureCodes = Array.isArray(result?.failureCodes) ? result.failureCodes.filter(Boolean) : [];
+    const staleText = staleDeletedCount > 0 ? `, stale deleted: ${staleDeletedCount}` : '';
+    const codeText = failureCodes.length ? `, codes: ${failureCodes.join(', ')}` : '';
+    return `tokens: ${tokenCount}, success: ${successCount}, failed: ${failureCount}${staleText}${codeText}`;
+  };
+
+  const handleRegisterPushDebug = async () => {
+    if (registeringPushDebug) return;
+    setRegisteringPushDebug(true);
+    setPushDebugResult('Registering this device...');
+    try {
+      const result = await requestAndRegisterPushToken();
+      const message = result.ok
+        ? 'registered: this browser has an FCM token'
+        : `registration: ${result.reason || 'failed'}`;
+      setPushDebugResult(message);
+      showToast(message, 3200);
+      console.debug('Push debug registration result.', result);
+      trackEvent('push_debug_register_result', {
+        status: result.ok ? 'registered' : result.reason || 'failed'
+      });
+    } catch (err) {
+      const message = err?.message?.replace(/^Firebase: /, '') || 'registration: failed';
+      setPushDebugResult(message);
+      showToast(message, 3600);
+      console.error('Push debug registration failed.', err);
+      trackEvent('push_debug_register_result', { status: 'error' });
+    } finally {
+      setRegisteringPushDebug(false);
+    }
+  };
+
+  const handleSendPushDebug = async () => {
+    if (sendingPushDebug) return;
+    setSendingPushDebug(true);
+    setPushDebugResult('Sending test push...');
+    try {
+      const result = await sendTestPushNotification();
+      const message = formatPushDebugResult(result);
+      setPushDebugResult(message);
+      showToast(message, 3600);
+      console.debug('Push debug send result.', result);
+      trackEvent('push_debug_test_result', {
+        tokenCount: result?.tokenCount ?? 0,
+        successCount: result?.successCount ?? 0,
+        failureCount: result?.failureCount ?? 0
+      });
+    } catch (err) {
+      const message = err?.message?.replace(/^Firebase: /, '') || 'test push: failed';
+      setPushDebugResult(message);
+      showToast(message, 3600);
+      console.error('Push debug send failed.', err);
+      trackEvent('push_debug_test_result', { status: 'error' });
+    } finally {
+      setSendingPushDebug(false);
+    }
+  };
+
   const timeAgo = (date) => {
     if (!date) return '';
     const diff = (Date.now() - date.getTime()) / 1000;
@@ -937,6 +1005,12 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
               setToast('');
               setConfirmRemovePairing(true);
             }}
+            pushDebugEnabled={pushDebugEnabled}
+            pushDebugResult={pushDebugResult}
+            registeringPushDebug={registeringPushDebug}
+            sendingPushDebug={sendingPushDebug}
+            onRegisterPushDebug={handleRegisterPushDebug}
+            onSendPushDebug={handleSendPushDebug}
           />
         </section>
       </motion.div>
@@ -1081,7 +1155,13 @@ function ProfileView({
   onRemovePhoto,
   onSaveDisplayName,
   onRequestLogout,
-  onRequestRemovePairing
+  onRequestRemovePairing,
+  pushDebugEnabled,
+  pushDebugResult,
+  registeringPushDebug,
+  sendingPushDebug,
+  onRegisterPushDebug,
+  onSendPushDebug
 }) {
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(displayName);
@@ -1211,6 +1291,23 @@ function ProfileView({
         <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Notice</a>
         <a href="#terms" onClick={(e) => e.preventDefault()}>Terms of Use</a>
       </div>
+
+      {pushDebugEnabled && (
+        <div className="profile-debug-panel">
+          <span className="profile-card-label">Push debug</span>
+          <div className="profile-debug-actions">
+            <button className="btn-ghost" type="button" onClick={onRegisterPushDebug} disabled={registeringPushDebug}>
+              {registeringPushDebug ? 'Registering...' : 'Register this device'}
+            </button>
+            <button className="btn-ghost" type="button" onClick={onSendPushDebug} disabled={sendingPushDebug}>
+              {sendingPushDebug ? 'Sending...' : 'Send test push to partner'}
+            </button>
+          </div>
+          <p className="profile-debug-result">
+            {pushDebugResult || 'Enable, register this browser, then send a test push.'}
+          </p>
+        </div>
+      )}
 
       <div className="profile-danger-zone">
         <button className="menu-action profile-menu-action" type="button" onClick={onRequestLogout}>
