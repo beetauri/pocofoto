@@ -14,7 +14,6 @@ import {
   UserRound as LucideUserIcon,
   Zap as LucideFlashIcon
 } from 'lucide-react';
-import ComponentLibraryDrawer from './ComponentLibraryDrawer';
 import HistoryScreen from './HistoryScreen';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
@@ -1289,7 +1288,8 @@ function ProfileView({
       </div>
 
       <div className="profile-link-row">
-        <ComponentLibraryDrawer />
+        <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Notice</a>
+        <a href="#terms" onClick={(e) => e.preventDefault()}>Terms of Use</a>
       </div>
 
       {pushDebugEnabled && (
