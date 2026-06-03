@@ -1,13 +1,40 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-control: var(--bg-control);
+  --color-control-hover: var(--bg-control-hover);
+}
+
 :root {
+  color-scheme: dark;
   --bg-primary: #000000;
   --bg-secondary: #080808;
   --bg-card: #171717;
   --bg-card-soft: #1f1f1f;
   --bg-control: #2a2a2c;
   --bg-control-hover: #353538;
-  --accent: #9DAAFF;
-  --accent-hover: #B7C1FF;
-  --accent-glow: rgba(157, 170, 255, 0.34);
+  --accent: #4F72FC;
+  --accent-hover: #6F8BFF;
+  --accent-glow: rgba(79, 114, 252, 0.36);
   --danger: #ff5a5f;
   --text-primary: #f8f8f8;
   --text-secondary: rgba(255, 255, 255, 0.72);
@@ -24,6 +51,22 @@
   --font: Inter, ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--glass-bg);
+  --popover-foreground: var(--text-primary);
+  --primary: #4F72FC;
+  --primary-foreground: #ffffff;
+  --secondary: var(--bg-card-soft);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-card-soft);
+  --muted-foreground: var(--text-muted);
+  --accent-foreground: #ffffff;
+  --destructive: var(--danger);
+  --input: var(--bg-control);
+  --ring: rgba(79, 114, 252, 0.46);
 }
 
 *, *::before, *::after {
@@ -73,6 +116,11 @@ button, input, textarea {
 
 button {
   color: inherit;
+}
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
 }
 
 ::-webkit-scrollbar {
