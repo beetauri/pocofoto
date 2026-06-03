@@ -12,7 +12,9 @@ export async function requestAndRegisterPushToken() {
     return { ok: false, reason: permission };
   }
 
-  const registration = await navigator.serviceWorker?.register('/firebase-messaging-sw.js');
+  const registration = await navigator.serviceWorker?.register('/firebase-messaging-sw.js', {
+    scope: '/firebase-cloud-messaging-push-scope'
+  });
   const token = await getMessagingToken({
     vapidKey,
     serviceWorkerRegistration: registration
