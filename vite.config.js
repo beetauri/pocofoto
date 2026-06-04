@@ -59,7 +59,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['pocofoto-logotype.svg', 'pocoface-icon-1024.png', 'pocoface-192.png', 'pocoface-512.png'],
       manifest: {
         name: 'Pocofoto — Photo Sharing for Two',

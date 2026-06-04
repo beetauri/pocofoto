@@ -5,6 +5,7 @@ import { initAnalytics, trackEvent, identifyUser, resetAnalytics } from './analy
 import AuthScreen from './components/AuthScreen';
 import PairingScreen from './components/PairingScreen';
 import MainScreen from './components/MainScreen';
+import UpdateBanner from './components/UpdateBanner';
 import { Toaster } from './components/ui/sonner';
 
 const Retune = import.meta.env.DEV
@@ -204,6 +205,7 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      <UpdateBanner />
       <Toaster />
     </>
   );

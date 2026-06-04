@@ -457,6 +457,118 @@ button:not(:disabled),
   -webkit-backdrop-filter: blur(20px);
 }
 
+.update-banner {
+  position: fixed;
+  top: calc(var(--safe-top) + 12px);
+  left: 50%;
+  z-index: 1200;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: min(412px, calc(100vw - 24px));
+  min-height: 66px;
+  padding: 10px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background: rgba(24, 24, 26, 0.9);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.38);
+  color: var(--text-primary);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.update-banner-success {
+  grid-template-columns: 1fr;
+  min-height: 54px;
+  width: min(320px, calc(100vw - 40px));
+  padding: 12px 18px;
+}
+
+.update-banner-icon-btn,
+.update-banner-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+
+.update-banner-icon-btn {
+  width: 38px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.update-banner-icon-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.update-banner-action {
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: var(--btn-text);
+  font-size: 13px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.update-banner-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.update-banner-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.update-banner-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.update-banner-action:hover {
+  background: var(--accent-hover);
+}
+
+.update-banner-icon-btn:active,
+.update-banner-action:active {
+  transform: scale(0.96);
+}
+
+.update-banner-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.update-banner-copy.centered {
+  justify-items: center;
+  text-align: center;
+}
+
+.update-banner-copy strong {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.update-banner-copy span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .camera-stage {
   position: relative;
   flex: 1;
@@ -1231,6 +1343,42 @@ button:not(:disabled),
   font-size: 13px;
   font-weight: 800;
   text-decoration: none;
+}
+
+.profile-debug-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 14px;
+  border: 1px solid rgba(157, 170, 255, 0.22);
+  border-radius: 18px;
+  background: rgba(157, 170, 255, 0.08);
+}
+
+.profile-debug-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-debug-actions .btn-ghost {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+
+.profile-debug-actions .btn-ghost:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.profile-debug-result {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .profile-danger-zone {
