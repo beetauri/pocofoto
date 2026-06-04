@@ -12,6 +12,8 @@ import {
 } from '../firebase';
 import { identifyUser, trackEvent } from '../analytics';
 import { requestAndRegisterPushToken } from '../pushNotifications';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -28,6 +30,55 @@ function GoogleIcon() {
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
     </svg>
+  );
+}
+
+function AnimatedBlobs() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Top-right blob */}
+      <motion.div
+        className="absolute -top-32 -right-32 size-80 rounded-full bg-[#4F72FC]/30 blur-[100px]"
+        animate={{
+          x: [0, 30, -20, 0],
+          y: [0, -20, 30, 0],
+          scale: [1, 1.1, 0.95, 1],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      {/* Bottom-left blob */}
+      <motion.div
+        className="absolute -bottom-40 -left-40 size-96 rounded-full bg-[#6F8BFF]/25 blur-[120px]"
+        animate={{
+          x: [0, -25, 35, 0],
+          y: [0, 35, -15, 0],
+          scale: [1, 0.9, 1.1, 1],
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      {/* Center-bottom subtle blob */}
+      <motion.div
+        className="absolute bottom-1/4 left-1/2 -translate-x-1/2 size-64 rounded-full bg-[#4F72FC]/20 blur-[80px]"
+        animate={{
+          x: ['-50%', '-40%', '-60%', '-50%'],
+          y: [0, 20, -10, 0],
+          scale: [1, 1.15, 0.9, 1],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+    </div>
   );
 }
 
@@ -92,8 +143,9 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="screen auth-screen">
-      <motion.div {...fadeUp} className="auth-card">
+    <div className="screen auth-screen relative !p-0">
+      <AnimatedBlobs />
+      <motion.div {...fadeUp} className="auth-card relative z-10 px-[22px]">
         <div className="brand-lockup">
           <motion.div
             className="brand-mark"
@@ -102,14 +154,16 @@ export default function AuthScreen() {
           >
             <img src="/pocoface-icon-1024.png" alt="" />
           </motion.div>
-          <img className="logo-lockup-image" src="/pocofoto-logotype.svg" alt="Pocofoto" />
-          <p>Share photos with your person.</p>
+          <img className="logo-lockup-image mb-3" src="/pocofoto-logotype.svg" alt="Pocofoto" />
+          <p className="text-muted-foreground text-[15px] font-semibold leading-relaxed mt-1">
+            Share photos with your person.
+          </p>
         </div>
 
         <AnimatePresence>
           {error && (
             <motion.p
-              className="error-text"
+              className="text-destructive text-[13px] font-bold text-center"
               role="alert"
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -120,20 +174,21 @@ export default function AuthScreen() {
           )}
         </AnimatePresence>
 
-        <motion.button
-          id="auth-google"
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-          whileTap={{ scale: 0.98 }}
-          className="btn-ghost"
-          style={{ gap: 10 }}
-        >
-          <GoogleIcon />
-          {loading ? <div className="spinner" /> : 'Continue with Google'}
-        </motion.button>
+        <motion.div whileTap={{ scale: 0.98 }} className="w-full">
+          <Button
+            id="auth-google"
+            type="button"
+            variant="outline"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full h-[54px] gap-2.5 rounded-full border-[var(--glass-border)] bg-[var(--bg-control)] text-foreground text-base font-extrabold hover:bg-[var(--bg-control-hover)]"
+          >
+            <GoogleIcon />
+            {loading ? <Spinner className="size-5" /> : 'Continue with Google'}
+          </Button>
+        </motion.div>
       </motion.div>
-      <div className="screen-version">
+      <div className="screen-version absolute bottom-0 left-0 right-0 pb-[max(env(safe-area-inset-bottom),16px)]">
         <span>Version</span>
         <strong>v{buildVersion} ({buildCommit})</strong>
       </div>
