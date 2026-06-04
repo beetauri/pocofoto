@@ -12,6 +12,8 @@ import {
 } from '../firebase';
 import { identifyUser, trackEvent } from '../analytics';
 import { requestAndRegisterPushToken } from '../pushNotifications';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -103,13 +105,15 @@ export default function AuthScreen() {
             <img src="/pocoface-icon-1024.png" alt="" />
           </motion.div>
           <img className="logo-lockup-image" src="/pocofoto-logotype.svg" alt="Pocofoto" />
-          <p>Share photos with your person.</p>
+          <p className="text-muted-foreground text-[15px] font-semibold leading-relaxed">
+            Share photos with your person.
+          </p>
         </div>
 
         <AnimatePresence>
           {error && (
             <motion.p
-              className="error-text"
+              className="text-destructive text-[13px] font-bold text-center"
               role="alert"
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -120,18 +124,19 @@ export default function AuthScreen() {
           )}
         </AnimatePresence>
 
-        <motion.button
-          id="auth-google"
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-          whileTap={{ scale: 0.98 }}
-          className="btn-ghost"
-          style={{ gap: 10 }}
-        >
-          <GoogleIcon />
-          {loading ? <div className="spinner" /> : 'Continue with Google'}
-        </motion.button>
+        <motion.div whileTap={{ scale: 0.98 }} className="w-full">
+          <Button
+            id="auth-google"
+            type="button"
+            variant="outline"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full h-[54px] gap-2.5 rounded-full border-[var(--glass-border)] bg-[var(--bg-control)] text-foreground text-base font-extrabold hover:bg-[var(--bg-control-hover)]"
+          >
+            <GoogleIcon />
+            {loading ? <Spinner className="size-5" /> : 'Continue with Google'}
+          </Button>
+        </motion.div>
       </motion.div>
       <div className="screen-version">
         <span>Version</span>
