@@ -113,7 +113,9 @@ export default function App() {
       });
       const message = payload?.data?.type === 'photo_received'
         ? 'New photo from your person'
-        : (payload?.notification?.body || 'New Pocofoto update');
+        : payload?.data?.type === 'like_received'
+          ? 'Your photo was liked'
+          : (payload?.notification?.body || 'New Pocofoto update');
       setForegroundToast(message);
       window.setTimeout(() => setForegroundToast(''), 3200);
     }).then((handlerUnsubscribe) => {

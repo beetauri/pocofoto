@@ -1,6 +1,6 @@
 import admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 
 admin.initializeApp();
@@ -322,6 +322,92 @@ export const notifyPhotoReceived = onDocumentCreated('couples/{coupleId}/photos/
     coupleId,
     photoId,
     senderId,
+    recipientId,
+    ...sendResult
+  });
+});
+
+export const notifyPhotoLiked = onDocumentUpdated('couples/{coupleId}', async (event) => {
+  const beforeLike = event.data?.before.data()?.lastLike || null;
+  const after = event.data?.after.data();
+  const like = after?.lastLike || null;
+  const { coupleId } = event.params;
+  const likerId = like?.userId;
+  const photoId = like?.photoId;
+  const likeTimestamp = like?.timestamp || null;
+  const beforeTimestamp = beforeLike?.timestamp || null;
+
+  console.log('notify_photo_liked_started', {
+    coupleId,
+    likerId: likerId || null,
+    photoId: photoId || null,
+    likeTimestamp
+  });
+
+  if (!like || !likerId || !photoId || !likeTimestamp) {
+    console.log('notify_photo_liked_skipped', {
+      reason: 'missing_like_fields',
+      coupleId,
+      likerId: likerId || null,
+      photoId: photoId || null,
+      likeTimestamp
+    });
+    return;
+  }
+
+  if (beforeTimestamp === likeTimestamp) {
+    console.log('notify_photo_liked_skipped', {
+      reason: 'unchanged_like_timestamp',
+      coupleId,
+      likerId,
+      photoId,
+      likeTimestamp
+    });
+    return;
+  }
+
+  const users = Array.isArray(after?.users) ? after.users : [];
+  const recipientId = users.find((uid) => uid !== likerId);
+  if (!recipientId || !users.includes(likerId)) {
+    console.log('notify_photo_liked_skipped', {
+      reason: 'recipient_not_found',
+      coupleId,
+      likerId,
+      photoId
+    });
+    return;
+  }
+
+  const likerSnap = await db.doc(`users/${likerId}`).get();
+  const liker = likerSnap.exists ? { id: likerId, ...likerSnap.data() } : { id: likerId };
+  const likerName = liker.displayName || liker.email || 'Your person';
+
+  const sendResult = await sendMulticastToUser(recipientId, {
+    notification: {
+      title: 'Your photo got a like!',
+      body: `${likerName} liked your photo.`
+    },
+    webpush: {
+      fcmOptions: {
+        link: '/'
+      }
+    },
+    data: {
+      type: 'like_received',
+      coupleId,
+      photoId,
+      likerId
+    }
+  }, {
+    notificationType: 'like_received',
+    coupleId,
+    photoId,
+    senderId: likerId
+  });
+  console.log('notify_photo_liked_completed', {
+    coupleId,
+    photoId,
+    likerId,
     recipientId,
     ...sendResult
   });
