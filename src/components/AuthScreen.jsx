@@ -33,6 +33,55 @@ function GoogleIcon() {
   );
 }
 
+function AnimatedBlobs() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Top-right blob */}
+      <motion.div
+        className="absolute -top-32 -right-32 size-80 rounded-full bg-[#4F72FC]/30 blur-[100px]"
+        animate={{
+          x: [0, 30, -20, 0],
+          y: [0, -20, 30, 0],
+          scale: [1, 1.1, 0.95, 1],
+        }}
+        transition={{
+          duration: 12,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      {/* Bottom-left blob */}
+      <motion.div
+        className="absolute -bottom-40 -left-40 size-96 rounded-full bg-[#6F8BFF]/25 blur-[120px]"
+        animate={{
+          x: [0, -25, 35, 0],
+          y: [0, 35, -15, 0],
+          scale: [1, 0.9, 1.1, 1],
+        }}
+        transition={{
+          duration: 15,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+      {/* Center-bottom subtle blob */}
+      <motion.div
+        className="absolute bottom-1/4 left-1/2 -translate-x-1/2 size-64 rounded-full bg-[#4F72FC]/20 blur-[80px]"
+        animate={{
+          x: ['-50%', '-40%', '-60%', '-50%'],
+          y: [0, 20, -10, 0],
+          scale: [1, 1.15, 0.9, 1],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      />
+    </div>
+  );
+}
+
 export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -94,8 +143,9 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="screen auth-screen">
-      <motion.div {...fadeUp} className="auth-card">
+    <div className="screen auth-screen relative">
+      <AnimatedBlobs />
+      <motion.div {...fadeUp} className="auth-card relative z-10">
         <div className="brand-lockup">
           <motion.div
             className="brand-mark"
@@ -104,8 +154,8 @@ export default function AuthScreen() {
           >
             <img src="/pocoface-icon-1024.png" alt="" />
           </motion.div>
-          <img className="logo-lockup-image" src="/pocofoto-logotype.svg" alt="Pocofoto" />
-          <p className="text-muted-foreground text-[15px] font-semibold leading-relaxed">
+          <img className="logo-lockup-image mb-3" src="/pocofoto-logotype.svg" alt="Pocofoto" />
+          <p className="text-muted-foreground text-[15px] font-semibold leading-relaxed mt-1">
             Share photos with your person.
           </p>
         </div>
