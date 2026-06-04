@@ -188,7 +188,7 @@ export default function AuthScreen() {
           </Button>
         </motion.div>
       </motion.div>
-      <div className="screen-version">
+      <div className="screen-version absolute bottom-0 left-0 right-0 pb-[max(env(safe-area-inset-bottom),16px)]">
         <span>Version</span>
         <strong>v{buildVersion} ({buildCommit})</strong>
       </div>
