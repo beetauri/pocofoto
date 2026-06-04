@@ -143,9 +143,9 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="screen auth-screen relative">
+    <div className="screen auth-screen relative !p-0">
       <AnimatedBlobs />
-      <motion.div {...fadeUp} className="auth-card relative z-10">
+      <motion.div {...fadeUp} className="auth-card relative z-10 px-[22px]">
         <div className="brand-lockup">
           <motion.div
             className="brand-mark"
