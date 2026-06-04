@@ -1,15 +1,17 @@
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils"
+import { Loader2Icon } from "lucide-react"
 
-function Spinner({ className, ...props }) {
+function Spinner({
+  className,
+  ...props
+}) {
   return (
-    <span
-      data-slot="spinner"
-      className={cn('inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent', className)}
+    <Loader2Icon
       role="status"
       aria-label="Loading"
-      {...props}
-    />
+      className={cn("size-4 animate-spin", className)}
+      {...props} />
   );
 }
 
-export { Spinner };
+export { Spinner }
