@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db, onAuthStateChanged, doc, onSnapshot, onForegroundMessage } from './firebase';
 import { initAnalytics, trackEvent, identifyUser, resetAnalytics } from './analytics';
 import AuthScreen from './components/AuthScreen';
+import AppBackground from './components/AppBackground';
 import PairingScreen from './components/PairingScreen';
 import MainScreen from './components/MainScreen';
 import UpdateBanner from './components/UpdateBanner';
@@ -21,7 +22,7 @@ const pageTransition = {
 
 function LoadingScreen() {
   return (
-    <div style={{
+    <div className="app-route-layer" style={{
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
@@ -159,19 +160,25 @@ export default function App() {
   }, [screen]);
 
   if (loading) {
-    return <LoadingScreen />;
+    return (
+      <>
+        <AppBackground />
+        <LoadingScreen />
+      </>
+    );
   }
 
   return (
     <>
+      <AppBackground />
       <AnimatePresence mode="wait">
         {screen === 'auth' && (
-          <motion.div key="auth" {...pageTransition} style={{ height: '100%' }}>
+          <motion.div key="auth" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
             <AuthScreen />
           </motion.div>
         )}
         {screen === 'pairing' && (
-          <motion.div key="pairing" {...pageTransition} style={{ height: '100%' }}>
+          <motion.div key="pairing" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
             <PairingScreen
               user={user}
               onPaired={handlePaired}
@@ -181,7 +188,7 @@ export default function App() {
           </motion.div>
         )}
         {screen === 'main' && (
-          <motion.div key="main" {...pageTransition} style={{ height: '100%' }}>
+          <motion.div key="main" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
             <MainScreen
               user={user}
               coupleId={coupleId}
