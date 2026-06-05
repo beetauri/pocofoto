@@ -10,6 +10,7 @@ import {
   Pencil as LucidePencilIcon,
   RefreshCw as LucideSwitchCameraIcon,
   Send as LucideSendIcon,
+  SendHorizontal as LucideSendHorizontalIcon,
   X as LucideXIcon,
   UserRound as LucideUserIcon,
   Zap as LucideFlashIcon
@@ -22,6 +23,7 @@ import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNo
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 const pushDebugEnabled = import.meta.env.VITE_ENABLE_PUSH_DEBUG === 'true';
+const MAX_CAPTION_LENGTH = 27;
 
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
@@ -81,6 +83,10 @@ function SendIcon() {
   return <LucideSendIcon {...lucideIconProps} />;
 }
 
+function SendHorizontalIcon() {
+  return <LucideSendHorizontalIcon {...lucideIconProps} />;
+}
+
 function PhotoIcon() {
   return <LucidePhotoIcon {...lucideIconProps} />;
 }
@@ -111,6 +117,24 @@ function initialsFor(name, email) {
     .join('') || '?';
 }
 
+function clampCaptionText(value) {
+  return value.replace(/[\r\n]/g, '').slice(0, MAX_CAPTION_LENGTH);
+}
+
+function buildCaptionPayload(text) {
+  if (text.length === 0) return null;
+  return {
+    type: 'text',
+    text
+  };
+}
+
+function getTextCaption(photo) {
+  return photo?.caption?.type === 'text' && typeof photo.caption.text === 'string'
+    ? photo.caption.text
+    : '';
+}
+
 function Avatar({ src, name, email, size = 'md' }) {
   const [failed, setFailed] = useState(false);
   if (src && !failed) {
@@ -134,6 +158,10 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const [activeView, setActiveView] = useState('home');
   const [facingMode, setFacingMode] = useState('environment');
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const [reviewPhoto, setReviewPhoto] = useState(null);
+  const [captionText, setCaptionText] = useState('');
+  const [sendingReviewPhoto, setSendingReviewPhoto] = useState(false);
+  const [sendAnimationState, setSendAnimationState] = useState('idle');
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmRemovePairing, setConfirmRemovePairing] = useState(false);
   const [removingPairing, setRemovingPairing] = useState(false);
@@ -142,6 +170,8 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const [pushDebugResult, setPushDebugResult] = useState('');
   const profileFileRef = useRef(null);
   const videoRef = useRef(null);
+  const captionInputRef = useRef(null);
+  const reviewPhotoUrlRef = useRef(null);
   const feedRef = useRef(null);
   const cameraSlideRef = useRef(null);
   const cameraStreamRef = useRef(null);
@@ -172,7 +202,8 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const profilePic = myProfile?.profilePic || user.photoURL || '';
   const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
   const buildCommit = import.meta.env.VITE_APP_COMMIT || 'dev';
-  const captureDisabled = uploading;
+  const isReviewingPhoto = Boolean(reviewPhoto);
+  const captureDisabled = uploading || sendingReviewPhoto || sendAnimationState !== 'idle';
   const activeIndex = views.indexOf(activeView);
 
   const showToast = useCallback((message, duration = 2500) => {
@@ -192,6 +223,27 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     feed.scrollTo({ top: target.offsetTop, behavior });
     return true;
   }, []);
+
+  const clearReviewPhoto = useCallback(() => {
+    if (reviewPhotoUrlRef.current) {
+      URL.revokeObjectURL(reviewPhotoUrlRef.current);
+      reviewPhotoUrlRef.current = null;
+    }
+    setReviewPhoto(null);
+    setCaptionText('');
+    setSendingReviewPhoto(false);
+    setSendAnimationState('idle');
+  }, []);
+
+  const focusCaptionInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      captionInputRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const handleCaptionChange = (event) => {
+    setCaptionText(clampCaptionText(event.target.value));
+  };
 
   const cameraSlideIsMostlyVisible = useCallback(() => {
     const feed = feedRef.current;
@@ -288,6 +340,15 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     });
     return () => unsub();
   }, [coupleId, user.uid, showToast]);
+
+  useEffect(() => {
+    return () => {
+      if (reviewPhotoUrlRef.current) {
+        URL.revokeObjectURL(reviewPhotoUrlRef.current);
+        reviewPhotoUrlRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     requestCamera(facingMode);
@@ -432,19 +493,25 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     });
   };
 
-  const uploadPhotoBlob = async (blob) => {
+  const uploadPhotoBlob = async (blob, caption = null) => {
     const filename = `couples/${coupleId}/${Date.now()}.jpg`;
     const storageRef = ref(storage, filename);
     await uploadBytes(storageRef, blob);
     const url = await getDownloadURL(storageRef);
     const timestampStr = new Date().toISOString();
 
-    const photoRef = await addDoc(collection(db, 'couples', coupleId, 'photos'), {
+    const photoPayload = {
       photoUrl: url,
       senderId: user.uid,
       timestamp: timestampStr,
       liked: false
-    });
+    };
+
+    if (caption) {
+      photoPayload.caption = caption;
+    }
+
+    const photoRef = await addDoc(collection(db, 'couples', coupleId, 'photos'), photoPayload);
 
     await updateDoc(doc(db, 'couples', coupleId), {
       currentPhotoUrl: url,
@@ -456,18 +523,6 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
 
     const createdPhotoId = photoRef?.id || photoRef?._id;
     trackEvent('photo_sent', { coupleId, photoId: createdPhotoId || null });
-    if (createdPhotoId) {
-      setActiveView('home');
-      setPendingScrollPhotoId(createdPhotoId);
-      const scrollToCreatedPhoto = () => {
-        if (scrollToPhoto(createdPhotoId, 'auto')) {
-          setPendingScrollPhotoId(null);
-        }
-      };
-      requestAnimationFrame(scrollToCreatedPhoto);
-      window.setTimeout(scrollToCreatedPhoto, 250);
-      window.setTimeout(scrollToCreatedPhoto, 800);
-    }
   };
 
   const handleCapture = async () => {
@@ -516,13 +571,48 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
         }, 'image/jpeg', 0.9);
       });
 
-      await uploadPhotoBlob(blob);
-      showToast('Photo sent');
+      setReviewPhoto(() => {
+        if (reviewPhotoUrlRef.current) URL.revokeObjectURL(reviewPhotoUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        reviewPhotoUrlRef.current = url;
+        return {
+          blob,
+          url
+        };
+      });
+      setCaptionText('');
+      setSendAnimationState('idle');
+      trackEvent('photo_review_opened', { coupleId });
     } catch (err) {
       console.error(err);
       showToast('Failed to capture photo', 3000);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDismissReviewPhoto = () => {
+    if (sendingReviewPhoto) return;
+    clearReviewPhoto();
+    trackEvent('photo_review_dismissed', { coupleId });
+  };
+
+  const handleSendReviewPhoto = async () => {
+    if (!reviewPhoto || sendingReviewPhoto) return;
+    setSendingReviewPhoto(true);
+    try {
+      const caption = buildCaptionPayload(captionText);
+      await uploadPhotoBlob(reviewPhoto.blob, caption);
+      setSendAnimationState('sent');
+      showToast('Photo sent');
+      window.setTimeout(() => {
+        clearReviewPhoto();
+        scrollToCamera('auto');
+      }, 420);
+    } catch (err) {
+      console.error(err);
+      showToast("Couldn't send photo", 3000);
+      setSendingReviewPhoto(false);
     }
   };
 
@@ -886,36 +976,73 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
                       )}
                     </div>
                   )}
+                  <AnimatePresence>
+                    {reviewPhoto && (
+                      <motion.div
+                        className="review-photo-layer"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={
+                          sendAnimationState === 'sent'
+                            ? { opacity: 0, y: '-112%', scale: 1 }
+                            : { opacity: 1, y: 0, scale: 1 }
+                        }
+                        exit={{ opacity: 0 }}
+                        transition={{
+                          duration: sendAnimationState === 'sent' ? 0.38 : 0.18,
+                          ease: 'easeInOut'
+                        }}
+                      >
+                        <img src={reviewPhoto.url} alt="Captured preview" draggable={false} />
+                        <label className="caption-pill caption-editor">
+                          <span aria-hidden={captionText.length === 0}>
+                            {captionText.length > 0 ? captionText : 'add a caption'}
+                          </span>
+                          <input
+                            ref={captionInputRef}
+                            value={captionText}
+                            onChange={handleCaptionChange}
+                            maxLength={MAX_CAPTION_LENGTH}
+                            inputMode="text"
+                            enterKeyHint="done"
+                            aria-label="Photo caption"
+                            disabled={sendingReviewPhoto}
+                          />
+                        </label>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.article>
 
                 <div className="camera-item-controls" aria-label="Camera controls">
                   <button
-                    className={`camera-tool-btn ${flashEnabled ? 'active' : ''}`}
+                    className={`camera-tool-btn ${!isReviewingPhoto && flashEnabled ? 'active' : ''}`}
                     type="button"
-                    aria-label="Toggle flash"
-                    aria-pressed={flashEnabled}
-                    onClick={handleToggleFlash}
+                    aria-label={isReviewingPhoto ? 'Discard photo' : 'Toggle flash'}
+                    aria-pressed={!isReviewingPhoto ? flashEnabled : undefined}
+                    onClick={isReviewingPhoto ? handleDismissReviewPhoto : handleToggleFlash}
+                    disabled={sendingReviewPhoto}
                   >
-                    <FlashIcon />
+                    {isReviewingPhoto ? <XIcon /> : <FlashIcon />}
                   </button>
                   <motion.button
                     id="main-capture-btn"
                     className="shutter-btn"
                     type="button"
-                    aria-label="Capture photo"
-                    onClick={handleCapture}
+                    aria-label={isReviewingPhoto ? 'Send photo' : 'Capture photo'}
+                    onClick={isReviewingPhoto ? handleSendReviewPhoto : handleCapture}
                     disabled={captureDisabled}
                     whileTap={{ scale: 0.9 }}
                   >
-                    {uploading && <div className="spinner" />}
+                    {(uploading || sendingReviewPhoto) ? <div className="spinner" /> : isReviewingPhoto ? <SendHorizontalIcon /> : null}
                   </motion.button>
                   <button
                     className="camera-tool-btn"
                     type="button"
-                    aria-label="Switch camera"
-                    onClick={handleSwitchCamera}
+                    aria-label={isReviewingPhoto ? 'Add caption' : 'Switch camera'}
+                    onClick={isReviewingPhoto ? focusCaptionInput : handleSwitchCamera}
+                    disabled={sendingReviewPhoto}
                   >
-                    <SwitchCameraIcon />
+                    {isReviewingPhoto ? <span className="caption-tool-label" aria-hidden="true">Aa</span> : <SwitchCameraIcon />}
                   </button>
                 </div>
               </div>
@@ -932,16 +1059,22 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
                   const photoTimestamp = photo.timestamp ? new Date(photo.timestamp) : null;
                   const senderProfile = photo.senderId === user.uid ? myProfile : profiles[photo.senderId];
                   const senderName = isPhotoMine ? displayName : senderProfile?.displayName || partnerName;
+                  const photoCaption = getTextCaption(photo);
 
                   return (
                     <div key={photo.id} className="reels-slide" data-photo-id={photo.id}>
                       <motion.article
-                        className="camera-frame"
+                        className="photo-card"
                         initial={{ opacity: 0, scale: 0.96 }}
                         animate={{ opacity: 1, scale: 1 }}
                       >
-                        <img src={photo.photoUrl} alt="Shared moment" loading="eager" draggable={false} />
-                        <div className="photo-gradient">
+                        <div className="camera-frame">
+                          <img src={photo.photoUrl} alt="Shared moment" loading="eager" draggable={false} />
+                          {photoCaption.length > 0 && (
+                            <div className="caption-pill photo-caption-pill">{photoCaption}</div>
+                          )}
+                        </div>
+                        <div className="photo-meta-row">
                           <div className="photo-meta">
                             <strong>{isPhotoMine ? 'You' : senderName}</strong>
                             <span>{timeAgo(photoTimestamp)}</span>

@@ -26,6 +26,21 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.users;
     }
 
+    function isValidCaption(caption) {
+      return caption is map
+        && caption.keys().hasOnly(['type', 'text'])
+        && caption.type == 'text'
+        && caption.text is string
+        && caption.text.size() > 0
+        && caption.text.size() <= 27
+        && !caption.text.matches('.*(\\n|\\r).*');
+    }
+
+    function hasValidOptionalCaption() {
+      return !('caption' in request.resource.data)
+        || isValidCaption(request.resource.data.caption);
+    }
+
     function onlyOwnProfileFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly([
@@ -108,7 +123,8 @@ service cloud.firestore {
       match /photos/{photoId} {
         allow read: if isCoupleMember(coupleId);
         allow create: if isCoupleMember(coupleId)
-          && request.resource.data.senderId == request.auth.uid;
+          && request.resource.data.senderId == request.auth.uid
+          && hasValidOptionalCaption();
         allow update: if isCoupleMember(coupleId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['liked']);
         allow delete: if false;

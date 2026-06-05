@@ -700,15 +700,32 @@ button:not(:disabled),
   background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.68));
 }
 
+.photo-card {
+  width: 100%;
+}
+
+.photo-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: 58px;
+  padding: 14px 6px 0;
+}
+
 .photo-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
 }
 
 .photo-meta strong {
-  display: block;
+  display: inline-block;
   max-width: 230px;
   overflow: hidden;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 850;
   line-height: 1.15;
@@ -717,11 +734,11 @@ button:not(:disabled),
 }
 
 .photo-meta span {
-  display: block;
-  margin-top: 4px;
-  color: rgba(255, 255, 255, 0.62);
+  display: inline-block;
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 750;
+  white-space: nowrap;
 }
 
 .like-btn {
@@ -757,6 +774,71 @@ button:not(:disabled),
   font-weight: 800;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+}
+
+.review-photo-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.review-photo-layer img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.caption-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100% - 52px);
+  min-height: 42px;
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  background: rgba(30, 25, 22, 0.48);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: clip;
+  transform: translateX(-50%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.caption-editor {
+  cursor: text;
+}
+
+.caption-editor input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  cursor: text;
+}
+
+.photo-caption-pill {
+  pointer-events: none;
+}
+
+.caption-tool-label {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .status-chip svg {
@@ -833,6 +915,11 @@ button:not(:disabled),
   min-height: 100%;
   padding-top: 0;
   padding-bottom: 0;
+}
+
+.camera-reels-slide:has(.review-photo-layer:focus-within) {
+  justify-content: flex-start;
+  padding-top: max(12px, calc(var(--safe-top) + 12px));
 }
 
 .camera-item-controls {
