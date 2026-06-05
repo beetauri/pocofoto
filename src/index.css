@@ -77,6 +77,9 @@
   --font: Inter, ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --bottom-nav-height: 76px;
+  --bottom-nav-offset: 16px;
+  --feed-nav-reserve: calc(var(--safe-bottom) + var(--bottom-nav-offset) + var(--bottom-nav-height) + 12px);
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
   --card: var(--bg-card);
@@ -906,7 +909,7 @@ button:not(:disabled),
   overscroll-behavior-y: contain;
   scroll-behavior: smooth;
   scroll-snap-type: y mandatory;
-  padding: calc(var(--safe-top) + 22px) 20px calc(var(--safe-bottom) + 104px);
+  padding: 0 20px;
   scrollbar-width: none;
 }
 
@@ -919,9 +922,12 @@ button:not(:disabled),
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex: 0 0 100%;
   width: 100%;
+  height: 100%;
   min-height: 100%;
-  padding: 54px 0;
+  overflow: hidden;
+  padding: calc(var(--safe-top) + 22px) 0 var(--feed-nav-reserve);
   scroll-snap-align: start;
   scroll-snap-stop: always;
 }
@@ -935,10 +941,6 @@ button:not(:disabled),
 .camera-reels-slide {
   justify-content: center;
   gap: clamp(14px, 3vh, 24px);
-  height: fit-content;
-  min-height: 100%;
-  padding-top: 0;
-  padding-bottom: 0;
 }
 
 .camera-item-controls {
@@ -1001,7 +1003,7 @@ button:not(:disabled),
 .bottom-nav {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--safe-bottom) + 16px);
+  bottom: calc(var(--safe-bottom) + var(--bottom-nav-offset));
   z-index: 90;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
