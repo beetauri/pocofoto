@@ -146,9 +146,24 @@ body {
 }
 
 #root {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   overscroll-behavior: none;
+}
+
+.app-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.app-route-layer {
+  position: relative;
+  z-index: 1;
 }
 
 button, input, textarea {
@@ -178,9 +193,7 @@ button:not(:disabled),
   overflow-y: auto;
   overscroll-behavior-y: contain;
   padding: calc(var(--safe-top) + 20px) 22px calc(var(--safe-bottom) + 22px);
-  background:
-    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.045), transparent 24%),
-    var(--bg-primary);
+  background: transparent;
   color: var(--text-primary);
 }
 
@@ -223,7 +236,7 @@ button:not(:disabled),
   max-width: 440px;
   margin: 0 auto;
   overflow: hidden;
-  background: var(--bg-primary);
+  background: transparent;
   overscroll-behavior: none;
 }
 
@@ -1195,7 +1208,7 @@ button:not(:disabled),
   overflow-y: auto;
   overscroll-behavior-y: contain;
   padding: calc(var(--safe-top) + 18px) 20px calc(var(--safe-bottom) + 104px);
-  background: var(--bg-primary);
+  background: transparent;
 }
 
 .history-header {
@@ -1225,9 +1238,7 @@ button:not(:disabled),
   overflow-y: auto;
   overscroll-behavior-y: contain;
   padding: calc(var(--safe-top) + 22px) 24px calc(var(--safe-bottom) + 116px);
-  background:
-    radial-gradient(circle at 50% 0%, rgba(157, 170, 255, 0.1), transparent 25%),
-    var(--bg-primary);
+  background: transparent;
 }
 
 .profile-hero {
