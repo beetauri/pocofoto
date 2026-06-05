@@ -994,7 +994,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
                       >
                         <img src={reviewPhoto.url} alt="Captured preview" draggable={false} />
                         <label className="caption-pill caption-editor">
-                          <span aria-hidden={captionText.length === 0}>
+                          <span className="caption-editor-sizer" aria-hidden="true">
                             {captionText.length > 0 ? captionText : 'add a caption'}
                           </span>
                           <input
@@ -1004,6 +1004,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
                             maxLength={MAX_CAPTION_LENGTH}
                             inputMode="text"
                             enterKeyHint="done"
+                            placeholder="add a caption"
                             aria-label="Photo caption"
                             disabled={sendingReviewPhoto}
                           />
