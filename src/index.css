@@ -624,7 +624,7 @@ button:not(:disabled),
   min-height: 320px;
   flex: 0 0 auto;
   overflow: hidden;
-  border-radius: clamp(32px, 10vw, 56px);
+  border-radius: 65px;
   background: #171717;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
@@ -806,7 +806,7 @@ button:not(:disabled),
   border-radius: var(--radius-full);
   background: rgba(30, 25, 22, 0.48);
   color: #fff;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1;
   white-space: pre;
@@ -819,28 +819,33 @@ button:not(:disabled),
 
 .caption-editor {
   display: grid;
+  position: absolute;
   cursor: text;
 }
 
-.caption-editor-sizer,
-.caption-editor input {
+.caption-editor-sizer {
   grid-area: 1 / 1;
   min-width: 0;
   font: inherit;
   line-height: inherit;
   white-space: pre;
-}
-
-.caption-editor-sizer {
   visibility: hidden;
 }
 
 .caption-editor input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   border: 0;
   outline: 0;
   padding: 0;
   background: transparent;
   color: #fff;
+  font: inherit;
+  line-height: inherit;
+  text-align: center;
+  white-space: pre;
   caret-color: #fff;
   cursor: text;
 }
@@ -934,11 +939,6 @@ button:not(:disabled),
   min-height: 100%;
   padding-top: 0;
   padding-bottom: 0;
-}
-
-.camera-reels-slide:has(.review-photo-layer:focus-within) {
-  justify-content: flex-start;
-  padding-top: max(12px, calc(var(--safe-top) + 12px));
 }
 
 .camera-item-controls {
