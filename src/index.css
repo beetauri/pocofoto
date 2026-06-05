@@ -1713,9 +1713,9 @@ button:not(:disabled),
 }
 
 .brand-lockup .brand-mark {
-  overflow: hidden;
+  overflow: visible;
   background: transparent;
-  box-shadow: 0 16px 48px rgba(79, 114, 252, 0.22);
+  box-shadow: none;
 }
 
 .brand-lockup p,
