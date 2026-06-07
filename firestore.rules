@@ -41,6 +41,25 @@ service cloud.firestore {
         || isValidCaption(request.resource.data.caption);
     }
 
+    function isValidPaletteV2(palette) {
+      return palette is map
+        && palette.keys().hasOnly(['version', 'topColor', 'bottomColor', 'colors'])
+        && palette.version == 2
+        && palette.topColor is string
+        && palette.topColor.matches('^#[0-9A-F]{6}$')
+        && palette.bottomColor is string
+        && palette.bottomColor.matches('^#[0-9A-F]{6}$')
+        && palette.colors is list
+        && palette.colors.size() == 2
+        && palette.colors[0] == palette.topColor
+        && palette.colors[1] == palette.bottomColor;
+    }
+
+    function hasValidOptionalPaletteV2() {
+      return !('paletteV2' in request.resource.data)
+        || isValidPaletteV2(request.resource.data.paletteV2);
+    }
+
     function onlyOwnProfileFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly([
@@ -124,7 +143,8 @@ service cloud.firestore {
         allow read: if isCoupleMember(coupleId);
         allow create: if isCoupleMember(coupleId)
           && request.resource.data.senderId == request.auth.uid
-          && hasValidOptionalCaption();
+          && hasValidOptionalCaption()
+          && hasValidOptionalPaletteV2();
         allow update: if isCoupleMember(coupleId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['liked']);
         allow delete: if false;

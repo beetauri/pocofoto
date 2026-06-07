@@ -1,11 +1,15 @@
-const BLACK_PALETTE = ['#000000', '#000000', '#000000'];
+const BLACK_PALETTE_V2 = {
+  version: 2,
+  topColor: '#000000',
+  bottomColor: '#000000',
+  colors: ['#000000', '#000000']
+};
 
 export default function AppBackground({ palette = null }) {
-  const colors = palette?.colors?.length ? palette.colors : BLACK_PALETTE;
+  const activePalette = palette?.version === 2 ? palette : BLACK_PALETTE_V2;
   const style = {
-    '--photo-bg-color-1': colors[0] || BLACK_PALETTE[0],
-    '--photo-bg-color-2': colors[1] || colors[0] || BLACK_PALETTE[1],
-    '--photo-bg-color-3': colors[2] || colors[1] || colors[0] || BLACK_PALETTE[2]
+    '--photo-bg-top': activePalette.topColor,
+    '--photo-bg-bottom': activePalette.bottomColor
   };
 
   return (

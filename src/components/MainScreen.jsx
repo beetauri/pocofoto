@@ -20,9 +20,9 @@ import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile
 import { trackEvent } from '../analytics';
 import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNotifications';
 import {
-  extractPaletteFromBlob,
-  extractPaletteFromImageSource,
-  normalizePalette
+  extractPaletteV2FromBlob,
+  normalizePaletteV2,
+  paletteV2FromLegacyPalette
 } from '../lib/photoPalette';
 
 const views = ['history', 'home', 'profile'];
@@ -498,32 +498,13 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
     const activePhoto = photos.find((photo) => photo.id === activeFeedPhotoId);
     if (!activePhoto) return;
 
-    const savedPalette = normalizePalette(activePhoto.palette);
-    if (savedPalette) {
-      paletteCacheRef.current.set(activePhoto.id, savedPalette);
-      onBackgroundPaletteChange(savedPalette);
-      return;
-    }
+    const paletteV2 = normalizePaletteV2(activePhoto.paletteV2)
+      || paletteV2FromLegacyPalette(activePhoto.palette);
 
-    const cacheKey = `${activePhoto.id}:${activePhoto.photoUrl || ''}`;
-    const cachedPalette = paletteCacheRef.current.get(cacheKey);
-    if (cachedPalette) {
-      onBackgroundPaletteChange(cachedPalette);
-      return;
-    }
+    if (!paletteV2) return;
 
-    let cancelled = false;
-    extractPaletteFromImageSource(activePhoto.photoUrl).then((palette) => {
-      const normalizedPalette = normalizePalette(palette);
-      if (!normalizedPalette || cancelled || activeFeedPhotoIdRef.current !== activePhoto.id) return;
-
-      paletteCacheRef.current.set(cacheKey, normalizedPalette);
-      onBackgroundPaletteChange(normalizedPalette);
-    });
-
-    return () => {
-      cancelled = true;
-    };
+    paletteCacheRef.current.set(activePhoto.id, paletteV2);
+    onBackgroundPaletteChange(paletteV2);
   }, [activeFeedPhotoId, photos, onBackgroundPaletteChange]);
 
   useLayoutEffect(() => {
@@ -591,7 +572,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
     });
   };
 
-  const uploadPhotoBlob = async (blob, caption = null, palette = null) => {
+  const uploadPhotoBlob = async (blob, caption = null, paletteV2 = null) => {
     const filename = `couples/${coupleId}/${Date.now()}.jpg`;
     const storageRef = ref(storage, filename);
     await uploadBytes(storageRef, blob);
@@ -608,9 +589,9 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
     if (caption) {
       photoPayload.caption = caption;
     }
-    const normalizedPalette = normalizePalette(palette);
-    if (normalizedPalette) {
-      photoPayload.palette = normalizedPalette;
+    const normalizedPaletteV2 = normalizePaletteV2(paletteV2);
+    if (normalizedPaletteV2) {
+      photoPayload.paletteV2 = normalizedPaletteV2;
     }
 
     const photoRef = await addDoc(collection(db, 'couples', coupleId, 'photos'), photoPayload);
@@ -704,8 +685,8 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
     setSendingReviewPhoto(true);
     try {
       const caption = buildCaptionPayload(captionText);
-      const palette = await extractPaletteFromBlob(reviewPhoto.blob);
-      await uploadPhotoBlob(reviewPhoto.blob, caption, palette);
+      const paletteV2 = await extractPaletteV2FromBlob(reviewPhoto.blob);
+      await uploadPhotoBlob(reviewPhoto.blob, caption, paletteV2);
       setSendAnimationState('sent');
       showToast('Photo sent');
       window.setTimeout(() => {
@@ -1168,14 +1149,15 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
                   const senderProfile = photo.senderId === user.uid ? myProfile : profiles[photo.senderId];
                   const senderName = isPhotoMine ? displayName : senderProfile?.displayName || partnerName;
                   const photoCaption = getTextCaption(photo);
-                  const normalizedPalette = normalizePalette(photo.palette);
+                  const normalizedPaletteV2 = normalizePaletteV2(photo.paletteV2)
+                    || paletteV2FromLegacyPalette(photo.palette);
 
                   return (
                     <div
                       key={photo.id}
                       className="reels-slide"
                       data-photo-id={photo.id}
-                      data-photo-palette={normalizedPalette?.colors.join(',') || undefined}
+                      data-photo-palette={normalizedPaletteV2?.colors.join(',') || undefined}
                     >
                       <motion.article
                         className="photo-card"

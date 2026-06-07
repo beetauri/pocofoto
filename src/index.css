@@ -160,21 +160,21 @@ body {
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(circle at 22% 16%, color-mix(in srgb, var(--photo-bg-color-1, #000000) 72%, transparent), transparent 42%),
-    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--photo-bg-color-2, #000000) 62%, transparent), transparent 44%),
-    radial-gradient(circle at 50% 82%, color-mix(in srgb, var(--photo-bg-color-3, #000000) 64%, transparent), transparent 48%),
+    radial-gradient(ellipse at 50% 18%, color-mix(in srgb, var(--photo-bg-top, #000000) 74%, transparent), transparent 56%),
+    radial-gradient(ellipse at 50% 82%, color-mix(in srgb, var(--photo-bg-bottom, #000000) 74%, transparent), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--photo-bg-top, #000000) 32%, #000000), color-mix(in srgb, var(--photo-bg-bottom, #000000) 34%, #000000)),
     #000000;
-  filter: saturate(1.22);
-  transition: background 520ms ease, filter 520ms ease;
+  filter: saturate(1.18);
+  transition: background 820ms ease, filter 820ms ease;
 }
 
 .app-background::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.48);
-  backdrop-filter: blur(72px);
-  -webkit-backdrop-filter: blur(72px);
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(86px);
+  -webkit-backdrop-filter: blur(86px);
 }
 
 .app-route-layer {
@@ -248,8 +248,9 @@ button:not(:disabled),
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 100vw;
   height: 100%;
-  max-width: 440px;
+  max-width: none;
   margin: 0 auto;
   overflow: hidden;
   background: transparent;
@@ -283,6 +284,13 @@ button:not(:disabled),
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.shell-view:not(.home-screen) > .screen,
+.shell-view:not(.home-screen) > .history-screen,
+.shell-view:not(.home-screen) > .profile-screen {
+  width: min(100vw, 440px);
+  margin: 0 auto;
 }
 
 .app-header {
@@ -965,6 +973,49 @@ button:not(:disabled),
   height: auto;
   min-height: 0;
   aspect-ratio: 1 / 1;
+}
+
+.home-screen .reels-feed {
+  padding-inline: 0;
+}
+
+.home-screen .reels-slide {
+  padding: 0 0 var(--feed-nav-reserve);
+}
+
+.home-screen .camera-reels-slide {
+  justify-content: flex-start;
+  gap: clamp(12px, 2vh, 18px);
+  padding-top: var(--safe-top);
+}
+
+.home-screen .camera-frame {
+  width: 100vw;
+  max-width: 100vw;
+  border-radius: 0;
+  background: #000000;
+}
+
+.home-screen .camera-frame img,
+.home-screen .camera-frame video,
+.home-screen .review-photo-layer {
+  background: #000000;
+}
+
+.home-screen .photo-card {
+  width: 100vw;
+}
+
+.home-screen .reels-slide[data-photo-id] .camera-frame,
+.home-screen .camera-live {
+  width: 100vw;
+  max-width: 100vw;
+}
+
+.home-screen .photo-meta-row,
+.home-screen .camera-item-controls {
+  width: min(100vw, 440px);
+  padding-inline: 20px;
 }
 
 .camera-reels-slide {
@@ -2256,7 +2307,6 @@ button:not(:disabled),
     justify-content: center;
   }
 
-  .app-shell,
   .screen {
     width: min(100vw, 440px);
   }
