@@ -159,22 +159,49 @@ body {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse at 50% 18%, color-mix(in srgb, var(--photo-bg-top, #000000) 74%, transparent), transparent 56%),
-    radial-gradient(ellipse at 50% 82%, color-mix(in srgb, var(--photo-bg-bottom, #000000) 74%, transparent), transparent 58%),
-    linear-gradient(180deg, color-mix(in srgb, var(--photo-bg-top, #000000) 32%, #000000), color-mix(in srgb, var(--photo-bg-bottom, #000000) 34%, #000000)),
-    #000000;
+  background: #000000;
   filter: saturate(1.18);
-  transition: background 820ms ease, filter 820ms ease;
 }
 
-.app-background::after {
+.app-background-layer {
+  position: absolute;
+  inset: -16%;
+  opacity: 0;
+  transition: opacity 1100ms ease-in-out;
+  will-change: opacity;
+}
+
+.app-background-layer.active {
+  opacity: 1;
+}
+
+.app-background-layer::before,
+.app-background-layer::after {
   content: "";
   position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(86px);
-  -webkit-backdrop-filter: blur(86px);
+  inset-inline: -10%;
+  height: 62%;
+  border-radius: 50%;
+  filter: blur(78px);
+  transform: translateZ(0);
+}
+
+.app-background-layer::before {
+  top: -7%;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    color-mix(in srgb, var(--photo-bg-top, #000000) 64%, transparent),
+    transparent 66%
+  );
+}
+
+.app-background-layer::after {
+  bottom: -7%;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    color-mix(in srgb, var(--photo-bg-bottom, #000000) 64%, transparent),
+    transparent 66%
+  );
 }
 
 .app-route-layer {
@@ -248,9 +275,8 @@ button:not(:disabled),
   position: relative;
   display: flex;
   flex-direction: column;
-  width: 100vw;
   height: 100%;
-  max-width: none;
+  max-width: 440px;
   margin: 0 auto;
   overflow: hidden;
   background: transparent;
@@ -284,13 +310,6 @@ button:not(:disabled),
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-}
-
-.shell-view:not(.home-screen) > .screen,
-.shell-view:not(.home-screen) > .history-screen,
-.shell-view:not(.home-screen) > .profile-screen {
-  width: min(100vw, 440px);
-  margin: 0 auto;
 }
 
 .app-header {
@@ -979,20 +998,9 @@ button:not(:disabled),
   padding-inline: 0;
 }
 
-.home-screen .reels-slide {
-  padding: 0 0 var(--feed-nav-reserve);
-}
-
-.home-screen .camera-reels-slide {
-  justify-content: flex-start;
-  gap: clamp(12px, 2vh, 18px);
-  padding-top: var(--safe-top);
-}
-
 .home-screen .camera-frame {
-  width: 100vw;
-  max-width: 100vw;
-  border-radius: 0;
+  width: 100%;
+  max-width: 100%;
   background: #000000;
 }
 
@@ -1003,18 +1011,18 @@ button:not(:disabled),
 }
 
 .home-screen .photo-card {
-  width: 100vw;
+  width: 100%;
 }
 
 .home-screen .reels-slide[data-photo-id] .camera-frame,
 .home-screen .camera-live {
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
 }
 
 .home-screen .photo-meta-row,
 .home-screen .camera-item-controls {
-  width: min(100vw, 440px);
+  width: 100%;
   padding-inline: 20px;
 }
 
@@ -2307,6 +2315,7 @@ button:not(:disabled),
     justify-content: center;
   }
 
+  .app-shell,
   .screen {
     width: min(100vw, 440px);
   }
