@@ -31,7 +31,7 @@ export default function AppBackground({ palette = null }) {
 
     const cleanup = window.setTimeout(() => {
       setLayers((currentLayers) => currentLayers.slice(-1));
-    }, 1250);
+    }, 240);
 
     return () => window.clearTimeout(cleanup);
   }, [activePalette]);
