@@ -215,12 +215,12 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     feedRef.current?.scrollTo({ top: 0, behavior });
   }, []);
 
-  const scrollToPhoto = useCallback((photoId, behavior = 'smooth') => {
+  const jumpToPhoto = useCallback((photoId) => {
     if (!photoId) return false;
     const feed = feedRef.current;
     const target = feed?.querySelector(`[data-photo-id="${photoId}"]`);
     if (!feed || !target) return false;
-    feed.scrollTo({ top: target.offsetTop, behavior });
+    feed.scrollTop = target.offsetTop;
     return true;
   }, []);
 
@@ -432,10 +432,10 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   useLayoutEffect(() => {
     if (!pendingScrollPhotoId || photos.length === 0 || activeView !== 'home') return;
 
-    if (scrollToPhoto(pendingScrollPhotoId, 'auto')) {
+    if (jumpToPhoto(pendingScrollPhotoId)) {
       setPendingScrollPhotoId(null);
     }
-  }, [pendingScrollPhotoId, photos, scrollToPhoto, activeView]);
+  }, [pendingScrollPhotoId, photos, jumpToPhoto, activeView]);
 
   useEffect(() => {
     if (activeView !== 'home') setToast('');
@@ -664,7 +664,11 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
 
   const handleSelectHistoryPhoto = (photoId) => {
     setToast('');
-    setPendingScrollPhotoId(photoId);
+    if (jumpToPhoto(photoId)) {
+      setPendingScrollPhotoId(null);
+    } else {
+      setPendingScrollPhotoId(photoId);
+    }
     setActiveView('home');
   };
 
