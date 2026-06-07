@@ -161,6 +161,36 @@ body {
   pointer-events: none;
 }
 
+.app-background-blob {
+  contain: paint;
+}
+
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .app-background-blob {
+    will-change: transform;
+  }
+}
+
+@media (max-width: 700px), (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .app-background-blob-top {
+    width: 240px;
+    height: 240px;
+    filter: blur(72px);
+  }
+
+  .app-background-blob-bottom {
+    width: 280px;
+    height: 280px;
+    filter: blur(84px);
+  }
+
+  .app-background-blob-center {
+    width: 220px;
+    height: 220px;
+    filter: blur(64px);
+  }
+}
+
 .app-route-layer {
   position: relative;
   z-index: 1;
