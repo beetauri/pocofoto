@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { db, collection, query, orderBy, onSnapshot } from '../firebase';
 import { trackEvent } from '../analytics';
 
-export default function HistoryScreen({ user, coupleId, onSelectPhoto }) {
+export default function HistoryScreen({ coupleId, onSelectPhoto }) {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -67,10 +67,13 @@ export default function HistoryScreen({ user, coupleId, onSelectPhoto }) {
               }}
               aria-label="Open photo"
             >
-              <img src={photo.photoUrl} alt="" draggable={false} />
-              {photo.senderId === user.uid && (
-                <span className="history-badge">You</span>
-              )}
+              <img
+                src={photo.photoUrl}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+              />
             </motion.button>
           ))}
         </div>
