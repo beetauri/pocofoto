@@ -148,7 +148,7 @@ function Avatar({ src, name, email, size = 'md' }) {
   return <div className={`profile-avatar initials ${size}`}>{initialsFor(name, email)}</div>;
 }
 
-export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgroundPaletteChange }) {
+export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgroundSourceChange }) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [cameraStatus, setCameraStatus] = useState('requesting');
@@ -493,7 +493,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
   }, [photos]);
 
   useEffect(() => {
-    if (!activeFeedPhotoId || !onBackgroundPaletteChange) return;
+    if (!activeFeedPhotoId || !onBackgroundSourceChange) return;
 
     const activePhoto = photos.find((photo) => photo.id === activeFeedPhotoId);
     if (!activePhoto) return;
@@ -501,11 +501,16 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
     const paletteV2 = normalizePaletteV2(activePhoto.paletteV2)
       || paletteV2FromLegacyPalette(activePhoto.palette);
 
-    if (!paletteV2) return;
+    if (!activePhoto.photoUrl && !paletteV2) return;
 
-    paletteCacheRef.current.set(activePhoto.id, paletteV2);
-    onBackgroundPaletteChange(paletteV2);
-  }, [activeFeedPhotoId, photos, onBackgroundPaletteChange]);
+    if (paletteV2) {
+      paletteCacheRef.current.set(activePhoto.id, paletteV2);
+    }
+    onBackgroundSourceChange({
+      imageUrl: activePhoto.photoUrl || '',
+      palette: paletteV2
+    });
+  }, [activeFeedPhotoId, photos, onBackgroundSourceChange]);
 
   useLayoutEffect(() => {
     if (!pendingScrollPhotoId || photos.length === 0 || activeView === 'home') return;
