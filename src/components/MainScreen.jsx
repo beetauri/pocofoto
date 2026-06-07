@@ -215,12 +215,15 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     feedRef.current?.scrollTo({ top: 0, behavior });
   }, []);
 
-  const jumpToPhoto = useCallback((photoId) => {
+  const positionHistoryPhotoBeforeOpen = useCallback((photoId) => {
     if (!photoId) return false;
     const feed = feedRef.current;
     const target = feed?.querySelector(`[data-photo-id="${photoId}"]`);
     if (!feed || !target) return false;
+    const previousScrollBehavior = feed.style.scrollBehavior;
+    feed.style.scrollBehavior = 'auto';
     feed.scrollTop = target.offsetTop;
+    feed.style.scrollBehavior = previousScrollBehavior;
     return true;
   }, []);
 
@@ -430,12 +433,13 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   }, [coupleId]);
 
   useLayoutEffect(() => {
-    if (!pendingScrollPhotoId || photos.length === 0 || activeView !== 'home') return;
+    if (!pendingScrollPhotoId || photos.length === 0 || activeView === 'home') return;
 
-    if (jumpToPhoto(pendingScrollPhotoId)) {
+    if (positionHistoryPhotoBeforeOpen(pendingScrollPhotoId)) {
       setPendingScrollPhotoId(null);
+      setActiveView('home');
     }
-  }, [pendingScrollPhotoId, photos, jumpToPhoto, activeView]);
+  }, [pendingScrollPhotoId, photos, positionHistoryPhotoBeforeOpen, activeView]);
 
   useEffect(() => {
     if (activeView !== 'home') setToast('');
@@ -664,12 +668,12 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
 
   const handleSelectHistoryPhoto = (photoId) => {
     setToast('');
-    if (jumpToPhoto(photoId)) {
+    if (positionHistoryPhotoBeforeOpen(photoId)) {
       setPendingScrollPhotoId(null);
+      setActiveView('home');
     } else {
       setPendingScrollPhotoId(photoId);
     }
-    setActiveView('home');
   };
 
   const handleSwitchCamera = () => {
