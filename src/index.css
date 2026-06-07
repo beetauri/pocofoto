@@ -159,36 +159,22 @@ body {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  background:
+    radial-gradient(circle at 22% 16%, color-mix(in srgb, var(--photo-bg-color-1, #000000) 72%, transparent), transparent 42%),
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--photo-bg-color-2, #000000) 62%, transparent), transparent 44%),
+    radial-gradient(circle at 50% 82%, color-mix(in srgb, var(--photo-bg-color-3, #000000) 64%, transparent), transparent 48%),
+    #000000;
+  filter: saturate(1.22);
+  transition: background 520ms ease, filter 520ms ease;
 }
 
-.app-background-blob {
-  contain: paint;
-}
-
-@media (min-width: 701px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .app-background-blob {
-    will-change: transform;
-  }
-}
-
-@media (max-width: 700px), (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
-  .app-background-blob-top {
-    width: 240px;
-    height: 240px;
-    filter: blur(72px);
-  }
-
-  .app-background-blob-bottom {
-    width: 280px;
-    height: 280px;
-    filter: blur(84px);
-  }
-
-  .app-background-blob-center {
-    width: 220px;
-    height: 220px;
-    filter: blur(64px);
-  }
+.app-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(72px);
+  -webkit-backdrop-filter: blur(72px);
 }
 
 .app-route-layer {

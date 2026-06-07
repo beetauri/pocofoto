@@ -19,6 +19,11 @@ import HistoryScreen from './HistoryScreen';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
 import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNotifications';
+import {
+  extractPaletteFromBlob,
+  extractPaletteFromImageSource,
+  normalizePalette
+} from '../lib/photoPalette';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
@@ -143,7 +148,7 @@ function Avatar({ src, name, email, size = 'md' }) {
   return <div className={`profile-avatar initials ${size}`}>{initialsFor(name, email)}</div>;
 }
 
-export default function MainScreen({ user, coupleId, onPairingRemoved }) {
+export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgroundPaletteChange }) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [cameraStatus, setCameraStatus] = useState('requesting');
@@ -152,6 +157,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const [toast, setToast] = useState('');
   const [profiles, setProfiles] = useState({});
   const [photos, setPhotos] = useState([]);
+  const [activeFeedPhotoId, setActiveFeedPhotoId] = useState(null);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
   const [isCameraInView, setIsCameraInView] = useState(true);
   const [pendingScrollPhotoId, setPendingScrollPhotoId] = useState(null);
@@ -178,6 +184,8 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
   const requestVersionRef = useRef(0);
   const lastPhotoTimestampRef = useRef(null);
   const lastLikeTimestampRef = useRef(null);
+  const activeFeedPhotoIdRef = useRef(null);
+  const paletteCacheRef = useRef(new Map());
   const swipeRef = useRef({
     axis: null,
     currentX: 0,
@@ -432,6 +440,92 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     return () => unsub();
   }, [coupleId]);
 
+  useEffect(() => {
+    const feed = feedRef.current;
+    if (!feed || photos.length === 0) return undefined;
+
+    let frame = null;
+
+    const updateActiveFeedPhoto = () => {
+      frame = null;
+      const feedRect = feed.getBoundingClientRect();
+      const feedCenter = feedRect.top + feedRect.height / 2;
+      const photoSlides = Array.from(feed.querySelectorAll('[data-photo-id]'));
+
+      let nextPhotoId = null;
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      photoSlides.forEach((slide) => {
+        const rect = slide.getBoundingClientRect();
+        const visibleTop = Math.max(feedRect.top, rect.top);
+        const visibleBottom = Math.min(feedRect.bottom, rect.bottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        if (visibleHeight / Math.max(rect.height, 1) < 0.48) return;
+
+        const slideCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(feedCenter - slideCenter);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          nextPhotoId = slide.dataset.photoId || null;
+        }
+      });
+
+      if (nextPhotoId && activeFeedPhotoIdRef.current !== nextPhotoId) {
+        activeFeedPhotoIdRef.current = nextPhotoId;
+        setActiveFeedPhotoId(nextPhotoId);
+      }
+    };
+
+    const scheduleUpdate = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(updateActiveFeedPhoto);
+    };
+
+    scheduleUpdate();
+    feed.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      feed.removeEventListener('scroll', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+    };
+  }, [photos]);
+
+  useEffect(() => {
+    if (!activeFeedPhotoId || !onBackgroundPaletteChange) return;
+
+    const activePhoto = photos.find((photo) => photo.id === activeFeedPhotoId);
+    if (!activePhoto) return;
+
+    const savedPalette = normalizePalette(activePhoto.palette);
+    if (savedPalette) {
+      paletteCacheRef.current.set(activePhoto.id, savedPalette);
+      onBackgroundPaletteChange(savedPalette);
+      return;
+    }
+
+    const cacheKey = `${activePhoto.id}:${activePhoto.photoUrl || ''}`;
+    const cachedPalette = paletteCacheRef.current.get(cacheKey);
+    if (cachedPalette) {
+      onBackgroundPaletteChange(cachedPalette);
+      return;
+    }
+
+    let cancelled = false;
+    extractPaletteFromImageSource(activePhoto.photoUrl).then((palette) => {
+      const normalizedPalette = normalizePalette(palette);
+      if (!normalizedPalette || cancelled || activeFeedPhotoIdRef.current !== activePhoto.id) return;
+
+      paletteCacheRef.current.set(cacheKey, normalizedPalette);
+      onBackgroundPaletteChange(normalizedPalette);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFeedPhotoId, photos, onBackgroundPaletteChange]);
+
   useLayoutEffect(() => {
     if (!pendingScrollPhotoId || photos.length === 0 || activeView === 'home') return;
 
@@ -497,7 +591,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     });
   };
 
-  const uploadPhotoBlob = async (blob, caption = null) => {
+  const uploadPhotoBlob = async (blob, caption = null, palette = null) => {
     const filename = `couples/${coupleId}/${Date.now()}.jpg`;
     const storageRef = ref(storage, filename);
     await uploadBytes(storageRef, blob);
@@ -513,6 +607,10 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
 
     if (caption) {
       photoPayload.caption = caption;
+    }
+    const normalizedPalette = normalizePalette(palette);
+    if (normalizedPalette) {
+      photoPayload.palette = normalizedPalette;
     }
 
     const photoRef = await addDoc(collection(db, 'couples', coupleId, 'photos'), photoPayload);
@@ -606,7 +704,8 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
     setSendingReviewPhoto(true);
     try {
       const caption = buildCaptionPayload(captionText);
-      await uploadPhotoBlob(reviewPhoto.blob, caption);
+      const palette = await extractPaletteFromBlob(reviewPhoto.blob);
+      await uploadPhotoBlob(reviewPhoto.blob, caption, palette);
       setSendAnimationState('sent');
       showToast('Photo sent');
       window.setTimeout(() => {
@@ -1069,9 +1168,15 @@ export default function MainScreen({ user, coupleId, onPairingRemoved }) {
                   const senderProfile = photo.senderId === user.uid ? myProfile : profiles[photo.senderId];
                   const senderName = isPhotoMine ? displayName : senderProfile?.displayName || partnerName;
                   const photoCaption = getTextCaption(photo);
+                  const normalizedPalette = normalizePalette(photo.palette);
 
                   return (
-                    <div key={photo.id} className="reels-slide" data-photo-id={photo.id}>
+                    <div
+                      key={photo.id}
+                      className="reels-slide"
+                      data-photo-id={photo.id}
+                      data-photo-palette={normalizedPalette?.colors.join(',') || undefined}
+                    >
                       <motion.article
                         className="photo-card"
                         initial={{ opacity: 0, scale: 0.96 }}

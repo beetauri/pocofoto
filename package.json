@@ -1,11 +1,12 @@
 {
   "name": "pocofoto-app",
   "private": true,
-  "version": "0.2.6",
+  "version": "0.2.7",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
+    "test:unit": "node --test src/lib/*.test.js",
     "lint": "eslint .",
     "lint:functions": "npm --prefix functions run lint",
     "emulators": "sh -c 'if [ -d .firebase-emulator-data ]; then firebase emulators:start --project demo-locket-local --import .firebase-emulator-data --export-on-exit .firebase-emulator-data; else firebase emulators:start --project demo-locket-local --export-on-exit .firebase-emulator-data; fi'",
