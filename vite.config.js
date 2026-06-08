@@ -67,7 +67,7 @@ export default defineConfig({
         description: 'Share photos with the person you love, instantly.',
         theme_color: '#000000',
         background_color: '#000000',
-        display: 'fullscreen',
+        display: 'standalone',
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
