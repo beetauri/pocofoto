@@ -392,10 +392,6 @@ button:not(:disabled),
   transition: transform 160ms ease, background 160ms ease, color 160ms ease;
 }
 
-.icon-btn:hover {
-  background: var(--bg-control-hover);
-}
-
 .icon-btn:active {
   transform: scale(0.96);
 }
@@ -456,10 +452,6 @@ button:not(:disabled),
   background: var(--accent);
   color: var(--btn-text);
   box-shadow: 0 12px 34px rgba(157, 170, 255, 0.24);
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
 }
 
 .btn-primary:active,
@@ -623,14 +615,6 @@ button:not(:disabled),
   opacity: 0.68;
 }
 
-.update-banner-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.update-banner-action:hover {
-  background: var(--accent-hover);
-}
-
 .update-banner-icon-btn:active,
 .update-banner-action:active {
   transform: scale(0.96);
@@ -738,10 +722,6 @@ button:not(:disabled),
   cursor: pointer;
   font-size: 14px;
   font-weight: 850;
-}
-
-.camera-retry-btn:hover {
-  background: var(--bg-control-hover);
 }
 
 .photo-gradient {
@@ -1053,7 +1033,6 @@ button:not(:disabled),
   transition: transform 160ms ease, background 160ms ease, color 160ms ease;
 }
 
-.camera-tool-btn:hover,
 .camera-tool-btn.active {
   background: var(--bg-control-hover);
   color: var(--accent);
@@ -1120,7 +1099,6 @@ button:not(:disabled),
   transition: transform 160ms ease, background 160ms ease, color 160ms ease;
 }
 
-.nav-item:hover,
 .nav-item.active {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.96);
@@ -1261,10 +1239,6 @@ button:not(:disabled),
   font-size: 14px;
   font-weight: 850;
   text-align: left;
-}
-
-.menu-action:hover {
-  background: rgba(255, 90, 95, 0.1);
 }
 
 .history-screen {
@@ -1454,10 +1428,6 @@ button:not(:disabled),
   height: 19px;
 }
 
-.profile-unpair-button:hover {
-  background: rgba(255, 92, 122, 0.22);
-}
-
 .profile-info-list {
   display: grid;
   gap: 8px;
@@ -1534,11 +1504,6 @@ button:not(:disabled),
   border-radius: var(--radius-full);
   background: var(--bg-control);
   color: var(--text-secondary);
-}
-
-.profile-edit-icon:hover {
-  background: var(--bg-control-hover);
-  color: var(--text-primary);
 }
 
 .profile-edit-icon.save {
@@ -1637,12 +1602,6 @@ button:not(:disabled),
   padding: 0;
   background: transparent;
   color: var(--danger);
-}
-
-.profile-menu-action.delete:hover {
-  background: transparent;
-  color: var(--danger);
-  text-decoration: underline;
 }
 
 .profile-version {
@@ -2309,6 +2268,57 @@ button:not(:disabled),
   .app-shell,
   .screen {
     width: min(100vw, 440px);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover {
+    background: var(--bg-control-hover);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+  }
+
+  .update-banner-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .update-banner-action:hover {
+    background: var(--accent-hover);
+  }
+
+  .camera-retry-btn:hover {
+    background: var(--bg-control-hover);
+  }
+
+  .camera-tool-btn:hover {
+    background: var(--bg-control-hover);
+    color: var(--accent);
+  }
+
+  .nav-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.96);
+  }
+
+  .menu-action:hover {
+    background: rgba(255, 90, 95, 0.1);
+  }
+
+  .profile-unpair-button:hover {
+    background: rgba(255, 92, 122, 0.22);
+  }
+
+  .profile-edit-icon:hover {
+    background: var(--bg-control-hover);
+    color: var(--text-primary);
+  }
+
+  .profile-menu-action.delete:hover {
+    background: transparent;
+    color: var(--danger);
+    text-decoration: underline;
   }
 }
 
