@@ -28,7 +28,7 @@ import {
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 const pushDebugEnabled = import.meta.env.VITE_ENABLE_PUSH_DEBUG === 'true';
-const MAX_CAPTION_LENGTH = 27;
+const MAX_CAPTION_LENGTH = 36;
 
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
@@ -67,7 +67,7 @@ function HomeIcon() {
 }
 
 function GridIcon() {
-  return <LucideGridIcon {...lucideIconProps} />;
+  return <LucideGridIcon {...lucideIconProps} strokeWidth={2.2} />;
 }
 
 function MiniShutterIcon() {
@@ -75,7 +75,7 @@ function MiniShutterIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="9" fill="var(--accent)" />
       <circle cx="12" cy="12" r="6.4" fill="#111" />
-      <circle cx="12" cy="12" r="4.7" fill="#f4f4f4" />
+      <circle cx="12" cy="12" r="4.7" fill="#f4f4f4" className="h-px w-px" />
     </svg>
   );
 }

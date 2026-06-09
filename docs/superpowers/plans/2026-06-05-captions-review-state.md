@@ -25,7 +25,7 @@
 
 - [ ] **Step 1: Add constants and icons near the existing icon helpers**
 
-Add `MessageCircle` and `SendHorizontal` imports from `lucide-react`, add `MAX_CAPTION_LENGTH = 27`, and add helper icon components:
+Add `MessageCircle` and `SendHorizontal` imports from `lucide-react`, add `MAX_CAPTION_LENGTH = 36`, and add helper icon components:
 
 ```jsx
 import {
@@ -45,7 +45,7 @@ import {
   Zap as LucideFlashIcon
 } from 'lucide-react';
 
-const MAX_CAPTION_LENGTH = 27;
+const MAX_CAPTION_LENGTH = 36;
 ```
 
 - [ ] **Step 2: Add helper functions before `MainScreen`**
@@ -468,7 +468,7 @@ function isValidCaption(caption) {
     && caption.type == 'text'
     && caption.text is string
     && caption.text.size() > 0
-    && caption.text.size() <= 27
+    && caption.text.size() <= 36
     && !caption.text.matches('.*(\\n|\\r).*');
 }
 

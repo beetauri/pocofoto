@@ -26,7 +26,7 @@ Implement the v1 caption experience for Pocofoto. This includes the captured-pho
 - Caption input is single-line only.
 - Captions do not wrap.
 - Caption font size does not shrink.
-- The max caption length is 27 characters.
+- The max caption length is 36 characters.
 - There is no visible character counter.
 - The input stops accepting additional characters once the max is reached.
 - Typed spaces are preserved exactly.
@@ -67,7 +67,7 @@ Rules:
 - If the user typed spaces, store those spaces exactly.
 - If the user typed text, store that text exactly.
 - V1 only allows `type: "text"`.
-- `text` must be a string with length from 1 to 27.
+- `text` must be a string with length from 1 to 36.
 - `text` must not contain line breaks.
 
 This object shape leaves room for later caption/sticker types, for example:

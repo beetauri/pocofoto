@@ -32,7 +32,7 @@ service cloud.firestore {
         && caption.type == 'text'
         && caption.text is string
         && caption.text.size() > 0
-        && caption.text.size() <= 27
+        && caption.text.size() <= 36
         && !caption.text.matches('.*(\\n|\\r).*');
     }
 
