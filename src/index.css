@@ -78,8 +78,7 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --bottom-nav-height: 76px;
-  --bottom-nav-offset: 16px;
-  --feed-nav-reserve: calc(var(--safe-bottom) + var(--bottom-nav-offset) + var(--bottom-nav-height) + 12px);
+  --feed-nav-reserve: calc(var(--safe-bottom) + 16px + var(--bottom-nav-height) + 12px);
   --background: var(--bg-primary);
   --foreground: var(--text-primary);
   --card: var(--bg-card);
@@ -1066,7 +1065,7 @@ button:not(:disabled),
 .bottom-nav {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--safe-bottom) + var(--bottom-nav-offset));
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
   z-index: 90;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
