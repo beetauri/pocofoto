@@ -74,7 +74,17 @@ export default function AppBackground({ source = null }) {
   }, [activeSource]);
 
   return (
-    <div className="app-background" aria-hidden="true">
+    <div
+      className="app-background"
+      aria-hidden="true"
+      style={{
+        '--photo-bg-image': activeSource.imageUrl
+          ? `url(${JSON.stringify(activeSource.imageUrl)})`
+          : 'none',
+        '--photo-bg-top': activeSource.palette.topColor,
+        '--photo-bg-bottom': activeSource.palette.bottomColor
+      }}
+    >
       {layers.map((layer, index) => (
         <div
           key={layer.id}

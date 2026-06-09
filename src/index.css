@@ -52,6 +52,7 @@
 
 :root {
   color-scheme: dark;
+  --pwa-safe-area-bg: #1f1c1b;
   --bg-primary: #000000;
   --bg-secondary: #080808;
   --bg-card: #171717;
@@ -77,6 +78,10 @@
   --font: Inter, ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --pwa-safe-area-background:
+    radial-gradient(ellipse at 50% 18%, color-mix(in srgb, var(--photo-bg-top, #000000) 18%, transparent), transparent 58%),
+    radial-gradient(ellipse at 50% 84%, color-mix(in srgb, var(--photo-bg-bottom, #000000) 16%, transparent), transparent 60%),
+    rgba(0, 0, 0, 0.58);
   --bottom-nav-height: 76px;
   --feed-nav-reserve: calc(var(--safe-bottom) + 16px + var(--bottom-nav-height) + 12px);
   --background: var(--bg-primary);
@@ -119,21 +124,18 @@
 
 html, body, #root {
   width: 100%;
-  height: 100%;
-  min-height: 100%;
+  height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
   overscroll-behavior: none;
 }
 
-@supports (height: 100dvh) {
-  html, body, #root {
-    height: 100dvh;
-    min-height: 100dvh;
-  }
+html {
+  background: var(--pwa-safe-area-bg);
 }
 
 body {
-  background: var(--bg-primary);
+  background: var(--pwa-safe-area-bg);
   color: var(--text-primary);
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
@@ -154,17 +156,31 @@ body {
 
 .app-background {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: calc(var(--safe-bottom) * -1);
+  left: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background: #000000;
+  background: var(--pwa-safe-area-bg);
   filter: saturate(1.18);
+}
+
+.app-background::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  bottom: 0;
+  background: var(--pwa-safe-area-background);
 }
 
 .app-background-layer {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   overflow: hidden;
   opacity: 0;
   transition: opacity 180ms cubic-bezier(0.2, 0, 0, 1);
@@ -175,8 +191,7 @@ body {
   opacity: 1;
 }
 
-.app-background-layer::before,
-.app-background-layer::after {
+.app-background-layer::before {
   content: "";
   position: absolute;
 }
@@ -192,11 +207,13 @@ body {
 }
 
 .app-background-layer::after {
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 50% 18%, color-mix(in srgb, var(--photo-bg-top, #000000) 18%, transparent), transparent 58%),
-    radial-gradient(ellipse at 50% 84%, color-mix(in srgb, var(--photo-bg-bottom, #000000) 16%, transparent), transparent 60%),
-    rgba(0, 0, 0, 0.58);
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--pwa-safe-area-background);
 }
 
 .app-route-layer {
@@ -1065,7 +1082,7 @@ button:not(:disabled),
 .bottom-nav {
   position: absolute;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  bottom: max(34px, env(safe-area-inset-bottom));
   z-index: 90;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
