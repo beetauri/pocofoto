@@ -7,7 +7,9 @@ import AppBackground from './components/AppBackground';
 import PairingScreen from './components/PairingScreen';
 import MainScreen from './components/MainScreen';
 import UpdateBanner from './components/UpdateBanner';
+import ConnectionBanner from './components/ConnectionBanner';
 import { Toaster } from './components/ui/sonner';
+import { connectionStatusStore } from './lib/connectionStatus';
 
 const Retune = import.meta.env.DEV
   ? lazy(() => import('retune').then((module) => ({ default: module.Retune })))
@@ -46,6 +48,7 @@ export default function App() {
   const [pairingNotice, setPairingNotice] = useState('');
   const [foregroundToast, setForegroundToast] = useState('');
   const [backgroundSource, setBackgroundSource] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState(() => connectionStatusStore.getSnapshot());
   const trackedAppOpen = useRef(false);
 
   useEffect(() => {
@@ -55,6 +58,10 @@ export default function App() {
       trackedAppOpen.current = true;
     }
   }, []);
+
+  useEffect(() => connectionStatusStore.subscribe((nextStatus) => {
+    setConnectionStatus(nextStatus);
+  }), []);
 
   // Listen for auth changes
   useEffect(() => {
@@ -217,7 +224,8 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      <UpdateBanner />
+      <ConnectionBanner status={connectionStatus.status} />
+      <UpdateBanner offsetForConnectionBanner={connectionStatus.status === 'offline' || connectionStatus.status === 'restored'} />
       <Toaster />
     </>
   );

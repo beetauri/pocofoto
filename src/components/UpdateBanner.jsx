@@ -16,7 +16,7 @@ const bannerMotion = {
   transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] }
 };
 
-export default function UpdateBanner() {
+export default function UpdateBanner({ offsetForConnectionBanner = false }) {
   const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
   const [updateState, setUpdateState] = useState(() => getPwaUpdateState());
   const [dismissed, setDismissed] = useState(false);
@@ -52,7 +52,7 @@ export default function UpdateBanner() {
       {showUpdateReady && (
         <motion.div
           key="update-ready"
-          className="update-banner"
+          className={`update-banner${offsetForConnectionBanner ? ' has-connection-banner-offset' : ''}`}
           role="status"
           aria-live="polite"
           {...bannerMotion}
@@ -83,7 +83,7 @@ export default function UpdateBanner() {
       {showUpdated && (
         <motion.div
           key="updated"
-          className="update-banner update-banner-success"
+          className={`update-banner update-banner-success${offsetForConnectionBanner ? ' has-connection-banner-offset' : ''}`}
           role="status"
           aria-live="polite"
           {...bannerMotion}
