@@ -40,3 +40,8 @@ test('Retune icon details are scoped to the grid and mini shutter icons', () => 
   assert.match(mainScreenSource, /function GridIcon\(\)[\s\S]*?<LucideGridIcon[^>]*strokeWidth=\{2\.2\}/);
   assert.match(mainScreenSource, /<circle[^>]*r="4\.7"[^>]*className="h-px w-px"/);
 });
+
+test('prefixed backdrop filters precede standard declarations for production CSS transforms', () => {
+  assert.doesNotMatch(stylesheetSource, /(?<!-webkit-)backdrop-filter:\s*([^;]+);\s*-webkit-backdrop-filter:\s*\1;/);
+  assert.match(stylesheetSource, /-webkit-backdrop-filter:\s*blur\(16px\);\s*backdrop-filter:\s*blur\(16px\);/);
+});

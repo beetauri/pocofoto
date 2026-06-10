@@ -445,8 +445,8 @@ button:not(:disabled),
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   background: var(--glass-bg);
-  backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
 }
 
 .btn-primary,
@@ -556,8 +556,8 @@ button:not(:disabled),
   text-align: center;
   overflow-wrap: anywhere;
   white-space: normal;
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
 }
 
 .update-banner {
@@ -577,8 +577,8 @@ button:not(:disabled),
   background: rgba(24, 24, 26, 0.9);
   box-shadow: 0 18px 54px rgba(0, 0, 0, 0.38);
   color: var(--text-primary);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
 }
 
 .update-banner-success {
@@ -803,8 +803,8 @@ button:not(:disabled),
   color: #ffffff;
   cursor: pointer;
   font-size: 27px;
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .like-btn svg {
@@ -823,8 +823,8 @@ button:not(:disabled),
   color: #fff;
   font-size: 14px;
   font-weight: 800;
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .review-photo-layer {
@@ -865,8 +865,8 @@ button:not(:disabled),
   overflow: hidden;
   text-overflow: clip;
   margin-inline: auto;
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 
 .caption-editor {
@@ -1099,8 +1099,8 @@ button:not(:disabled),
   margin-inline: auto;
   flex-shrink: 0;
   align-self: flex-start;
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 
 .nav-item {
@@ -1187,8 +1187,8 @@ button:not(:disabled),
   border-radius: 24px;
   background: rgba(26, 26, 27, 0.96);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(26px);
   -webkit-backdrop-filter: blur(26px);
+  backdrop-filter: blur(26px);
 }
 
 .menu-popover.from-profile {
@@ -1664,8 +1664,8 @@ button:not(:disabled),
   border-radius: 28px;
   background: rgba(24, 24, 25, 0.98);
   box-shadow: 0 26px 80px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(26px);
   -webkit-backdrop-filter: blur(26px);
+  backdrop-filter: blur(26px);
 }
 
 .confirm-sheet h2 {
