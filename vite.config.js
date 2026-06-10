@@ -30,6 +30,11 @@ const buildVersion = packageJson.version || '0.0.0'
 const buildCommit = getGitCommit()
 
 export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.js'],
+    css: false,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')

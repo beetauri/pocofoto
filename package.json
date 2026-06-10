@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test:unit": "node --test src/lib/*.test.js src/components/*.test.js",
+    "test:unit": "node --test src/lib/*.test.js src/components/*.test.js && vitest run src/components/*.test.jsx",
     "lint": "eslint .",
     "lint:functions": "npm --prefix functions run lint",
     "backfill:palettes": "node scripts/backfillPhotoPalettes.mjs",
@@ -40,6 +40,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
@@ -49,7 +52,9 @@
     "firebase-admin": "^13.6.0",
     "firebase-tools": "^15.19.0",
     "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
     "sharp": "^0.34.5",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^4.1.8"
   }
 }
