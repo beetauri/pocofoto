@@ -262,6 +262,7 @@ export default function App() {
             <MainScreen
               user={user}
               coupleId={coupleId}
+              isOnline={connectionStatus.isOnline}
               onPairingRemoved={handlePairingRemoved}
               onBackgroundSourceChange={setBackgroundSource}
             />

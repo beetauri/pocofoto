@@ -24,6 +24,12 @@ import {
   normalizePaletteV2,
   paletteV2FromLegacyPalette
 } from '../lib/photoPalette';
+import {
+  clearOfflineReviewDraft,
+  createReviewDraftKey,
+  loadOfflineReviewDraft,
+  saveOfflineReviewDraft
+} from '../lib/offlineReviewDraft';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
@@ -148,7 +154,7 @@ function Avatar({ src, name, email, size = 'md' }) {
   return <div className={`profile-avatar initials ${size}`}>{initialsFor(name, email)}</div>;
 }
 
-export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgroundSourceChange }) {
+export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved, onBackgroundSourceChange }) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [cameraStatus, setCameraStatus] = useState('requesting');
@@ -178,6 +184,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
   const videoRef = useRef(null);
   const captionInputRef = useRef(null);
   const reviewPhotoUrlRef = useRef(null);
+  const reviewPhotoRef = useRef(null);
   const feedRef = useRef(null);
   const cameraSlideRef = useRef(null);
   const cameraStreamRef = useRef(null);
@@ -212,7 +219,9 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
   const buildCommit = import.meta.env.VITE_APP_COMMIT || 'dev';
   const isReviewingPhoto = Boolean(reviewPhoto);
   const captureDisabled = uploading || sendingReviewPhoto || sendAnimationState !== 'idle';
+  const sendDisabled = captureDisabled || !isOnline;
   const activeIndex = views.indexOf(activeView);
+  const reviewDraftKey = user?.uid && coupleId ? createReviewDraftKey(user.uid, coupleId) : null;
 
   const showToast = useCallback((message, duration = 2500) => {
     setToast(message);
@@ -245,6 +254,15 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
     setSendingReviewPhoto(false);
     setSendAnimationState('idle');
   }, []);
+
+  const clearCurrentReviewDraft = useCallback(async () => {
+    if (!reviewDraftKey) return;
+    try {
+      await clearOfflineReviewDraft(reviewDraftKey);
+    } catch (err) {
+      console.warn('Unable to clear offline review draft.', err);
+    }
+  }, [reviewDraftKey]);
 
   const focusCaptionInput = useCallback(() => {
     requestAnimationFrame(() => {
@@ -353,6 +371,10 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
   }, [coupleId, user.uid, showToast]);
 
   useEffect(() => {
+    reviewPhotoRef.current = reviewPhoto;
+  }, [reviewPhoto]);
+
+  useEffect(() => {
     return () => {
       if (reviewPhotoUrlRef.current) {
         URL.revokeObjectURL(reviewPhotoUrlRef.current);
@@ -360,6 +382,48 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!reviewDraftKey) return undefined;
+
+    let active = true;
+    const restoreDraft = async () => {
+      try {
+        const draft = await loadOfflineReviewDraft(reviewDraftKey);
+        if (!active || !draft?.blob || reviewPhotoRef.current) return;
+
+        const url = URL.createObjectURL(draft.blob);
+        reviewPhotoUrlRef.current = url;
+        setReviewPhoto({
+          blob: draft.blob,
+          url
+        });
+        setCaptionText(clampCaptionText(draft.captionText || ''));
+        setSendAnimationState('idle');
+        trackEvent('photo_review_draft_restored', { coupleId });
+      } catch (err) {
+        console.warn('Unable to restore offline review draft.', err);
+      }
+    };
+
+    restoreDraft();
+
+    return () => {
+      active = false;
+    };
+  }, [reviewDraftKey, coupleId]);
+
+  useEffect(() => {
+    if (!reviewDraftKey || !reviewPhoto) return;
+
+    saveOfflineReviewDraft(reviewDraftKey, {
+      blob: reviewPhoto.blob,
+      captionText,
+      updatedAt: new Date().toISOString()
+    }).catch((err) => {
+      console.warn('Unable to save offline review draft.', err);
+    });
+  }, [reviewDraftKey, reviewPhoto, captionText]);
 
   useEffect(() => {
     requestCamera(facingMode);
@@ -682,16 +746,22 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
   const handleDismissReviewPhoto = () => {
     if (sendingReviewPhoto) return;
     clearReviewPhoto();
+    clearCurrentReviewDraft();
     trackEvent('photo_review_dismissed', { coupleId });
   };
 
   const handleSendReviewPhoto = async () => {
     if (!reviewPhoto || sendingReviewPhoto) return;
+    if (!isOnline) {
+      showToast('Reconnect to send', 3000);
+      return;
+    }
     setSendingReviewPhoto(true);
     try {
       const caption = buildCaptionPayload(captionText);
       const paletteV2 = await extractPaletteV2FromBlob(reviewPhoto.blob);
       await uploadPhotoBlob(reviewPhoto.blob, caption, paletteV2);
+      await clearCurrentReviewDraft();
       setSendAnimationState('sent');
       showToast('Photo sent');
       window.setTimeout(() => {
@@ -1124,7 +1194,7 @@ export default function MainScreen({ user, coupleId, onPairingRemoved, onBackgro
                     type="button"
                     aria-label={isReviewingPhoto ? 'Send photo' : 'Capture photo'}
                     onClick={isReviewingPhoto ? handleSendReviewPhoto : handleCapture}
-                    disabled={captureDisabled}
+                    disabled={isReviewingPhoto ? sendDisabled : captureDisabled}
                     whileTap={{ scale: 0.9 }}
                   >
                     {(uploading || sendingReviewPhoto) ? <div className="spinner" /> : isReviewingPhoto ? <SendHorizontalIcon /> : null}
