@@ -2212,6 +2212,18 @@ button:not(:disabled),
   line-height: 1.36;
 }
 
+.pairing-offline-note {
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 95, 95, 0.28);
+  border-radius: 18px;
+  background: rgba(92, 18, 22, 0.72);
+  color: #fff6f6;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
 .code-fallback {
   display: grid;
   gap: 14px;

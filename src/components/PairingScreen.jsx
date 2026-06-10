@@ -59,7 +59,7 @@ function parseError(err, fallback = 'Something went wrong. Please try again.') {
   return raw.replace(/^Firebase: /, '').replace(/\.$/, '.');
 }
 
-export default function PairingScreen({ user, onPaired, initialNotice = '', onNoticeConsumed }) {
+export default function PairingScreen({ user, isOnline = true, onPaired, initialNotice = '', onNoticeConsumed }) {
   const [workingId, setWorkingId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -258,6 +258,12 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
           )}
         </AnimatePresence>
 
+        {!isOnline && (
+          <div className="pairing-offline-note" role="status">
+            Pairing needs connection. You can continue when you're back online.
+          </div>
+        )}
+
         {sortedIncoming.length > 0 && (
           <section className="request-stack" aria-label="Incoming pairing requests">
             <h2>Pairing invites</h2>
@@ -269,10 +275,10 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
                   <span>wants to pair with you</span>
                 </div>
                 <div className="request-actions">
-                  <button className="mini-btn ghost" type="button" onClick={() => handleDecline(request)} disabled={workingId === request.id}>
+                  <button className="mini-btn ghost" type="button" onClick={() => handleDecline(request)} disabled={!isOnline || workingId === request.id}>
                     Decline
                   </button>
-                  <button className="mini-btn" type="button" onClick={() => handleAccept(request)} disabled={workingId === request.id}>
+                  <button className="mini-btn" type="button" onClick={() => handleAccept(request)} disabled={!isOnline || workingId === request.id}>
                     Accept
                   </button>
                 </div>
@@ -287,7 +293,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
               <strong>Invite pending</strong>
               <span>{outgoing.recipient?.displayName || 'Your contact'} has 24 hours to respond.</span>
             </div>
-            <button className="mini-btn ghost" type="button" onClick={handleCancelOutgoing} disabled={workingId === 'cancel'}>
+            <button className="mini-btn ghost" type="button" onClick={handleCancelOutgoing} disabled={!isOnline || workingId === 'cancel'}>
               Cancel
             </button>
           </section>
@@ -306,7 +312,7 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
                 <strong>Share your code</strong>
                 <span>Create a one-time code and send it to your person.</span>
               </div>
-              <button id="pairing-create" className="btn-primary" type="button" onClick={handleCreateCode} disabled={workingId === 'create-code'}>
+              <button id="pairing-create" className="btn-primary" type="button" onClick={handleCreateCode} disabled={!isOnline || workingId === 'create-code'}>
                 {workingId === 'create-code' ? <div className="spinner" /> : 'Create code'}
               </button>
               {pairingCode && (
@@ -333,9 +339,10 @@ export default function PairingScreen({ user, onPaired, initialNotice = '', onNo
                 value={inputCode}
                 onChange={(event) => setInputCode(event.target.value.toUpperCase())}
                 maxLength={6}
+                disabled={!isOnline || workingId === 'redeem-code'}
                 style={{ textAlign: 'center', letterSpacing: 6, fontSize: 22, fontWeight: 900 }}
               />
-              <button id="pairing-join-submit" className="btn-primary" type="submit" disabled={workingId === 'redeem-code' || inputCode.length < 6}>
+              <button id="pairing-join-submit" className="btn-primary" type="submit" disabled={!isOnline || workingId === 'redeem-code' || inputCode.length < 6}>
                 {workingId === 'redeem-code' ? <div className="spinner" /> : 'Connect'}
               </button>
             </form>

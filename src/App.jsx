@@ -246,6 +246,7 @@ export default function App() {
           <motion.div key="pairing" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
             <PairingScreen
               user={user}
+              isOnline={connectionStatus.isOnline}
               onPaired={handlePaired}
               initialNotice={pairingNotice}
               onNoticeConsumed={handleNoticeConsumed}
