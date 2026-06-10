@@ -12,6 +12,9 @@ import {
 } from 'firebase/auth';
 import {
   getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   doc as realDoc,
   setDoc as realSetDoc,
   getDoc as realGetDoc,
@@ -66,7 +69,16 @@ const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const analytics = typeof window !== 'undefined' && await analyticsIsSupported() ? getAnalytics(app) : null;
 const auth = getAuth(app);
-const db = getFirestore(app);
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch {
+  db = getFirestore(app);
+}
 const storage = getStorage(app);
 const functions = getFunctions(app);
 
