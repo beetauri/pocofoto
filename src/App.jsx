@@ -10,6 +10,11 @@ import UpdateBanner from './components/UpdateBanner';
 import ConnectionBanner from './components/ConnectionBanner';
 import { Toaster } from './components/ui/sonner';
 import { connectionStatusStore } from './lib/connectionStatus';
+import {
+  clearCachedUserRoute,
+  getCachedUserRoute,
+  setCachedUserRoute
+} from './lib/userRouteCache';
 
 const Retune = import.meta.env.DEV
   ? lazy(() => import('retune').then((module) => ({ default: module.Retune })))
@@ -40,11 +45,24 @@ function LoadingScreen() {
   );
 }
 
+function OfflineHoldScreen() {
+  return (
+    <div className="offline-hold-screen">
+      <div className="loading-logo-mark">
+        <img src="/pocoface-icon-1024.png" alt="" />
+      </div>
+      <img className="logo-lockup-image loading-logotype" src="/pocofoto-logotype.svg" alt="Pocofoto" />
+      <p>Reconnect to finish loading Pocofoto.</p>
+    </div>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [coupleId, setCoupleId] = useState(null);
   const [checkingPair, setCheckingPair] = useState(false);
+  const [pairStateKnown, setPairStateKnown] = useState(false);
   const [pairingNotice, setPairingNotice] = useState('');
   const [foregroundToast, setForegroundToast] = useState('');
   const [backgroundSource, setBackgroundSource] = useState(null);
@@ -71,6 +89,8 @@ export default function App() {
         trackEvent('auth_signed_out');
         resetAnalytics();
         setCoupleId(null);
+        setPairStateKnown(false);
+        setCheckingPair(false);
         setPairingNotice('');
         setBackgroundSource(null);
         setLoading(false);
@@ -79,34 +99,61 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Check if user is paired
   useEffect(() => {
     if (!user) return;
+    const cachedRoute = getCachedUserRoute(user.uid);
     identifyUser(user.uid, {
       email: user.email || '',
       displayName: user.displayName || ''
     });
     trackEvent('session_started', {
       userId: user.uid,
-      hasCoupleId: Boolean(coupleId)
+      hasCoupleId: Boolean(cachedRoute?.coupleId)
     });
+  }, [user]);
+
+  // Check if user is paired
+  useEffect(() => {
+    if (!user) return;
+    const cachedRoute = getCachedUserRoute(user.uid);
+    setPairStateKnown(false);
+    if (cachedRoute?.coupleId) {
+      setCoupleId(cachedRoute.coupleId);
+      setLoading(false);
+    } else {
+      setCoupleId(null);
+      setLoading(true);
+    }
     setCheckingPair(true);
 
     const unsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+      const nextCoupleId = snap.exists() ? (snap.data().coupleId || null) : null;
       if (snap.exists()) {
-        const data = snap.data();
-        setCoupleId(data.coupleId || null);
+        setCoupleId(nextCoupleId);
+      } else {
+        setCoupleId(null);
       }
+      setPairStateKnown(true);
+      setCachedUserRoute(user.uid, { coupleId: nextCoupleId });
       setCheckingPair(false);
       setLoading(false);
     }, () => {
-      // Error handler — user doc might not exist yet
+      if (cachedRoute?.coupleId) {
+        setCoupleId(cachedRoute.coupleId);
+        setPairStateKnown(true);
+      } else if (connectionStatus.isOnline) {
+        setCoupleId(null);
+        setPairStateKnown(true);
+        clearCachedUserRoute(user.uid);
+      } else {
+        setPairStateKnown(false);
+      }
       setCheckingPair(false);
       setLoading(false);
     });
 
     return () => unsub();
-  }, [user, coupleId]);
+  }, [user, connectionStatus.isOnline]);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -147,12 +194,20 @@ export default function App() {
   const handlePaired = (newCoupleId) => {
     setPairingNotice('');
     setCoupleId(newCoupleId);
+    if (user) {
+      setPairStateKnown(true);
+      setCachedUserRoute(user.uid, { coupleId: newCoupleId });
+    }
     trackEvent('pairing_completed', { coupleId: newCoupleId });
   };
 
   const handlePairingRemoved = (message = 'Pairing removed. You can pair again whenever you are ready.') => {
     setPairingNotice(message);
     setCoupleId(null);
+    if (user) {
+      setPairStateKnown(true);
+      setCachedUserRoute(user.uid, { coupleId: null });
+    }
     trackEvent('pairing_removed');
   };
 
@@ -161,7 +216,8 @@ export default function App() {
   }, []);
 
   let screen = 'auth';
-  if (user && !coupleId && !checkingPair) screen = 'pairing';
+  if (user && !pairStateKnown && !checkingPair) screen = 'offline-hold';
+  if (user && !coupleId && pairStateKnown && connectionStatus.isOnline && !checkingPair) screen = 'pairing';
   if (user && coupleId) screen = 'main';
 
   useEffect(() => {
@@ -194,6 +250,11 @@ export default function App() {
               initialNotice={pairingNotice}
               onNoticeConsumed={handleNoticeConsumed}
             />
+          </motion.div>
+        )}
+        {screen === 'offline-hold' && (
+          <motion.div key="offline-hold" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
+            <OfflineHoldScreen />
           </motion.div>
         )}
         {screen === 'main' && (
