@@ -13,13 +13,6 @@ function cssRule(selector) {
   return match?.[1] || '';
 }
 
-function sourceBlock(source, selector) {
-  const start = source.indexOf(`${selector} {`);
-  if (start === -1) return '';
-  const end = source.indexOf('\n}', start);
-  return end === -1 ? '' : source.slice(start, end + 2);
-}
-
 test('bottom nav keeps a small iOS safe-area lift without padding', () => {
   const navRule = cssRule('.bottom-nav');
 
@@ -27,13 +20,12 @@ test('bottom nav keeps a small iOS safe-area lift without padding', () => {
   assert.doesNotMatch(navRule, /padding-bottom/);
 });
 
-test('standalone iOS safe-area fallback is not pure black', () => {
+test('standalone iOS safe-area fallback is pure black', () => {
   const rootRule = cssRule(':root');
   const htmlRule = cssRule('html');
   const bodyRule = cssRule('body');
 
-  assert.match(rootRule, /--pwa-safe-area-bg:\s*#[0-9a-fA-F]{6}/);
-  assert.doesNotMatch(rootRule, /--pwa-safe-area-bg:\s*#000000/i);
+  assert.match(rootRule, /--pwa-safe-area-bg:\s*#000000/i);
   assert.match(htmlRule, /background:\s*var\(--pwa-safe-area-bg\)/);
   assert.match(bodyRule, /background:\s*var\(--pwa-safe-area-bg\)/);
   assert.match(indexHtmlSource, /<meta name="theme-color" content="(?!#000000")[^"]+"/i);
@@ -57,21 +49,13 @@ test('pwa stays standalone while root uses viewport height for translucent statu
 
 test('app background extends behind the bottom iOS safe-area strip', () => {
   const backgroundRule = cssRule('.app-background');
-  const backgroundBeforeRule = sourceBlock(stylesheetSource, '.app-background::before');
-  const backgroundLayerRule = cssRule('.app-background-layer');
-  const backgroundLayerAfterRule = sourceBlock(stylesheetSource, '.app-background-layer::after');
 
   assert.match(backgroundRule, /bottom:\s*calc\(var\(--safe-bottom\) \* -1\)/);
-  assert.match(backgroundRule, /background:\s*var\(--pwa-safe-area-bg\)/);
-  assert.match(backgroundBeforeRule, /bottom:\s*0/);
-  assert.match(backgroundBeforeRule, /background:\s*var\(--pwa-safe-area-background\)/);
-  assert.match(backgroundLayerRule, /bottom:\s*0/);
-  assert.match(backgroundLayerAfterRule, /bottom:\s*0/);
+  assert.match(backgroundRule, /background:\s*#000000/);
 });
 
-test('app background parent receives active photo background variables', () => {
-  assert.match(appBackgroundSource, /<div\s+className="app-background"\s+aria-hidden="true"\s+style=\{\{/);
-  assert.match(appBackgroundSource, /activeSource\.imageUrl[\s\S]*'--photo-bg-image'/);
-  assert.match(appBackgroundSource, /'--photo-bg-top':\s*activeSource\.palette\.topColor/);
-  assert.match(appBackgroundSource, /'--photo-bg-bottom':\s*activeSource\.palette\.bottomColor/);
+test('app background is static with no photo or blur layer', () => {
+  assert.match(appBackgroundSource, /app-background app-background--static/);
+  assert.doesNotMatch(appBackgroundSource, /imageUrl|palette|blur|useEffect/);
+  assert.doesNotMatch(stylesheetSource, /\.app-background-layer/);
 });

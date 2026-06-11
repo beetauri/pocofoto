@@ -52,7 +52,7 @@
 
 :root {
   color-scheme: dark;
-  --pwa-safe-area-bg: #1f1c1b;
+  --pwa-safe-area-bg: #000000;
   --bg-primary: #000000;
   --bg-secondary: #080808;
   --bg-card: #171717;
@@ -78,10 +78,7 @@
   --font: Inter, ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --pwa-safe-area-background:
-    radial-gradient(ellipse at 50% 18%, color-mix(in srgb, var(--photo-bg-top, #000000) 18%, transparent), transparent 58%),
-    radial-gradient(ellipse at 50% 84%, color-mix(in srgb, var(--photo-bg-bottom, #000000) 16%, transparent), transparent 60%),
-    rgba(0, 0, 0, 0.58);
+  --pwa-safe-area-background: #000000;
   --bottom-nav-height: 76px;
   --feed-nav-reserve: calc(var(--safe-bottom) + 16px + var(--bottom-nav-height) + 12px);
   --background: var(--bg-primary);
@@ -163,57 +160,7 @@ body {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background: var(--pwa-safe-area-bg);
-  filter: saturate(1.18);
-}
-
-.app-background::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  bottom: 0;
-  background: var(--pwa-safe-area-background);
-}
-
-.app-background-layer {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 180ms cubic-bezier(0.2, 0, 0, 1);
-  will-change: opacity;
-}
-
-.app-background-layer.active {
-  opacity: 1;
-}
-
-.app-background-layer::before {
-  content: "";
-  position: absolute;
-}
-
-.app-background-layer::before {
-  inset: -9%;
-  background-image: var(--photo-bg-image);
-  background-position: center;
-  background-size: cover;
-  filter: blur(24px) saturate(1.16);
-  opacity: 0.74;
-  transform: scale(1.12) translateZ(0);
-}
-
-.app-background-layer::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background: var(--pwa-safe-area-background);
+  background: #000000;
 }
 
 .app-route-layer {
@@ -1384,6 +1331,31 @@ button:not(:disabled),
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding-bottom: 28px;
+}
+
+.photo-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+}
+
+.home-photo-load-more {
+  height: 1px;
+  min-height: 1px;
+  overflow: visible;
+  scroll-snap-align: none;
+}
+
+.photo-load-more button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--bg-control);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 750;
 }
 
 .profile-screen {

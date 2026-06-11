@@ -65,7 +65,6 @@ export default function App() {
   const [pairStateKnown, setPairStateKnown] = useState(false);
   const [pairingNotice, setPairingNotice] = useState('');
   const [foregroundToast, setForegroundToast] = useState('');
-  const [backgroundSource, setBackgroundSource] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState(() => connectionStatusStore.getSnapshot());
   const trackedAppOpen = useRef(false);
 
@@ -92,7 +91,6 @@ export default function App() {
         setPairStateKnown(false);
         setCheckingPair(false);
         setPairingNotice('');
-        setBackgroundSource(null);
         setLoading(false);
       }
     });
@@ -235,7 +233,7 @@ export default function App() {
 
   return (
     <>
-      <AppBackground source={backgroundSource} />
+      <AppBackground />
       <AnimatePresence mode="wait">
         {screen === 'auth' && (
           <motion.div key="auth" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
@@ -265,7 +263,6 @@ export default function App() {
               coupleId={coupleId}
               isOnline={connectionStatus.isOnline}
               onPairingRemoved={handlePairingRemoved}
-              onBackgroundSourceChange={setBackgroundSource}
             />
           </motion.div>
         )}

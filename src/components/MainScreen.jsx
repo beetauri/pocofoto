@@ -16,28 +16,22 @@ import {
   Zap as LucideFlashIcon
 } from 'lucide-react';
 import HistoryScreen from './HistoryScreen';
-import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, uploadBytesResumable, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
+import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, uploadBytesResumable, getDownloadURL, signOut, collection, addDoc, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
 import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNotifications';
-import {
-  extractPaletteV2FromBlob,
-  normalizePaletteV2,
-  paletteV2FromLegacyPalette
-} from '../lib/photoPalette';
 import {
   clearOfflineReviewDraft,
   createReviewDraftKey,
   loadOfflineReviewDraft,
   saveOfflineReviewDraft
 } from '../lib/offlineReviewDraft';
-import { withTimeout } from '../lib/promiseTimeout';
+import { usePaginatedPhotos } from '../hooks/usePaginatedPhotos';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 const pushDebugEnabled = import.meta.env.VITE_ENABLE_PUSH_DEBUG === 'true';
 const MAX_CAPTION_LENGTH = 36;
 const SEND_REVIEW_TIMEOUT_MS = 25000;
-const PALETTE_EXTRACTION_TIMEOUT_MS = 5000;
 
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
@@ -187,7 +181,31 @@ function uploadBlobWithTimeout(storageRef, blob) {
   });
 }
 
-export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved, onBackgroundSourceChange }) {
+function PhotoLoadMoreSentinel({ rootRef, hasMore, loading, error, onLoadMore }) {
+  const sentinelRef = useRef(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loading || error) return undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) onLoadMore();
+    }, {
+      root: rootRef.current,
+      rootMargin: '100% 0px'
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [rootRef, hasMore, loading, error, onLoadMore]);
+
+  return (
+    <div className="photo-load-more home-photo-load-more" ref={sentinelRef}>
+      {loading && <div className="spinner" />}
+      {error && <button type="button" onClick={onLoadMore}>Try again</button>}
+    </div>
+  );
+}
+
+export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved }) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [cameraStatus, setCameraStatus] = useState('requesting');
@@ -195,12 +213,10 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const [cameraStream, setCameraStream] = useState(null);
   const [toast, setToast] = useState('');
   const [profiles, setProfiles] = useState({});
-  const [photos, setPhotos] = useState([]);
-  const [activeFeedPhotoId, setActiveFeedPhotoId] = useState(null);
-  const [loadingPhotos, setLoadingPhotos] = useState(true);
   const [isCameraInView, setIsCameraInView] = useState(true);
   const [pendingScrollPhotoId, setPendingScrollPhotoId] = useState(null);
   const [activeView, setActiveView] = useState('home');
+  const [mountedViews, setMountedViews] = useState(() => new Set(['home']));
   const [facingMode, setFacingMode] = useState('environment');
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [reviewPhoto, setReviewPhoto] = useState(null);
@@ -224,8 +240,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const requestVersionRef = useRef(0);
   const lastPhotoTimestampRef = useRef(null);
   const lastLikeTimestampRef = useRef(null);
-  const activeFeedPhotoIdRef = useRef(null);
-  const paletteCacheRef = useRef(new Map());
   const swipeRef = useRef({
     axis: null,
     currentX: 0,
@@ -255,6 +269,14 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const sendDisabled = captureDisabled || !isOnline;
   const activeIndex = views.indexOf(activeView);
   const reviewDraftKey = user?.uid && coupleId ? createReviewDraftKey(user.uid, coupleId) : null;
+  const {
+    photos,
+    loadingPhotos,
+    loadingMorePhotos,
+    photoLoadError,
+    hasMorePhotos,
+    loadMorePhotos
+  } = usePaginatedPhotos(coupleId);
 
   const showToast = useCallback((message, duration = 2500) => {
     setToast(message);
@@ -521,94 +543,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     };
   }, [coupleData?.users]);
 
-  useEffect(() => {
-    if (!coupleId) return;
-    const q = query(
-      collection(db, 'couples', coupleId, 'photos'),
-      orderBy('timestamp', 'desc')
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map(photoDoc => ({ id: photoDoc.id, ...photoDoc.data() }));
-      setPhotos(items);
-      setLoadingPhotos(false);
-    }, () => {
-      setLoadingPhotos(false);
-    });
-    return () => unsub();
-  }, [coupleId]);
-
-  useEffect(() => {
-    const feed = feedRef.current;
-    if (!feed || photos.length === 0) return undefined;
-
-    let frame = null;
-
-    const updateActiveFeedPhoto = () => {
-      frame = null;
-      const feedRect = feed.getBoundingClientRect();
-      const feedCenter = feedRect.top + feedRect.height / 2;
-      const photoSlides = Array.from(feed.querySelectorAll('[data-photo-id]'));
-
-      let nextPhotoId = null;
-      let closestDistance = Number.POSITIVE_INFINITY;
-
-      photoSlides.forEach((slide) => {
-        const rect = slide.getBoundingClientRect();
-        const visibleTop = Math.max(feedRect.top, rect.top);
-        const visibleBottom = Math.min(feedRect.bottom, rect.bottom);
-        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-        if (visibleHeight / Math.max(rect.height, 1) < 0.48) return;
-
-        const slideCenter = rect.top + rect.height / 2;
-        const distance = Math.abs(feedCenter - slideCenter);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          nextPhotoId = slide.dataset.photoId || null;
-        }
-      });
-
-      if (nextPhotoId && activeFeedPhotoIdRef.current !== nextPhotoId) {
-        activeFeedPhotoIdRef.current = nextPhotoId;
-        setActiveFeedPhotoId(nextPhotoId);
-      }
-    };
-
-    const scheduleUpdate = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(updateActiveFeedPhoto);
-    };
-
-    scheduleUpdate();
-    feed.addEventListener('scroll', scheduleUpdate, { passive: true });
-    window.addEventListener('resize', scheduleUpdate);
-
-    return () => {
-      if (frame !== null) cancelAnimationFrame(frame);
-      feed.removeEventListener('scroll', scheduleUpdate);
-      window.removeEventListener('resize', scheduleUpdate);
-    };
-  }, [photos]);
-
-  useEffect(() => {
-    if (!activeFeedPhotoId || !onBackgroundSourceChange) return;
-
-    const activePhoto = photos.find((photo) => photo.id === activeFeedPhotoId);
-    if (!activePhoto) return;
-
-    const paletteV2 = normalizePaletteV2(activePhoto.paletteV2)
-      || paletteV2FromLegacyPalette(activePhoto.palette);
-
-    if (!activePhoto.photoUrl && !paletteV2) return;
-
-    if (paletteV2) {
-      paletteCacheRef.current.set(activePhoto.id, paletteV2);
-    }
-    onBackgroundSourceChange({
-      imageUrl: activePhoto.photoUrl || '',
-      palette: paletteV2
-    });
-  }, [activeFeedPhotoId, photos, onBackgroundSourceChange]);
-
   useLayoutEffect(() => {
     if (!pendingScrollPhotoId || photos.length === 0 || activeView === 'home') return;
 
@@ -674,7 +608,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     });
   };
 
-  const uploadPhotoBlob = async (blob, caption = null, paletteV2 = null) => {
+  const uploadPhotoBlob = async (blob, caption = null) => {
     const filename = `couples/${coupleId}/${Date.now()}.jpg`;
     const storageRef = ref(storage, filename);
     await uploadBlobWithTimeout(storageRef, blob);
@@ -691,11 +625,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     if (caption) {
       photoPayload.caption = caption;
     }
-    const normalizedPaletteV2 = normalizePaletteV2(paletteV2);
-    if (normalizedPaletteV2) {
-      photoPayload.paletteV2 = normalizedPaletteV2;
-    }
-
     const photoRef = await addDoc(collection(db, 'couples', coupleId, 'photos'), photoPayload);
 
     await updateDoc(doc(db, 'couples', coupleId), {
@@ -792,15 +721,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     setSendingReviewPhoto(true);
     try {
       const caption = buildCaptionPayload(captionText);
-      const paletteV2 = await withTimeout(
-        extractPaletteV2FromBlob(reviewPhoto.blob),
-        PALETTE_EXTRACTION_TIMEOUT_MS,
-        () => new Error('Palette extraction timed out.')
-      ).catch((err) => {
-        console.warn('Photo palette extraction timed out before send.', err);
-        return null;
-      });
-      await uploadPhotoBlob(reviewPhoto.blob, caption, paletteV2);
+      await uploadPhotoBlob(reviewPhoto.blob, caption);
       await clearCurrentReviewDraft();
       setSendAnimationState('sent');
       showToast('Photo sent');
@@ -1009,6 +930,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
       scrollToCamera();
       return;
     }
+    setMountedViews((current) => current.has(view) ? current : new Set([...current, view]));
     setActiveView(view);
   };
 
@@ -1074,7 +996,9 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
 
     const direction = dx < 0 ? 1 : -1;
     const nextIndex = Math.min(Math.max(swipe.startIndex + direction, 0), views.length - 1);
-    setActiveView(views[nextIndex]);
+    const nextView = views[nextIndex];
+    setMountedViews((current) => current.has(nextView) ? current : new Set([...current, nextView]));
+    setActiveView(nextView);
     resetSwipe();
     return nextIndex;
   };
@@ -1141,11 +1065,17 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
         onTouchCancel={resetSwipe}
       >
         <section className="shell-view">
-          <HistoryScreen
-            user={user}
-            coupleId={coupleId}
-            onSelectPhoto={handleSelectHistoryPhoto}
-          />
+          {mountedViews.has('history') && (
+            <HistoryScreen
+              photos={photos}
+              loading={loadingPhotos}
+              hasMore={hasMorePhotos}
+              loadingMore={loadingMorePhotos}
+              loadError={photoLoadError}
+              onLoadMore={loadMorePhotos}
+              onSelectPhoto={handleSelectHistoryPhoto}
+            />
+          )}
         </section>
 
         <section className="shell-view home-screen" aria-label="Home">
@@ -1264,15 +1194,11 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
                   const senderProfile = photo.senderId === user.uid ? myProfile : profiles[photo.senderId];
                   const senderName = isPhotoMine ? displayName : senderProfile?.displayName || partnerName;
                   const photoCaption = getTextCaption(photo);
-                  const normalizedPaletteV2 = normalizePaletteV2(photo.paletteV2)
-                    || paletteV2FromLegacyPalette(photo.palette);
-
                   return (
                     <div
                       key={photo.id}
                       className="reels-slide"
                       data-photo-id={photo.id}
-                      data-photo-palette={normalizedPaletteV2?.colors.join(',') || undefined}
                     >
                       <motion.article
                         className="photo-card"
@@ -1280,7 +1206,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
                         animate={{ opacity: 1, scale: 1 }}
                       >
                         <div className="camera-frame">
-                          <img src={photo.photoUrl} alt="Shared moment" loading="eager" draggable={false} />
+                          <img src={photo.photoUrl} alt="Shared moment" loading="lazy" decoding="async" draggable={false} />
                           {photoCaption.length > 0 && (
                             <div className="caption-pill photo-caption-pill">{photoCaption}</div>
                           )}
@@ -1311,7 +1237,16 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
                       </motion.article>
                     </div>
                   );
-                })
+                }).concat(
+                  <PhotoLoadMoreSentinel
+                    key="photo-load-more"
+                    rootRef={feedRef}
+                    hasMore={hasMorePhotos}
+                    loading={loadingMorePhotos}
+                    error={photoLoadError}
+                    onLoadMore={loadMorePhotos}
+                  />
+                )
               ) : (
                 <div className="reels-slide">
                   <div className="camera-frame empty">
@@ -1328,7 +1263,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
         </section>
 
         <section className="shell-view">
-          <ProfileView
+          {mountedViews.has('profile') && <ProfileView
             displayName={displayName}
             email={user.email}
             profilePic={profilePic}
@@ -1355,7 +1290,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
             sendingPushDebug={sendingPushDebug}
             onRegisterPushDebug={handleRegisterPushDebug}
             onSendPushDebug={handleSendPushDebug}
-          />
+          />}
         </section>
       </motion.div>
 

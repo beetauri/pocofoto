@@ -16,6 +16,12 @@ test('History grid images use native loading hints', () => {
   assert.match(historyScreenSource, /<img[^>]*\sdecoding="async"/);
 });
 
+test('History consumes shared photos without a duplicate Firestore listener', () => {
+  assert.match(historyScreenSource, /photos,\s*loading,\s*hasMore,\s*loadingMore,\s*loadError,\s*onLoadMore/);
+  assert.doesNotMatch(historyScreenSource, /from ['"]\.\.\/firebase['"]/);
+  assert.doesNotMatch(historyScreenSource, /onSnapshot|collection\(|query\(/);
+});
+
 test('History grid uses compact Retune layout values', () => {
   const screenRule = cssRule('.history-screen');
   const headerRule = cssRule('.history-header');

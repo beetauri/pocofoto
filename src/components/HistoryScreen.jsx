@@ -1,30 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { db, collection, query, orderBy, onSnapshot } from '../firebase';
 import { trackEvent } from '../analytics';
 
-export default function HistoryScreen({ coupleId, onSelectPhoto }) {
-  const [photos, setPhotos] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function HistoryScreen({
+  photos,
+  loading,
+  hasMore,
+  loadingMore,
+  loadError,
+  onLoadMore,
+  onSelectPhoto
+}) {
+  const sentinelRef = useRef(null);
 
   useEffect(() => {
-    if (!coupleId) return;
-
-    const q = query(
-      collection(db, 'couples', coupleId, 'photos'),
-      orderBy('timestamp', 'desc')
-    );
-
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPhotos(items);
-      setLoading(false);
-    }, () => {
-      setLoading(false);
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loadError) return undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) onLoadMore?.();
+    }, {
+      root: sentinel.closest('.history-screen'),
+      rootMargin: '400px 0px'
     });
-
-    return () => unsub();
-  }, [coupleId]);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loadError, onLoadMore]);
 
   return (
     <motion.section
@@ -52,8 +52,9 @@ export default function HistoryScreen({ coupleId, onSelectPhoto }) {
           </div>
         </div>
       ) : (
-        <div className="history-grid">
-          {photos.map((photo, i) => (
+        <>
+          <div className="history-grid">
+            {photos.map((photo, i) => (
             <motion.button
               className="history-tile"
               type="button"
@@ -75,8 +76,15 @@ export default function HistoryScreen({ coupleId, onSelectPhoto }) {
                 draggable={false}
               />
             </motion.button>
-          ))}
-        </div>
+            ))}
+          </div>
+          <div className="photo-load-more" ref={sentinelRef}>
+            {loadingMore && <div className="spinner" />}
+            {loadError && (
+              <button type="button" onClick={onLoadMore}>Try again</button>
+            )}
+          </div>
+        </>
       )}
     </motion.section>
   );

@@ -12,7 +12,7 @@ test('App passes online state to MainScreen', () => {
 test('MainScreen accepts and uses online state for review send', () => {
   assert.match(
     mainScreenSource,
-    /export default function MainScreen\(\{ user, coupleId, isOnline = true, onPairingRemoved, onBackgroundSourceChange \}\)/
+    /export default function MainScreen\(\{ user, coupleId, isOnline = true, onPairingRemoved \}\)/
   );
   assert.match(mainScreenSource, /const sendDisabled = captureDisabled \|\| !isOnline/);
 });
@@ -30,7 +30,6 @@ test('MainScreen blocks upload when trying to send offline', () => {
 
 test('MainScreen bounds restored draft send attempts so the review UI can recover', () => {
   assert.match(mainScreenSource, /SEND_REVIEW_TIMEOUT_MS/);
-  assert.match(mainScreenSource, /withTimeout/);
   assert.match(mainScreenSource, /uploadBytesResumable/);
   assert.match(mainScreenSource, /task\.cancel\(\)/);
   assert.match(mainScreenSource, /setSendingReviewPhoto\(false\)/);

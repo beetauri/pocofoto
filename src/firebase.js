@@ -26,6 +26,8 @@ import {
   getDocs as realGetDocs,
   addDoc as realAddDoc,
   orderBy as realOrderBy,
+  limit as realLimit,
+  startAfter as realStartAfter,
   connectFirestoreEmulator
 } from 'firebase/firestore';
 import {
@@ -133,6 +135,8 @@ const where = realWhere;
 const getDocs = realGetDocs;
 const addDoc = realAddDoc;
 const orderBy = realOrderBy;
+const limit = realLimit;
+const startAfter = realStartAfter;
 
 const ref = realRef;
 const uploadBytes = realUploadBytes;
@@ -162,7 +166,7 @@ export {
   updateProfile,
   GoogleAuthProvider,
   doc, setDoc, getDoc, updateDoc, onSnapshot,
-  collection, query, where, getDocs, addDoc, orderBy,
+  collection, query, where, getDocs, addDoc, orderBy, limit, startAfter,
   ref, uploadBytes, getDownloadURL,
   uploadBytesResumable,
   httpsCallable,
