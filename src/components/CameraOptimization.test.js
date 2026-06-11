@@ -13,6 +13,7 @@ test('delegates camera lifecycle to one hook and keeps the preview mounted', () 
 });
 
 test('resizes and compresses camera captures before upload', () => {
-  assert.match(source, /fitCaptureDimensions\(video\.videoWidth, video\.videoHeight\)/);
+  assert.match(source, /getCoverCrop\(video\.videoWidth, video\.videoHeight\)/);
+  assert.match(source, /fitCaptureDimensions\(crop\.width, crop\.height\)/);
   assert.match(source, /CAPTURE_JPEG_QUALITY/);
 });

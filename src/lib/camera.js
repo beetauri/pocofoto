@@ -50,6 +50,30 @@ export function fitCaptureDimensions(width, height, maxDimension = MAX_CAPTURE_D
   };
 }
 
+export function getCoverCrop(width, height, targetAspectRatio = 1) {
+  const sourceWidth = Math.max(1, Number(width) || 1);
+  const sourceHeight = Math.max(1, Number(height) || 1);
+  const sourceAspectRatio = sourceWidth / sourceHeight;
+
+  if (sourceAspectRatio > targetAspectRatio) {
+    const cropWidth = sourceHeight * targetAspectRatio;
+    return {
+      x: Math.round((sourceWidth - cropWidth) / 2),
+      y: 0,
+      width: Math.round(cropWidth),
+      height: Math.round(sourceHeight)
+    };
+  }
+
+  const cropHeight = sourceWidth / targetAspectRatio;
+  return {
+    x: 0,
+    y: Math.round((sourceHeight - cropHeight) / 2),
+    width: Math.round(sourceWidth),
+    height: Math.round(cropHeight)
+  };
+}
+
 export function isUsableVideoTrack(track) {
   return Boolean(
     track
@@ -101,7 +125,8 @@ export async function waitForVideoFrame(video, stream, timeoutMs = 8000) {
 export function captureVideoFrame(video, facingMode) {
   if (!video?.videoWidth || !video?.videoHeight) return '';
   const canvas = document.createElement('canvas');
-  const previewSize = fitCaptureDimensions(video.videoWidth, video.videoHeight, 1280);
+  const crop = getCoverCrop(video.videoWidth, video.videoHeight);
+  const previewSize = fitCaptureDimensions(crop.width, crop.height, 1280);
   canvas.width = previewSize.width;
   canvas.height = previewSize.height;
   const context = canvas.getContext('2d');
@@ -110,6 +135,16 @@ export function captureVideoFrame(video, facingMode) {
     context.translate(canvas.width, 0);
     context.scale(-1, 1);
   }
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  context.drawImage(
+    video,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
   return canvas.toDataURL('image/jpeg', 0.82);
 }

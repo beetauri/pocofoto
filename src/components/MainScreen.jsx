@@ -27,7 +27,7 @@ import {
 } from '../lib/offlineReviewDraft';
 import { usePaginatedPhotos } from '../hooks/usePaginatedPhotos';
 import { useCamera } from '../hooks/useCamera';
-import { CAPTURE_JPEG_QUALITY, fitCaptureDimensions } from '../lib/camera';
+import { CAPTURE_JPEG_QUALITY, fitCaptureDimensions, getCoverCrop } from '../lib/camera';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
@@ -606,7 +606,8 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     setUploading(true);
     try {
       const canvas = document.createElement('canvas');
-      const captureSize = fitCaptureDimensions(video.videoWidth, video.videoHeight);
+      const crop = getCoverCrop(video.videoWidth, video.videoHeight);
+      const captureSize = fitCaptureDimensions(crop.width, crop.height);
       canvas.width = captureSize.width;
       canvas.height = captureSize.height;
       const ctx = canvas.getContext('2d');
@@ -614,7 +615,17 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
       }
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(
+        video,
+        crop.x,
+        crop.y,
+        crop.width,
+        crop.height,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
 
       const blob = await new Promise((resolve, reject) => {
         canvas.toBlob((result) => {
