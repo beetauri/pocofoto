@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -186,5 +187,33 @@ describe('ProfileView', () => {
     const dialog = await screen.findByRole('alertdialog');
 
     expect(within(dialog).getByRole('button', { name: 'Removing...' })).toBeDisabled();
+  });
+
+  it('uses the balanced glass Profile structure without legacy selectors', () => {
+    const source = readFileSync('src/components/ProfileView.jsx', 'utf8');
+    const css = readFileSync('src/index.css', 'utf8');
+    const oldSelectors = [
+      '.profile-info-row',
+      '.profile-unpair-button',
+      '.profile-link-row',
+      '.profile-debug-panel',
+      '.profile-version',
+      '.confirm-backdrop',
+      '.confirm-sheet'
+    ];
+
+    expect(source.match(/profile-glass-card/g)).toHaveLength(4);
+    expect(css).toContain(`.profile-glass-card {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background: rgba(23, 23, 23, 0.68);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+  -webkit-backdrop-filter: blur(24px) saturate(130%);
+  backdrop-filter: blur(24px) saturate(130%);
+}`);
+    oldSelectors.forEach((selector) => {
+      expect(css).not.toContain(selector);
+    });
   });
 });

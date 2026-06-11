@@ -229,7 +229,7 @@ export default function ProfileView({
                   <a href="#privacy" onClick={(event) => event.preventDefault()}>Privacy Notice</a>
                   <a href="#terms" onClick={(event) => event.preventDefault()}>Terms of Use</a>
                 </div>
-                <div className="profile-version-block">
+                <div className="profile-build-block">
                   <span>Version</span>
                   <strong>v{buildVersion} ({buildCommit})</strong>
                 </div>
