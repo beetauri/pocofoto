@@ -2,12 +2,8 @@ import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart as LucideHeartIcon,
-  Check as LucideCheckIcon,
   Image as LucidePhotoIcon,
   LayoutGrid as LucideGridIcon,
-  Link2Off as LucideUnlinkIcon,
-  LogOut as LucideLogoutIcon,
-  Pencil as LucidePencilIcon,
   RefreshCw as LucideSwitchCameraIcon,
   Send as LucideSendIcon,
   SendHorizontal as LucideSendHorizontalIcon,
@@ -16,6 +12,7 @@ import {
   Zap as LucideFlashIcon
 } from 'lucide-react';
 import HistoryScreen from './HistoryScreen';
+import ProfileView from './ProfileView';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, uploadBytesResumable, getDownloadURL, signOut, collection, addDoc, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
 import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNotifications';
@@ -37,14 +34,6 @@ const SEND_REVIEW_TIMEOUT_MS = 25000;
 
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
-}
-
-function CheckIcon() {
-  return <LucideCheckIcon {...lucideIconProps} />;
-}
-
-function PencilIcon() {
-  return <LucidePencilIcon {...lucideIconProps} />;
 }
 
 function XIcon() {
@@ -109,24 +98,6 @@ function SwitchCameraIcon() {
   return <LucideSwitchCameraIcon {...lucideIconProps} />;
 }
 
-function LogoutIcon() {
-  return <LucideLogoutIcon {...lucideIconProps} />;
-}
-
-function UnlinkIcon() {
-  return <LucideUnlinkIcon {...lucideIconProps} />;
-}
-
-function initialsFor(name, email) {
-  const source = name || email || '?';
-  return source
-    .split(/[\s@._-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || '?';
-}
-
 function clampCaptionText(value) {
   return value.replace(/[\r\n]/g, '').slice(0, MAX_CAPTION_LENGTH);
 }
@@ -143,14 +114,6 @@ function getTextCaption(photo) {
   return photo?.caption?.type === 'text' && typeof photo.caption.text === 'string'
     ? photo.caption.text
     : '';
-}
-
-function Avatar({ src, name, email, size = 'md' }) {
-  const [failed, setFailed] = useState(false);
-  if (src && !failed) {
-    return <img className={`profile-avatar ${size}`} src={src} alt="" onError={() => setFailed(true)} />;
-  }
-  return <div className={`profile-avatar initials ${size}`}>{initialsFor(name, email)}</div>;
 }
 
 function uploadBlobWithTimeout(storageRef, blob) {
@@ -221,8 +184,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const [captionText, setCaptionText] = useState('');
   const [sendingReviewPhoto, setSendingReviewPhoto] = useState(false);
   const [sendAnimationState, setSendAnimationState] = useState('idle');
-  const [confirmLogout, setConfirmLogout] = useState(false);
-  const [confirmRemovePairing, setConfirmRemovePairing] = useState(false);
   const [removingPairing, setRemovingPairing] = useState(false);
   const [registeringPushDebug, setRegisteringPushDebug] = useState(false);
   const [sendingPushDebug, setSendingPushDebug] = useState(false);
@@ -255,7 +216,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const partnerProfile = partnerUid ? profiles[partnerUid] : null;
   const displayName = myProfile?.displayName || user.displayName || user.email.split('@')[0];
   const partnerName = partnerProfile?.displayName || 'your person';
-  const partnerEmail = partnerProfile?.email || partnerProfile?.normalizedEmail || '';
   const partnerPhoto = partnerProfile?.profilePic || partnerProfile?.photoURL || '';
   const profilePic = myProfile?.profilePic || user.photoURL || '';
   const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
@@ -794,7 +754,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     setRemovingPairing(true);
     try {
       await httpsCallable(functions, 'removePairing')();
-      setConfirmRemovePairing(false);
       onPairingRemoved?.('Pairing removed. You can pair again whenever you are ready.');
       trackEvent('pairing_remove_confirmed');
     } catch (err) {
@@ -1226,22 +1185,16 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
             email={user.email}
             profilePic={profilePic}
             partnerName={partnerName}
-            partnerEmail={partnerEmail}
             partnerPic={partnerPhoto}
             buildVersion={buildVersion}
             buildCommit={buildCommit}
             uploading={uploading}
+            removingPairing={removingPairing}
             onPickPhoto={() => profileFileRef.current?.click()}
             onRemovePhoto={handleRemoveProfilePhoto}
             onSaveDisplayName={handleSaveDisplayName}
-            onRequestLogout={() => {
-              setToast('');
-              setConfirmLogout(true);
-            }}
-            onRequestRemovePairing={() => {
-              setToast('');
-              setConfirmRemovePairing(true);
-            }}
+            onLogout={handleLogout}
+            onRemovePairing={handleRemovePairing}
             pushDebugEnabled={pushDebugEnabled}
             pushDebugResult={pushDebugResult}
             registeringPushDebug={registeringPushDebug}
@@ -1301,68 +1254,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
       </nav>
 
       <AnimatePresence>
-        {confirmLogout && (
-          <motion.div
-            className="confirm-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            role="presentation"
-          >
-            <motion.div
-              className="confirm-sheet"
-              initial={{ opacity: 0, y: 18, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.98 }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="logout-title"
-            >
-              <h2 id="logout-title">Log out?</h2>
-              <p>You will need to sign in with Google again to use Pocofoto.</p>
-              <div className="confirm-actions">
-                <button className="btn-ghost" type="button" onClick={() => setConfirmLogout(false)}>Cancel</button>
-                <button className="btn-primary danger" type="button" onClick={handleLogout}>Log out</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {confirmRemovePairing && (
-          <motion.div
-            className="confirm-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            role="presentation"
-          >
-            <motion.div
-              className="confirm-sheet"
-              initial={{ opacity: 0, y: 18, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.98 }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="remove-pairing-title"
-            >
-              <h2 id="remove-pairing-title">Remove pairing?</h2>
-              <p>Old shared history will no longer be visible. Both of you can pair again whenever you are ready.</p>
-              <div className="confirm-actions">
-                <button className="btn-ghost" type="button" onClick={() => setConfirmRemovePairing(false)} disabled={removingPairing}>
-                  Cancel
-                </button>
-                <button className="btn-primary danger" type="button" onClick={handleRemovePairing} disabled={removingPairing}>
-                  {removingPairing ? 'Removing...' : 'Remove pairing'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
         {toast && (
           <motion.div
             className="toast"
@@ -1378,185 +1269,3 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   );
 }
 
-function ProfileView({
-  displayName,
-  email,
-  profilePic,
-  partnerName,
-  partnerEmail,
-  partnerPic,
-  buildVersion,
-  buildCommit,
-  uploading,
-  onPickPhoto,
-  onRemovePhoto,
-  onSaveDisplayName,
-  onRequestLogout,
-  onRequestRemovePairing,
-  pushDebugEnabled,
-  pushDebugResult,
-  registeringPushDebug,
-  sendingPushDebug,
-  onRegisterPushDebug,
-  onSendPushDebug
-}) {
-  const [editingName, setEditingName] = useState(false);
-  const [draftName, setDraftName] = useState(displayName);
-  const [nameError, setNameError] = useState('');
-  const [savingName, setSavingName] = useState(false);
-
-  useEffect(() => {
-    if (editingName) return;
-    setDraftName(displayName);
-  }, [displayName, editingName]);
-
-  const handleStartNameEdit = () => {
-    setDraftName(displayName);
-    setNameError('');
-    setEditingName(true);
-  };
-
-  const handleCancelNameEdit = () => {
-    setDraftName(displayName);
-    setNameError('');
-    setEditingName(false);
-  };
-
-  const handleSaveName = async () => {
-    const trimmedName = draftName.trim();
-    if (trimmedName.length < 2 || trimmedName.length > 30) {
-      setNameError('Display name must be 2-30 characters.');
-      return;
-    }
-
-    setSavingName(true);
-    setNameError('');
-    try {
-      await onSaveDisplayName(trimmedName);
-      setEditingName(false);
-    } catch (err) {
-      console.error(err);
-      setNameError('Could not update display name.');
-    } finally {
-      setSavingName(false);
-    }
-  };
-
-  return (
-    <section className="profile-screen" aria-label="Profile">
-      <div className="profile-hero">
-        <Avatar src={profilePic} name={displayName} email={email} size="lg" />
-        <h1>{displayName}</h1>
-        <p>{email}</p>
-      </div>
-
-      <div className="profile-actions-row">
-        <button className="btn-ghost" type="button" onClick={onPickPhoto} disabled={uploading}>Change photo</button>
-        <button className="btn-ghost" type="button" onClick={onRemovePhoto} disabled={uploading || !profilePic}>Remove</button>
-      </div>
-
-      <div className="profile-partner-card">
-        <span className="profile-card-label">Paired with</span>
-        <div className="profile-partner-row">
-          <Avatar src={partnerPic} name={partnerName} email={partnerEmail} size="md" />
-          <div className="profile-partner-copy">
-            <strong>{partnerName}</strong>
-            <span>{partnerEmail || 'Google account email hidden'}</span>
-          </div>
-        </div>
-        <button className="profile-unpair-button" type="button" onClick={onRequestRemovePairing}>
-          <UnlinkIcon />
-          Remove pairing
-        </button>
-      </div>
-
-      <div className="profile-info-list">
-        <div className={`profile-info-row profile-editable-row${editingName ? ' editing' : ''}`}>
-          <span>Display name</span>
-          {editingName ? (
-            <>
-              <div className="profile-edit-row">
-                <input
-                  className="profile-name-input"
-                  type="text"
-                  value={draftName}
-                  minLength={2}
-                  maxLength={30}
-                  autoFocus
-                  disabled={savingName}
-                  onChange={(event) => {
-                    setDraftName(event.target.value);
-                    setNameError('');
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') handleSaveName();
-                    if (event.key === 'Escape') handleCancelNameEdit();
-                  }}
-                  aria-label="Display name"
-                />
-                <div className="profile-edit-actions">
-                  <button className="profile-edit-icon" type="button" aria-label="Cancel display name edit" onClick={handleCancelNameEdit} disabled={savingName}>
-                    <XIcon />
-                  </button>
-                  <button className="profile-edit-icon save" type="button" aria-label="Save display name" onClick={handleSaveName} disabled={savingName}>
-                    {savingName ? <div className="spinner small" /> : <CheckIcon />}
-                  </button>
-                </div>
-              </div>
-              {nameError && <p className="profile-inline-error">{nameError}</p>}
-            </>
-          ) : (
-            <div className="profile-value-row">
-              <strong>{displayName}</strong>
-              <button className="profile-edit-icon" type="button" aria-label="Edit display name" onClick={handleStartNameEdit}>
-                <PencilIcon />
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="profile-info-row">
-          <span>Email</span>
-          <strong>{email}</strong>
-        </div>
-        <div className="profile-info-row">
-          <span>Sign-in</span>
-          <strong>Google</strong>
-        </div>
-      </div>
-
-      <div className="profile-link-row">
-        <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Notice</a>
-        <a href="#terms" onClick={(e) => e.preventDefault()}>Terms of Use</a>
-      </div>
-
-      {pushDebugEnabled && (
-        <div className="profile-debug-panel">
-          <span className="profile-card-label">Push debug</span>
-          <div className="profile-debug-actions">
-            <button className="btn-ghost" type="button" onClick={onRegisterPushDebug} disabled={registeringPushDebug}>
-              {registeringPushDebug ? 'Registering...' : 'Register this device'}
-            </button>
-            <button className="btn-ghost" type="button" onClick={onSendPushDebug} disabled={sendingPushDebug}>
-              {sendingPushDebug ? 'Sending...' : 'Send test push to partner'}
-            </button>
-          </div>
-          <p className="profile-debug-result">
-            {pushDebugResult || 'Enable, register this browser, then send a test push.'}
-          </p>
-        </div>
-      )}
-
-      <div className="profile-danger-zone">
-        <button className="menu-action profile-menu-action" type="button" onClick={onRequestLogout}>
-          <LogoutIcon />
-          Log out
-        </button>
-      </div>
-
-      <div className="profile-version">
-        <span>Version</span>
-        <strong>v{buildVersion} ({buildCommit})</strong>
-      </div>
-    </section>
-  );
-}
