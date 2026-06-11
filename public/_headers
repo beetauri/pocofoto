@@ -15,3 +15,6 @@
 
 /firebase-messaging-sw.js
   Cache-Control: no-cache
+
+/firebase-messaging-sw-core.js
+  Cache-Control: no-cache

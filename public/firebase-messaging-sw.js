@@ -2,6 +2,7 @@
 
 importScripts('https://www.gstatic.com/firebasejs/12.13.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/12.13.0/firebase-messaging-compat.js');
+importScripts('/firebase-messaging-sw-core.js');
 
 firebase.initializeApp({
   apiKey: 'AIzaSyCMAV8uQ8RelzrnIRxr9MyzrX5uFlDcDRw',
@@ -15,22 +16,19 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || 'Pocofoto';
-  const options = {
-    body: payload.notification?.body || 'You have a new update.',
-    icon: '/pocoface-192.png',
-    badge: '/pocoface-192.png',
-    data: payload.data || {}
-  };
-
-  self.registration.showNotification(title, options);
+  const pushEvent = self.PocofotoMessaging.parsePushData(payload.data || {});
+  return self.PocofotoMessaging.rememberEvent(pushEvent.eventId).then((isNewEvent) => {
+    if (!isNewEvent) return undefined;
+    return self.registration.showNotification(
+      pushEvent.title,
+      self.PocofotoMessaging.notificationOptions(pushEvent)
+    );
+  });
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetPath = event.notification.data?.type === 'pairing_request'
-    ? '/?pairing=requests'
-    : '/';
+  const targetPath = event.notification.data?.destination || '/';
   const url = new URL(targetPath, self.location.origin).href;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

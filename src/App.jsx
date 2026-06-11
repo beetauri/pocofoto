@@ -12,6 +12,7 @@ import NotificationPrompt from './components/NotificationPrompt';
 import { Toaster } from './components/ui/sonner';
 import { connectionStatusStore } from './lib/connectionStatus';
 import { useNotifications } from './hooks/useNotifications';
+import { clearNotificationIntent, readNotificationIntent } from './notifications/notificationClient';
 import {
   clearCachedUserRoute,
   getCachedUserRoute,
@@ -67,12 +68,17 @@ export default function App() {
   const [pairStateKnown, setPairStateKnown] = useState(false);
   const [pairingNotice, setPairingNotice] = useState('');
   const [connectionStatus, setConnectionStatus] = useState(() => connectionStatusStore.getSnapshot());
+  const [notificationIntent, setNotificationIntent] = useState(() => readNotificationIntent());
   const trackedAppOpen = useRef(false);
   const notifications = useNotifications({
     user,
     paired: Boolean(coupleId),
     online: connectionStatus.isOnline
   });
+  const {
+    handleForegroundMessage,
+    clearForegroundMessage
+  } = notifications;
 
   useEffect(() => {
     initAnalytics();
@@ -172,8 +178,8 @@ export default function App() {
       trackEvent('push_foreground_received', {
         type: payload?.data?.type || 'unknown'
       });
-      notifications.handleForegroundMessage(payload);
-      window.setTimeout(() => notifications.clearForegroundMessage(), 3200);
+      handleForegroundMessage(payload);
+      window.setTimeout(() => clearForegroundMessage(), 3200);
     }).then((handlerUnsubscribe) => {
       if (!active) {
         handlerUnsubscribe?.();
@@ -188,7 +194,7 @@ export default function App() {
       active = false;
       unsubscribe?.();
     };
-  }, [notifications, user]);
+  }, [clearForegroundMessage, handleForegroundMessage, user]);
 
   const handlePaired = (newCoupleId) => {
     setPairingNotice('');
@@ -214,6 +220,11 @@ export default function App() {
     setPairingNotice('');
   }, []);
 
+  const handleNotificationIntentConsumed = useCallback(() => {
+    clearNotificationIntent();
+    setNotificationIntent(null);
+  }, []);
+
   let screen = 'auth';
   if (user && !pairStateKnown && !checkingPair) screen = 'offline-hold';
   if (user && !coupleId && pairStateKnown && connectionStatus.isOnline && !checkingPair) screen = 'pairing';
@@ -222,6 +233,12 @@ export default function App() {
   useEffect(() => {
     trackEvent('screen_view', { screen });
   }, [screen]);
+
+  useEffect(() => {
+    if (notificationIntent?.type !== 'pairing') return;
+    if (screen === 'auth' || screen === 'offline-hold') return;
+    handleNotificationIntentConsumed();
+  }, [handleNotificationIntentConsumed, notificationIntent, screen]);
 
   if (loading) {
     return (
@@ -266,6 +283,8 @@ export default function App() {
               isOnline={connectionStatus.isOnline}
               onPairingRemoved={handlePairingRemoved}
               notificationControls={notifications}
+              notificationIntent={notificationIntent}
+              onNotificationIntentConsumed={handleNotificationIntentConsumed}
             />
           </motion.div>
         )}

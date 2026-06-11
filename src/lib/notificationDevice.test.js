@@ -30,6 +30,16 @@ test('device id remains stable and prompt dismissal is scoped by user', () => {
   assert.equal(store.isPromptDismissed('user-b'), false);
 });
 
+test('notification enabled preference is explicit and current-device scoped', () => {
+  const store = createNotificationDeviceStore({ storage: memoryStorage() });
+
+  assert.equal(store.getNotificationsEnabled(), null);
+  store.setNotificationsEnabled(false);
+  assert.equal(store.getNotificationsEnabled(), false);
+  store.setNotificationsEnabled(true);
+  assert.equal(store.getNotificationsEnabled(), true);
+});
+
 test('recent event ids are bounded and reject duplicates', () => {
   const store = createNotificationDeviceStore({
     storage: memoryStorage(),
