@@ -10,117 +10,95 @@
 
 ---
 
+## Current Baseline Notes
+
+- The repo is currently at app version `0.2.26`; this plan should bump to `0.2.27`, not `0.2.21`.
+- Vitest, jsdom, Testing Library, `src/test/setup.js`, and the `test:unit` script already exist.
+- Registry shadcn primitives already exist for `alert-dialog`, `card`, `collapsible`, `separator`, `button`, `input`, and `spinner`.
+- `MainScreen.jsx` still owns the inline `ProfileView`, avatar helpers, Profile-local Lucide wrappers, and the custom `confirmLogout` / `confirmRemovePairing` Framer Motion dialogs.
+- There are unrelated working-tree changes under `.agents/skills/` and `skills-lock.json`; leave them untouched.
+
 ## File Map
 
 - Create `src/components/ProfileView.jsx`: Profile presentation, local edit/About/dialog state, and calls to parent callbacks.
 - Create `src/components/ProfileView.test.jsx`: interaction-level Profile coverage in jsdom.
-- Create `src/test/setup.js`: shared Testing Library cleanup and DOM matcher setup.
-- Create `src/components/ui/alert-dialog.jsx`: registry shadcn destructive confirmation primitive.
-- Create `src/components/ui/card.jsx`: registry shadcn grouped-surface primitive.
-- Create `src/components/ui/collapsible.jsx`: registry shadcn About disclosure primitive.
-- Create `src/components/ui/separator.jsx`: registry shadcn grouping primitive.
 - Modify `src/components/MainScreen.jsx`: import/render extracted Profile, delete local Profile/avatar/icon/dialog code, preserve hidden file input and parent handlers.
 - Modify `src/index.css`: replace legacy Profile and confirmation selectors with Profile shell/avatar styles and semantic glass tokens; leave unrelated screens alone.
-- Modify `vite.config.js`: add Vitest jsdom and setup configuration.
-- Modify `eslint.config.js`: allow Vitest globals in test files if required by the chosen test syntax.
-- Modify `package.json` and `package-lock.json`: add test dependencies, add the Vitest command to `test:unit`, and bump `0.2.20` to `0.2.21`.
+- Modify `package.json` and `package-lock.json`: bump `0.2.26` to `0.2.27` after behavior, integration, and styling pass.
 
-## Task 1: Install Registry Primitives And Test Harness
+## Task 1: Confirm Existing Foundation
 
 **Files:**
-- Create: `src/components/ui/alert-dialog.jsx`
-- Create: `src/components/ui/card.jsx`
-- Create: `src/components/ui/collapsible.jsx`
-- Create: `src/components/ui/separator.jsx`
-- Create: `src/test/setup.js`
-- Modify: `package.json`
-- Modify: `package-lock.json`
-- Modify: `vite.config.js`
-- Modify: `eslint.config.js`
+- Read only: `package.json`
+- Read only: `vite.config.js`
+- Read only: `src/test/setup.js`
+- Read only: `src/components/ui/alert-dialog.jsx`
+- Read only: `src/components/ui/card.jsx`
+- Read only: `src/components/ui/collapsible.jsx`
+- Read only: `src/components/ui/separator.jsx`
+- Read only: `src/components/ui/button.jsx`
+- Read only: `src/components/ui/input.jsx`
+- Read only: `src/components/ui/spinner.jsx`
 
-- [ ] **Step 1: Add the approved shadcn primitives from the installed local CLI**
-
-Run:
-
-```bash
-npm exec shadcn -- add alert-dialog card collapsible separator --yes
-```
-
-Expected: four registry files exist under `src/components/ui/`; no custom replacement primitives are created.
-
-- [ ] **Step 2: Install interaction-test dependencies**
+- [ ] **Step 1: Confirm the app version and test script**
 
 Run:
 
 ```bash
-npm install --save-dev vitest jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom
+node -p "require('./package.json').version"
+node -p "require('./package.json').scripts['test:unit']"
 ```
 
-Expected: the packages are added to `devDependencies` and the lockfile updates.
+Expected: version prints `0.2.26`, and `test:unit` includes both Node tests and `vitest run src/components/*.test.jsx src/hooks/*.test.jsx`.
 
-- [ ] **Step 3: Add the shared test setup**
-
-Create `src/test/setup.js`:
-
-```js
-import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
-
-afterEach(() => cleanup());
-```
-
-- [ ] **Step 4: Configure Vitest without disturbing the production Vite build**
-
-Add to `defineConfig` in `vite.config.js`:
-
-```js
-test: {
-  environment: 'jsdom',
-  setupFiles: ['./src/test/setup.js'],
-  css: false,
-},
-```
-
-Add a test-file override to `eslint.config.js` only if lint reports missing Vitest globals:
-
-```js
-{
-  files: ['**/*.test.{js,jsx}'],
-  languageOptions: {
-    globals: {
-      ...globals.browser,
-      ...globals.node,
-    },
-  },
-},
-```
-
-- [ ] **Step 5: Extend the existing unit-test script**
-
-Change `package.json`:
-
-```json
-"test:unit": "node --test src/lib/*.test.js src/components/*.test.js && vitest run src/components/*.test.jsx"
-```
-
-- [ ] **Step 6: Verify the harness configuration before Profile tests exist**
+- [ ] **Step 2: Confirm Vitest is already configured**
 
 Run:
 
 ```bash
-npm run lint
-node --test src/lib/*.test.js src/components/*.test.js
+rg -n "environment: 'jsdom'|setupFiles: \\['./src/test/setup.js'\\]|css: false" vite.config.js
+sed -n '1,40p' src/test/setup.js
 ```
 
-Expected: lint and all existing Node tests pass. Do not run the combined `test:unit` script until Task 2 creates the first JSX test file because Vitest treats an empty match as an error.
+Expected: `vite.config.js` has the jsdom setup, and `src/test/setup.js` imports `@testing-library/jest-dom/vitest`, `cleanup`, and `afterEach`.
 
-- [ ] **Step 7: Commit the foundation**
+- [ ] **Step 3: Confirm the required shadcn primitives already exist**
+
+Run:
 
 ```bash
-git add package.json package-lock.json vite.config.js eslint.config.js src/test/setup.js src/components/ui/alert-dialog.jsx src/components/ui/card.jsx src/components/ui/collapsible.jsx src/components/ui/separator.jsx
-git commit -m "test: add profile interaction harness"
+ls src/components/ui/{alert-dialog,button,card,collapsible,input,separator,spinner}.jsx
 ```
+
+Expected: all seven files are present. Do not rerun `npm exec shadcn -- add ...` unless one is missing.
+
+- [ ] **Step 4: Run the current baseline tests**
+
+Run:
+
+```bash
+npm run test:unit
+```
+
+Expected: existing Node and Vitest suites pass before Profile redesign work starts.
+
+- [ ] **Step 5: Inspect the current Profile ownership boundary**
+
+Run:
+
+```bash
+rg -n "function ProfileView|confirmLogout|confirmRemovePairing|partnerEmail=|profile-unpair-button|profile-info-row|profile-debug-panel|confirm-backdrop|confirm-sheet" src/components/MainScreen.jsx src/index.css
+```
+
+Expected: matches show the inline Profile component, parent-owned custom dialogs, partner email rendering, and legacy Profile/confirmation selectors that later tasks remove.
+
+- [ ] **Step 6: Record the baseline state**
+
+```bash
+git status --short
+```
+
+Expected: no commit is created for Task 1 because it is a read-only baseline check. Existing unrelated `.agents/skills/` and `skills-lock.json` changes remain untouched.
 
 ## Task 2: Define Profile Behavior With Failing Tests
 
@@ -143,9 +121,8 @@ function renderProfile(overrides = {}) {
     email: 'bilal@example.com',
     profilePic: '',
     partnerName: 'Alex',
-    partnerEmail: 'alex@example.com',
     partnerPic: '',
-    buildVersion: '0.2.21',
+    buildVersion: '0.2.27',
     buildCommit: 'abc1234',
     uploading: false,
     removingPairing: false,
@@ -176,7 +153,7 @@ it('renders identity and partner name without partner email', () => {
   renderProfile();
   expect(screen.getByRole('heading', { name: 'Bilal' })).toBeInTheDocument();
   expect(screen.getByText('Alex')).toBeInTheDocument();
-  expect(screen.queryByText('alex@example.com')).not.toBeInTheDocument();
+  expect(screen.queryByText(/alex@example.com/i)).not.toBeInTheDocument();
   expect(screen.getByText('B')).toBeInTheDocument();
 });
 
@@ -204,7 +181,7 @@ expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
 
 - [ ] **Step 4: Add About and diagnostics tests**
 
-Verify About starts collapsed, expansion reveals `Privacy Notice`, `Terms of Use`, and `v0.2.21 (abc1234)`, diagnostics are absent by default, and debug mode reveals both existing debug actions only after expansion.
+Verify About starts collapsed, expansion reveals `Privacy Notice`, `Terms of Use`, and `v0.2.27 (abc1234)`, diagnostics are absent by default, and debug mode reveals both existing debug actions only after expansion.
 
 - [ ] **Step 5: Add distinct destructive-dialog tests**
 
@@ -297,7 +274,7 @@ Add:
 import ProfileView from './ProfileView';
 ```
 
-Remove Profile-only icon imports and helper functions from `MainScreen.jsx`: `Check`, `Link2Off`, `LogOut`, `Pencil`, `X`, `initialsFor`, `Avatar`, and the inline `ProfileView` definition.
+Remove Profile-only icon imports and helper functions from `MainScreen.jsx`: the Lucide aliases for `Check`, `Link2Off`, `LogOut`, `Pencil`, and `X`; the wrapper functions `CheckIcon`, `PencilIcon`, `XIcon`, `LogoutIcon`, and `UnlinkIcon`; `initialsFor`; `Avatar`; and the inline `ProfileView` definition. Keep any icon import or helper that is still used outside Profile.
 
 - [ ] **Step 2: Remove obsolete dialog-open state**
 
@@ -332,7 +309,7 @@ Render:
 />
 ```
 
-Do not move or change the hidden native file input.
+Do not pass `partnerEmail`; the Balanced Glass Stack intentionally hides partner email. Do not move or change the hidden native file input.
 
 - [ ] **Step 4: Verify structural cleanup**
 
@@ -408,8 +385,8 @@ Keep `.profile-screen` safe-area scrolling, then implement:
   border-radius: 24px;
   background: rgba(23, 23, 23, 0.68);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(24px) saturate(130%);
   -webkit-backdrop-filter: blur(24px) saturate(130%);
+  backdrop-filter: blur(24px) saturate(130%);
 }
 ```
 
@@ -429,7 +406,7 @@ npm run lint
 npm run build
 ```
 
-Expected: all pass; generated CSS includes backdrop-filter and large-radius Profile surfaces.
+Expected: all pass; generated CSS includes both `backdrop-filter` and `-webkit-backdrop-filter` for large-radius Profile surfaces.
 
 - [ ] **Step 6: Commit styling**
 
@@ -449,10 +426,10 @@ git commit -m "style: apply profile glass hierarchy"
 Run:
 
 ```bash
-npm version 0.2.21 --no-git-tag-version
+npm version 0.2.27 --no-git-tag-version
 ```
 
-Expected: both package files report `0.2.21`.
+Expected: both package files report `0.2.27`.
 
 - [ ] **Step 2: Run the complete local verification suite**
 
@@ -471,17 +448,18 @@ Run:
 
 ```bash
 git status --short
-git diff --stat acee859..HEAD
+git diff --stat HEAD~4..HEAD
+git diff --stat
 rg -n "profile-info-row|profile-unpair-button|profile-debug-panel|confirm-backdrop|confirm-sheet" src
 ```
 
-Expected: changes are limited to the planned Profile, registry, test/config, CSS, and package files; the legacy Profile/confirmation selectors return no matches.
+Expected: committed changes are limited to the planned Profile, tests, `MainScreen.jsx`, and CSS files; the uncommitted diff contains only `package.json` and `package-lock.json`; the legacy Profile/confirmation selectors return no matches.
 
 - [ ] **Step 4: Commit the release metadata**
 
 ```bash
 git add package.json package-lock.json
-git commit -m "chore: bump version to 0.2.21"
+git commit -m "chore: bump version to 0.2.27"
 ```
 
 - [ ] **Step 5: Final commit audit**
