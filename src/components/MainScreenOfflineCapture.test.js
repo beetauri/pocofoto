@@ -12,7 +12,7 @@ test('App passes online state to MainScreen', () => {
 test('MainScreen accepts and uses online state for review send', () => {
   assert.match(
     mainScreenSource,
-    /export default function MainScreen\(\{[\s\S]*user,[\s\S]*coupleId,[\s\S]*isOnline = true,[\s\S]*onPairingRemoved,[\s\S]*\}\)/
+    /export default function MainScreen\(\{ user, coupleId, isOnline = true, onPairingRemoved \}\)/
   );
   assert.match(mainScreenSource, /const sendDisabled = captureDisabled \|\| !isOnline/);
 });

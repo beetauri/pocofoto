@@ -33,10 +33,3 @@ test('preserves photos displaced from the realtime window after pagination', () 
   assert.match(source, /displacedPhotos/);
   assert.match(source, /setOlderPages\(\(pages\) => \[displacedPhotos, \.\.\.pages\]\)/);
 });
-
-test('exposes a local photo updater for optimistic actions on paginated photos', () => {
-  assert.match(source, /const updatePhotoLocal = useCallback/);
-  assert.match(source, /setFirstPage\(\(page\) => page\.map\(applyUpdate\)\)/);
-  assert.match(source, /setOlderPages\(\(pages\) => pages\.map\(\(page\) => page\.map\(applyUpdate\)\)\)/);
-  assert.match(source, /updatePhotoLocal/);
-});

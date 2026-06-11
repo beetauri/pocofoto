@@ -16,9 +16,9 @@ import {
   Zap as LucideFlashIcon
 } from 'lucide-react';
 import HistoryScreen from './HistoryScreen';
-import NotificationSettings from './NotificationSettings';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, uploadBytesResumable, getDownloadURL, signOut, collection, addDoc, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
+import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNotifications';
 import {
   clearOfflineReviewDraft,
   createReviewDraftKey,
@@ -31,6 +31,7 @@ import { CAPTURE_JPEG_QUALITY, fitCaptureDimensions, getCoverCrop } from '../lib
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
+const pushDebugEnabled = import.meta.env.VITE_ENABLE_PUSH_DEBUG === 'true';
 const MAX_CAPTION_LENGTH = 36;
 const SEND_REVIEW_TIMEOUT_MS = 25000;
 
@@ -206,15 +207,7 @@ function PhotoLoadMoreSentinel({ rootRef, hasMore, loading, error, onLoadMore })
   );
 }
 
-export default function MainScreen({
-  user,
-  coupleId,
-  isOnline = true,
-  onPairingRemoved,
-  notificationControls = null,
-  notificationIntent = null,
-  onNotificationIntentConsumed = null
-}) {
+export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved }) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState('');
@@ -231,6 +224,9 @@ export default function MainScreen({
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmRemovePairing, setConfirmRemovePairing] = useState(false);
   const [removingPairing, setRemovingPairing] = useState(false);
+  const [registeringPushDebug, setRegisteringPushDebug] = useState(false);
+  const [sendingPushDebug, setSendingPushDebug] = useState(false);
+  const [pushDebugResult, setPushDebugResult] = useState('');
   const profileFileRef = useRef(null);
   const videoRef = useRef(null);
   const captionInputRef = useRef(null);
@@ -273,8 +269,7 @@ export default function MainScreen({
     loadingMorePhotos,
     photoLoadError,
     hasMorePhotos,
-    loadMorePhotos,
-    updatePhotoLocal
+    loadMorePhotos
   } = usePaginatedPhotos(coupleId);
 
   const showToast = useCallback((message, duration = 2500) => {
@@ -486,11 +481,11 @@ export default function MainScreen({
   }, [coupleData?.users]);
 
   useLayoutEffect(() => {
-    if (!pendingScrollPhotoId || photos.length === 0) return;
+    if (!pendingScrollPhotoId || photos.length === 0 || activeView === 'home') return;
 
     if (positionHistoryPhotoBeforeOpen(pendingScrollPhotoId)) {
       setPendingScrollPhotoId(null);
-      if (activeView !== 'home') setActiveView('home');
+      setActiveView('home');
     }
   }, [pendingScrollPhotoId, photos, positionHistoryPhotoBeforeOpen, activeView]);
 
@@ -760,43 +755,34 @@ export default function MainScreen({
 
   const handleLikePhoto = async (photo) => {
     if (uploading) return;
-    const isLiked = photo.liked || false;
-    const nextLiked = !isLiked;
-    updatePhotoLocal(photo.id, { liked: nextLiked });
     try {
+      const isLiked = photo.liked || false;
       const photoRef = doc(db, 'couples', coupleId, 'photos', photo.id);
 
       await updateDoc(photoRef, {
-        liked: nextLiked
+        liked: !isLiked
       });
 
       await updateDoc(doc(db, 'couples', coupleId), {
-        liked: nextLiked,
-        lastLike: nextLiked ? {
+        liked: !isLiked,
+        lastLike: !isLiked ? {
           userId: user.uid,
           timestamp: new Date().toISOString(),
           photoId: photo.id
         } : null
       });
 
-      if (nextLiked) {
+      if (!isLiked) {
         showToast('Photo liked', 1500);
         trackEvent('photo_liked', { photoId: photo.id });
       }
     } catch (err) {
-      updatePhotoLocal(photo.id, { liked: isLiked });
       console.error(err);
     }
   };
 
   const handleLogout = async () => {
-    try {
-      await notificationControls?.cleanupBeforeLogout?.();
-    } catch (error) {
-      console.warn('Notification cleanup before logout failed.', { code: error?.code || 'unknown' });
-    } finally {
-      await signOut(auth);
-    }
+    await signOut(auth);
   };
 
   const handleRemovePairing = async () => {
@@ -813,6 +799,69 @@ export default function MainScreen({
       showToast(message, 3200);
     } finally {
       setRemovingPairing(false);
+    }
+  };
+
+  const formatPushDebugResult = (result) => {
+    const tokenCount = result?.tokenCount ?? 0;
+    const successCount = result?.successCount ?? 0;
+    const failureCount = result?.failureCount ?? 0;
+    const staleDeletedCount = result?.staleDeletedCount ?? 0;
+    const failureCodes = Array.isArray(result?.failureCodes) ? result.failureCodes.filter(Boolean) : [];
+    const staleText = staleDeletedCount > 0 ? `, stale deleted: ${staleDeletedCount}` : '';
+    const codeText = failureCodes.length ? `, codes: ${failureCodes.join(', ')}` : '';
+    return `tokens: ${tokenCount}, success: ${successCount}, failed: ${failureCount}${staleText}${codeText}`;
+  };
+
+  const handleRegisterPushDebug = async () => {
+    if (registeringPushDebug) return;
+    setRegisteringPushDebug(true);
+    setPushDebugResult('Registering this device...');
+    try {
+      const result = await requestAndRegisterPushToken();
+      const message = result.ok
+        ? 'registered: this browser has an FCM token'
+        : `registration: ${result.reason || 'failed'}`;
+      setPushDebugResult(message);
+      showToast(message, 3200);
+      console.debug('Push debug registration result.', result);
+      trackEvent('push_debug_register_result', {
+        status: result.ok ? 'registered' : result.reason || 'failed'
+      });
+    } catch (err) {
+      const message = err?.message?.replace(/^Firebase: /, '') || 'registration: failed';
+      setPushDebugResult(message);
+      showToast(message, 3600);
+      console.error('Push debug registration failed.', err);
+      trackEvent('push_debug_register_result', { status: 'error' });
+    } finally {
+      setRegisteringPushDebug(false);
+    }
+  };
+
+  const handleSendPushDebug = async () => {
+    if (sendingPushDebug) return;
+    setSendingPushDebug(true);
+    setPushDebugResult('Sending test push...');
+    try {
+      const result = await sendTestPushNotification();
+      const message = formatPushDebugResult(result);
+      setPushDebugResult(message);
+      showToast(message, 3600);
+      console.debug('Push debug send result.', result);
+      trackEvent('push_debug_test_result', {
+        tokenCount: result?.tokenCount ?? 0,
+        successCount: result?.successCount ?? 0,
+        failureCount: result?.failureCount ?? 0
+      });
+    } catch (err) {
+      const message = err?.message?.replace(/^Firebase: /, '') || 'test push: failed';
+      setPushDebugResult(message);
+      showToast(message, 3600);
+      console.error('Push debug send failed.', err);
+      trackEvent('push_debug_test_result', { status: 'error' });
+    } finally {
+      setSendingPushDebug(false);
     }
   };
 
@@ -833,14 +882,6 @@ export default function MainScreen({
     setMountedViews((current) => current.has(view) ? current : new Set([...current, view]));
     setActiveView(view);
   };
-
-  useEffect(() => {
-    if (notificationIntent?.type !== 'photo' || !notificationIntent.photoId) return;
-    setMountedViews((current) => current.has('home') ? current : new Set([...current, 'home']));
-    setPendingScrollPhotoId(notificationIntent.photoId);
-    setActiveView('home');
-    onNotificationIntentConsumed?.();
-  }, [notificationIntent, onNotificationIntentConsumed]);
 
   const resetSwipe = () => {
     swipeRef.current.tracking = false;
@@ -1197,7 +1238,12 @@ export default function MainScreen({
               setToast('');
               setConfirmRemovePairing(true);
             }}
-            notificationControls={notificationControls}
+            pushDebugEnabled={pushDebugEnabled}
+            pushDebugResult={pushDebugResult}
+            registeringPushDebug={registeringPushDebug}
+            sendingPushDebug={sendingPushDebug}
+            onRegisterPushDebug={handleRegisterPushDebug}
+            onSendPushDebug={handleSendPushDebug}
           />}
         </section>
       </motion.div>
@@ -1343,7 +1389,12 @@ function ProfileView({
   onSaveDisplayName,
   onRequestLogout,
   onRequestRemovePairing,
-  notificationControls
+  pushDebugEnabled,
+  pushDebugResult,
+  registeringPushDebug,
+  sendingPushDebug,
+  onRegisterPushDebug,
+  onSendPushDebug
 }) {
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(displayName);
@@ -1474,18 +1525,21 @@ function ProfileView({
         <a href="#terms" onClick={(e) => e.preventDefault()}>Terms of Use</a>
       </div>
 
-      {notificationControls && (
-        <NotificationSettings
-          status={notificationControls.status}
-          diagnostics={notificationControls.diagnostics || {}}
-          busy={notificationControls.busy}
-          cooldownUntil={notificationControls.cooldownUntil}
-          onEnable={notificationControls.enable}
-          onDisable={notificationControls.disable}
-          onRefreshDiagnostics={notificationControls.refreshDiagnostics}
-          onTestThisDevice={notificationControls.testThisDevice}
-          onTestPartnerDevices={notificationControls.testPartnerDevices}
-        />
+      {pushDebugEnabled && (
+        <div className="profile-debug-panel">
+          <span className="profile-card-label">Push debug</span>
+          <div className="profile-debug-actions">
+            <button className="btn-ghost" type="button" onClick={onRegisterPushDebug} disabled={registeringPushDebug}>
+              {registeringPushDebug ? 'Registering...' : 'Register this device'}
+            </button>
+            <button className="btn-ghost" type="button" onClick={onSendPushDebug} disabled={sendingPushDebug}>
+              {sendingPushDebug ? 'Sending...' : 'Send test push to partner'}
+            </button>
+          </div>
+          <p className="profile-debug-result">
+            {pushDebugResult || 'Enable, register this browser, then send a test push.'}
+          </p>
+        </div>
       )}
 
       <div className="profile-danger-zone">

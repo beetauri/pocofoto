@@ -7,13 +7,12 @@ const pairingScreenSource = readFileSync(new URL('./PairingScreen.jsx', import.m
 
 test('App passes online state to PairingScreen', () => {
   assert.match(appSource, /<PairingScreen[\s\S]*isOnline=\{connectionStatus\.isOnline\}/);
-  assert.match(appSource, /<PairingScreen[\s\S]*notificationControls=\{notifications\}/);
 });
 
 test('PairingScreen accepts online state with a safe default', () => {
   assert.match(
     pairingScreenSource,
-    /export default function PairingScreen\(\{ user, isOnline = true, onPaired, initialNotice = '', onNoticeConsumed, notificationControls = null \}\)/
+    /export default function PairingScreen\(\{ user, isOnline = true, onPaired, initialNotice = '', onNoticeConsumed \}\)/
   );
 });
 

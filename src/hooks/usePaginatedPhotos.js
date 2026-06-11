@@ -105,23 +105,12 @@ export function usePaginatedPhotos(coupleId) {
     [firstPage, olderPages]
   );
 
-  const updatePhotoLocal = useCallback((photoId, updater) => {
-    const applyUpdate = (photo) => {
-      if (photo.id !== photoId) return photo;
-      return typeof updater === 'function' ? updater(photo) : { ...photo, ...updater };
-    };
-    setFirstPage((page) => page.map(applyUpdate));
-    setOlderPages((pages) => pages.map((page) => page.map(applyUpdate)));
-    firstPageRef.current = firstPageRef.current.map(applyUpdate);
-  }, []);
-
   return {
     photos,
     loadingPhotos,
     loadingMorePhotos,
     photoLoadError,
     hasMorePhotos,
-    loadMorePhotos,
-    updatePhotoLocal
+    loadMorePhotos
   };
 }

@@ -75,21 +75,15 @@ VITE_USE_FIREBASE_EMULATORS=false
 
 Production builds use hosted Firebase unless explicitly configured otherwise.
 
-## Push Notifications
+## Push Debug Panel
 
-Notification permission is requested only from an explicit user action:
+The temporary Profile push debug panel is hidden unless this build-time Vite flag is enabled:
 
-- the paired-user onboarding prompt after pairing succeeds or on the next open for already paired users
-- the manual `Enable notifications` control in Profile or on the unpaired Pairing screen
+```sh
+VITE_ENABLE_PUSH_DEBUG=true
+```
 
-Granted browsers silently refresh the current device token on signed-in app startup. Signing out or disabling notifications removes only the current browser/device registration. The backend owns token storage in `fcmTokenRegistry`, deduplicates sends by token, expires inactive registrations after 60 days, and sends data-only FCM payloads for photos, likes, pairing requests, accepted pairing, removed pairing, and diagnostics tests.
-
-The Profile screen includes collapsed production diagnostics under `Notification diagnostics`. It shows current-device status and has two test actions:
-
-- `Test this device` sends a push to the current browser registration.
-- `Test partner's devices` sends a push to active devices for the paired partner.
-
-Test sends are server-rate-limited to one request every 10 seconds per signed-in user.
+For local dev, add it to `.env` and restart `npm run dev`. For Cloudflare Pages, add it under Pages -> `pocofoto` -> Settings -> Environment variables, then redeploy because `VITE_` values are baked into the built JavaScript. The Firebase Function `sendTestPushNotification` must also be deployed before the test-send button can work.
 
 ## Scripts
 

@@ -11,6 +11,7 @@ import {
   signOut
 } from '../firebase';
 import { identifyUser, trackEvent } from '../analytics';
+import { requestAndRegisterPushToken } from '../pushNotifications';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
@@ -66,6 +67,15 @@ export default function AuthScreen() {
         provider: 'google',
         hasExistingProfile: userSnap.exists()
       });
+
+      try {
+        const pushResult = await requestAndRegisterPushToken();
+        console.debug('Push registration result.', {
+          status: pushResult.ok ? 'registered' : pushResult.reason
+        });
+      } catch (pushErr) {
+        console.warn('Push registration skipped.', pushErr);
+      }
     } catch (err) {
       if (auth.currentUser) {
         await signOut(auth);

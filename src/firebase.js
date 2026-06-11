@@ -44,7 +44,6 @@ import {
   connectFunctionsEmulator
 } from 'firebase/functions';
 import {
-  deleteToken as realDeleteToken,
   getMessaging,
   getToken as realGetToken,
   isSupported as realMessagingIsSupported,
@@ -150,11 +149,6 @@ const getMessagingToken = async (options) => {
   if (!supported) return null;
   return realGetToken(getMessaging(app), options);
 };
-const deleteMessagingToken = async () => {
-  const supported = await realMessagingIsSupported();
-  if (!supported) return false;
-  return realDeleteToken(getMessaging(app));
-};
 const onForegroundMessage = async (handler) => {
   const supported = await realMessagingIsSupported();
   if (!supported) return () => {};
@@ -178,6 +172,5 @@ export {
   httpsCallable,
   messagingIsSupported,
   getMessagingToken,
-  deleteMessagingToken,
   onForegroundMessage,
 };

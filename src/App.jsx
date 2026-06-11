@@ -8,11 +8,8 @@ import PairingScreen from './components/PairingScreen';
 import MainScreen from './components/MainScreen';
 import UpdateBanner from './components/UpdateBanner';
 import ConnectionBanner from './components/ConnectionBanner';
-import NotificationPrompt from './components/NotificationPrompt';
 import { Toaster } from './components/ui/sonner';
 import { connectionStatusStore } from './lib/connectionStatus';
-import { useNotifications } from './hooks/useNotifications';
-import { clearNotificationIntent, readNotificationIntent } from './notifications/notificationClient';
 import {
   clearCachedUserRoute,
   getCachedUserRoute,
@@ -67,18 +64,9 @@ export default function App() {
   const [checkingPair, setCheckingPair] = useState(false);
   const [pairStateKnown, setPairStateKnown] = useState(false);
   const [pairingNotice, setPairingNotice] = useState('');
+  const [foregroundToast, setForegroundToast] = useState('');
   const [connectionStatus, setConnectionStatus] = useState(() => connectionStatusStore.getSnapshot());
-  const [notificationIntent, setNotificationIntent] = useState(() => readNotificationIntent());
   const trackedAppOpen = useRef(false);
-  const notifications = useNotifications({
-    user,
-    paired: Boolean(coupleId),
-    online: connectionStatus.isOnline
-  });
-  const {
-    handleForegroundMessage,
-    clearForegroundMessage
-  } = notifications;
 
   useEffect(() => {
     initAnalytics();
@@ -173,13 +161,18 @@ export default function App() {
     onForegroundMessage((payload) => {
       console.debug('Foreground push received.', {
         type: payload?.data?.type || null,
-        eventId: payload?.data?.eventId || null
+        notificationTitle: payload?.notification?.title || null
       });
       trackEvent('push_foreground_received', {
         type: payload?.data?.type || 'unknown'
       });
-      handleForegroundMessage(payload);
-      window.setTimeout(() => clearForegroundMessage(), 3200);
+      const message = payload?.data?.type === 'photo_received'
+        ? 'New photo from your person'
+        : payload?.data?.type === 'like_received'
+          ? 'Your photo was liked'
+          : (payload?.notification?.body || 'New Pocofoto update');
+      setForegroundToast(message);
+      window.setTimeout(() => setForegroundToast(''), 3200);
     }).then((handlerUnsubscribe) => {
       if (!active) {
         handlerUnsubscribe?.();
@@ -194,7 +187,7 @@ export default function App() {
       active = false;
       unsubscribe?.();
     };
-  }, [clearForegroundMessage, handleForegroundMessage, user]);
+  }, [user]);
 
   const handlePaired = (newCoupleId) => {
     setPairingNotice('');
@@ -220,11 +213,6 @@ export default function App() {
     setPairingNotice('');
   }, []);
 
-  const handleNotificationIntentConsumed = useCallback(() => {
-    clearNotificationIntent();
-    setNotificationIntent(null);
-  }, []);
-
   let screen = 'auth';
   if (user && !pairStateKnown && !checkingPair) screen = 'offline-hold';
   if (user && !coupleId && pairStateKnown && connectionStatus.isOnline && !checkingPair) screen = 'pairing';
@@ -233,12 +221,6 @@ export default function App() {
   useEffect(() => {
     trackEvent('screen_view', { screen });
   }, [screen]);
-
-  useEffect(() => {
-    if (notificationIntent?.type !== 'pairing') return;
-    if (screen === 'auth' || screen === 'offline-hold') return;
-    handleNotificationIntentConsumed();
-  }, [handleNotificationIntentConsumed, notificationIntent, screen]);
 
   if (loading) {
     return (
@@ -266,7 +248,6 @@ export default function App() {
               onPaired={handlePaired}
               initialNotice={pairingNotice}
               onNoticeConsumed={handleNoticeConsumed}
-              notificationControls={notifications}
             />
           </motion.div>
         )}
@@ -282,9 +263,6 @@ export default function App() {
               coupleId={coupleId}
               isOnline={connectionStatus.isOnline}
               onPairingRemoved={handlePairingRemoved}
-              notificationControls={notifications}
-              notificationIntent={notificationIntent}
-              onNotificationIntentConsumed={handleNotificationIntentConsumed}
             />
           </motion.div>
         )}
@@ -294,21 +272,15 @@ export default function App() {
           <Retune />
         </Suspense>
       )}
-      <NotificationPrompt
-        open={notifications.showPrompt && screen === 'main'}
-        onEnable={notifications.enable}
-        onDismiss={notifications.dismissPrompt}
-        busy={notifications.busy}
-      />
       <AnimatePresence>
-        {notifications.foregroundMessage && (
+        {foregroundToast && (
           <motion.div
             className="toast"
             initial={{ opacity: 0, y: 18, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: 18, x: '-50%' }}
           >
-            {notifications.foregroundMessage}
+            {foregroundToast}
           </motion.div>
         )}
       </AnimatePresence>
