@@ -32,6 +32,7 @@ import {
   getStorage,
   ref as realRef,
   uploadBytes as realUploadBytes,
+  uploadBytesResumable as realUploadBytesResumable,
   getDownloadURL as realGetDownloadURL,
   connectStorageEmulator
 } from 'firebase/storage';
@@ -135,6 +136,7 @@ const orderBy = realOrderBy;
 
 const ref = realRef;
 const uploadBytes = realUploadBytes;
+const uploadBytesResumable = realUploadBytesResumable;
 const getDownloadURL = realGetDownloadURL;
 const httpsCallable = (_functionsInst, name) => realHttpsCallable(functions, name);
 const messagingIsSupported = realMessagingIsSupported;
@@ -162,6 +164,7 @@ export {
   doc, setDoc, getDoc, updateDoc, onSnapshot,
   collection, query, where, getDocs, addDoc, orderBy,
   ref, uploadBytes, getDownloadURL,
+  uploadBytesResumable,
   httpsCallable,
   messagingIsSupported,
   getMessagingToken,

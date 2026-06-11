@@ -27,3 +27,11 @@ test('MainScreen blocks upload when trying to send offline', () => {
   assert.match(mainScreenSource, /Reconnect to send/);
   assert.match(mainScreenSource, /if \(!isOnline\) \{/);
 });
+
+test('MainScreen bounds restored draft send attempts so the review UI can recover', () => {
+  assert.match(mainScreenSource, /SEND_REVIEW_TIMEOUT_MS/);
+  assert.match(mainScreenSource, /withTimeout/);
+  assert.match(mainScreenSource, /uploadBytesResumable/);
+  assert.match(mainScreenSource, /task\.cancel\(\)/);
+  assert.match(mainScreenSource, /setSendingReviewPhoto\(false\)/);
+});

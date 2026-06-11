@@ -16,7 +16,7 @@ import {
   Zap as LucideFlashIcon
 } from 'lucide-react';
 import HistoryScreen from './HistoryScreen';
-import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
+import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, uploadBytesResumable, getDownloadURL, signOut, collection, addDoc, query, orderBy, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
 import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNotifications';
 import {
@@ -30,11 +30,14 @@ import {
   loadOfflineReviewDraft,
   saveOfflineReviewDraft
 } from '../lib/offlineReviewDraft';
+import { withTimeout } from '../lib/promiseTimeout';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 const pushDebugEnabled = import.meta.env.VITE_ENABLE_PUSH_DEBUG === 'true';
 const MAX_CAPTION_LENGTH = 36;
+const SEND_REVIEW_TIMEOUT_MS = 25000;
+const PALETTE_EXTRACTION_TIMEOUT_MS = 5000;
 
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
@@ -152,6 +155,36 @@ function Avatar({ src, name, email, size = 'md' }) {
     return <img className={`profile-avatar ${size}`} src={src} alt="" onError={() => setFailed(true)} />;
   }
   return <div className={`profile-avatar initials ${size}`}>{initialsFor(name, email)}</div>;
+}
+
+function uploadBlobWithTimeout(storageRef, blob) {
+  const task = uploadBytesResumable(storageRef, blob);
+  let timeoutId;
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      callback(value);
+    };
+
+    timeoutId = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      task.cancel();
+      reject(new Error('Send timed out. Reconnect and try again.'));
+    }, SEND_REVIEW_TIMEOUT_MS);
+
+    task.on(
+      'state_changed',
+      undefined,
+      (error) => finish(reject, error),
+      () => finish(resolve, task.snapshot)
+    );
+  });
 }
 
 export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved, onBackgroundSourceChange }) {
@@ -644,7 +677,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const uploadPhotoBlob = async (blob, caption = null, paletteV2 = null) => {
     const filename = `couples/${coupleId}/${Date.now()}.jpg`;
     const storageRef = ref(storage, filename);
-    await uploadBytes(storageRef, blob);
+    await uploadBlobWithTimeout(storageRef, blob);
     const url = await getDownloadURL(storageRef);
     const timestampStr = new Date().toISOString();
 
@@ -759,7 +792,14 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     setSendingReviewPhoto(true);
     try {
       const caption = buildCaptionPayload(captionText);
-      const paletteV2 = await extractPaletteV2FromBlob(reviewPhoto.blob);
+      const paletteV2 = await withTimeout(
+        extractPaletteV2FromBlob(reviewPhoto.blob),
+        PALETTE_EXTRACTION_TIMEOUT_MS,
+        () => new Error('Palette extraction timed out.')
+      ).catch((err) => {
+        console.warn('Photo palette extraction timed out before send.', err);
+        return null;
+      });
       await uploadPhotoBlob(reviewPhoto.blob, caption, paletteV2);
       await clearCurrentReviewDraft();
       setSendAnimationState('sent');
@@ -770,7 +810,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
       }, 420);
     } catch (err) {
       console.error(err);
-      showToast("Couldn't send photo", 3000);
+      showToast(err?.message || "Couldn't send photo", 3000);
       setSendingReviewPhoto(false);
     }
   };
