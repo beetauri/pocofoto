@@ -48,7 +48,10 @@ function userAgentSummary() {
 
 async function defaultMessagingRegistration() {
   if (typeof navigator === 'undefined' || !navigator.serviceWorker) return null;
-  return navigator.serviceWorker.register(MESSAGING_SW_PATH, { scope: MESSAGING_SW_SCOPE });
+  return navigator.serviceWorker.register(MESSAGING_SW_PATH, {
+    scope: MESSAGING_SW_SCOPE,
+    updateViaCache: 'none'
+  });
 }
 
 async function defaultGetToken(options) {

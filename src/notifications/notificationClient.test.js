@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -167,4 +168,10 @@ test('notification click search params become app intents', () => {
   });
   assert.deepEqual(readNotificationIntent('?pairing=requests'), { type: 'pairing' });
   assert.equal(readNotificationIntent('?notification=photo'), null);
+});
+
+test('production messaging worker registration bypasses browser cache for updates', () => {
+  const source = readFileSync(new URL('./notificationClient.js', import.meta.url), 'utf8');
+
+  assert.match(source, /updateViaCache: 'none'/);
 });
