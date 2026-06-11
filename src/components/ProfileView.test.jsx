@@ -1,0 +1,190 @@
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import ProfileView from './ProfileView';
+
+function renderProfile(overrides = {}) {
+  const props = {
+    displayName: 'Bilal',
+    email: 'bilal@example.com',
+    profilePic: '',
+    partnerName: 'Alex',
+    partnerPic: '',
+    buildVersion: '0.2.27',
+    buildCommit: 'abc1234',
+    uploading: false,
+    removingPairing: false,
+    onPickPhoto: vi.fn(),
+    onRemovePhoto: vi.fn(),
+    onSaveDisplayName: vi.fn().mockResolvedValue(undefined),
+    onLogout: vi.fn().mockResolvedValue(undefined),
+    onRemovePairing: vi.fn().mockResolvedValue(undefined),
+    pushDebugEnabled: false,
+    pushDebugResult: '',
+    registeringPushDebug: false,
+    sendingPushDebug: false,
+    onRegisterPushDebug: vi.fn(),
+    onSendPushDebug: vi.fn(),
+    ...overrides,
+  };
+
+  return { user: userEvent.setup(), props, ...render(<ProfileView {...props} />) };
+}
+
+describe('ProfileView', () => {
+  it('renders identity and partner name without partner email', () => {
+    renderProfile();
+
+    expect(screen.getByRole('heading', { name: 'Bilal' })).toBeInTheDocument();
+    expect(screen.getByText('Alex')).toBeInTheDocument();
+    expect(screen.queryByText(/alex@example.com/i)).not.toBeInTheDocument();
+    expect(screen.getByText('B')).toBeInTheDocument();
+  });
+
+  it('disables photo actions for upload and missing-photo states', () => {
+    const { rerender, props } = renderProfile();
+
+    expect(screen.getByRole('button', { name: 'Remove photo' })).toBeDisabled();
+
+    rerender(<ProfileView {...props} uploading profilePic="photo.jpg" />);
+
+    expect(screen.getByRole('button', { name: 'Change photo' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Remove photo' })).toBeDisabled();
+  });
+
+  it('cancels display-name edits from the button and Escape key', async () => {
+    const { user, props } = renderProfile();
+
+    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
+    await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Changed');
+    await user.click(screen.getByRole('button', { name: 'Cancel display name edit' }));
+
+    expect(screen.queryByRole('textbox', { name: 'Display name' })).not.toBeInTheDocument();
+    expect(props.onSaveDisplayName).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
+    await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Changed{Escape}');
+
+    expect(screen.queryByRole('textbox', { name: 'Display name' })).not.toBeInTheDocument();
+    expect(props.onSaveDisplayName).not.toHaveBeenCalled();
+  });
+
+  it('saves a trimmed display name with Enter', async () => {
+    const { user, props } = renderProfile();
+
+    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
+    await user.type(screen.getByRole('textbox', { name: 'Display name' }), '  New Name  {Enter}');
+
+    await waitFor(() => expect(props.onSaveDisplayName).toHaveBeenCalledWith('New Name'));
+    expect(props.onSaveDisplayName).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows validation and rejected-save errors for display names', async () => {
+    const { user, props, rerender } = renderProfile();
+
+    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
+    await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'A');
+    await user.click(screen.getByRole('button', { name: 'Save display name' }));
+
+    expect(screen.getByText('Display name must be 2-30 characters.')).toBeInTheDocument();
+    expect(props.onSaveDisplayName).not.toHaveBeenCalled();
+
+    const rejectedSave = vi.fn().mockRejectedValue(new Error('nope'));
+    rerender(<ProfileView {...props} onSaveDisplayName={rejectedSave} />);
+    await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
+    await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Valid Name');
+    await user.click(screen.getByRole('button', { name: 'Save display name' }));
+
+    expect(await screen.findByText('Could not update display name.')).toBeInTheDocument();
+  });
+
+  it('shows a loading status while display-name save is pending', async () => {
+    let resolveSave;
+    const pendingSave = vi.fn(() => new Promise((resolve) => {
+      resolveSave = resolve;
+    }));
+    const { user } = renderProfile({ onSaveDisplayName: pendingSave });
+
+    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
+    await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Pending Name');
+    await user.click(screen.getByRole('button', { name: 'Save display name' }));
+
+    expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+
+    resolveSave();
+    await waitFor(() => expect(screen.queryByRole('status', { name: 'Loading' })).not.toBeInTheDocument());
+  });
+
+  it('keeps About collapsed until opened and hides diagnostics by default', async () => {
+    const { user } = renderProfile();
+
+    expect(screen.queryByText('Privacy Notice')).not.toBeInTheDocument();
+    expect(screen.queryByText('Terms of Use')).not.toBeInTheDocument();
+    expect(screen.queryByText('v0.2.27 (abc1234)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /About/i }));
+
+    expect(screen.getByText('Privacy Notice')).toBeInTheDocument();
+    expect(screen.getByText('Terms of Use')).toBeInTheDocument();
+    expect(screen.getByText('v0.2.27 (abc1234)')).toBeInTheDocument();
+    expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument();
+  });
+
+  it('shows push diagnostics only in debug mode after About expands', async () => {
+    const { user, props } = renderProfile({ pushDebugEnabled: true });
+
+    expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Register this device' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /About/i }));
+    await user.click(screen.getByRole('button', { name: 'Register this device' }));
+    await user.click(screen.getByRole('button', { name: 'Send test push to partner' }));
+
+    expect(screen.getByText('Diagnostics')).toBeInTheDocument();
+    expect(screen.getByText('Enable, register this browser, then send a test push.')).toBeInTheDocument();
+    expect(props.onRegisterPushDebug).toHaveBeenCalledTimes(1);
+    expect(props.onSendPushDebug).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses distinct dialogs for log out and remove pairing actions', async () => {
+    const { user, props } = renderProfile();
+
+    await user.click(screen.getByRole('button', { name: 'Remove pairing' }));
+    let dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByRole('heading', { name: 'Remove pairing?' })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(props.onRemovePairing).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Remove pairing' }));
+    dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Remove pairing' }));
+    expect(props.onRemovePairing).toHaveBeenCalledTimes(1);
+    expect(props.onLogout).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Log out' }));
+    dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByRole('heading', { name: 'Log out?' })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(props.onLogout).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Log out' }));
+    dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Log out' }));
+    expect(props.onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the remove pairing confirmation while removal is pending', async () => {
+    const { user } = renderProfile({ removingPairing: true });
+
+    await user.click(screen.getByRole('button', { name: 'Remove pairing' }));
+    const dialog = await screen.findByRole('alertdialog');
+
+    expect(within(dialog).getByRole('button', { name: 'Removing...' })).toBeDisabled();
+  });
+});
