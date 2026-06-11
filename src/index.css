@@ -1697,6 +1697,66 @@ button:not(:disabled),
   height: 19px;
 }
 
+.profile-alert-dialog {
+  width: min(calc(100vw - 48px), 360px);
+  gap: 18px;
+  padding: 22px 20px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 28px;
+  background: rgba(22, 22, 24, 0.94);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.52);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(140%);
+}
+
+.profile-alert-header {
+  display: grid;
+  gap: 9px;
+  place-items: center;
+  text-align: center;
+}
+
+.profile-alert-title {
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.profile-alert-description {
+  max-width: 30ch;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.36;
+  text-wrap: pretty;
+}
+
+.profile-alert-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-alert-button {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 18px;
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.profile-alert-destructive {
+  border: 1px solid rgba(255, 92, 122, 0.22);
+  background: rgba(255, 92, 122, 0.18);
+  color: #fff2f4;
+}
+
+.profile-alert-cancel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.56);
+  color: var(--text-primary);
+}
+
 .history-tile {
   position: relative;
   align-self: stretch;

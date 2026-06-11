@@ -263,16 +263,16 @@ export default function ProfileView({
               <Link2Off {...iconProps} />
               Remove pairing
             </Button>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remove pairing?</AlertDialogTitle>
-                <AlertDialogDescription>
+            <AlertDialogContent className="profile-alert-dialog">
+              <AlertDialogHeader className="profile-alert-header">
+                <AlertDialogTitle className="profile-alert-title">Remove pairing?</AlertDialogTitle>
+                <AlertDialogDescription className="profile-alert-description">
                   Old shared history will no longer be visible. Both of you can pair again whenever you are ready.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={removingPairing}>Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" disabled={removingPairing} onClick={handleRemovePairing}>
+              <AlertDialogFooter className="profile-alert-actions">
+                <AlertDialogCancel className="profile-alert-button profile-alert-cancel" disabled={removingPairing}>Cancel</AlertDialogCancel>
+                <AlertDialogAction className="profile-alert-button profile-alert-destructive" variant="destructive" disabled={removingPairing} onClick={handleRemovePairing}>
                   {removingPairing ? 'Removing...' : 'Remove pairing'}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -284,16 +284,16 @@ export default function ProfileView({
               <LogOut {...iconProps} />
               Log out
             </Button>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Log out?</AlertDialogTitle>
-                <AlertDialogDescription>
+            <AlertDialogContent className="profile-alert-dialog">
+              <AlertDialogHeader className="profile-alert-header">
+                <AlertDialogTitle className="profile-alert-title">Log out?</AlertDialogTitle>
+                <AlertDialogDescription className="profile-alert-description">
                   You will need to sign in with Google again to use Pocofoto.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" onClick={onLogout}>
+              <AlertDialogFooter className="profile-alert-actions">
+                <AlertDialogCancel className="profile-alert-button profile-alert-cancel">Cancel</AlertDialogCancel>
+                <AlertDialogAction className="profile-alert-button profile-alert-destructive" variant="destructive" onClick={onLogout}>
                   Log out
                 </AlertDialogAction>
               </AlertDialogFooter>
