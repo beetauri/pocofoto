@@ -8,8 +8,10 @@ import PairingScreen from './components/PairingScreen';
 import MainScreen from './components/MainScreen';
 import UpdateBanner from './components/UpdateBanner';
 import ConnectionBanner from './components/ConnectionBanner';
+import NotificationPrompt from './components/NotificationPrompt';
 import { Toaster } from './components/ui/sonner';
 import { connectionStatusStore } from './lib/connectionStatus';
+import { useNotifications } from './hooks/useNotifications';
 import {
   clearCachedUserRoute,
   getCachedUserRoute,
@@ -64,9 +66,13 @@ export default function App() {
   const [checkingPair, setCheckingPair] = useState(false);
   const [pairStateKnown, setPairStateKnown] = useState(false);
   const [pairingNotice, setPairingNotice] = useState('');
-  const [foregroundToast, setForegroundToast] = useState('');
   const [connectionStatus, setConnectionStatus] = useState(() => connectionStatusStore.getSnapshot());
   const trackedAppOpen = useRef(false);
+  const notifications = useNotifications({
+    user,
+    paired: Boolean(coupleId),
+    online: connectionStatus.isOnline
+  });
 
   useEffect(() => {
     initAnalytics();
@@ -161,18 +167,13 @@ export default function App() {
     onForegroundMessage((payload) => {
       console.debug('Foreground push received.', {
         type: payload?.data?.type || null,
-        notificationTitle: payload?.notification?.title || null
+        eventId: payload?.data?.eventId || null
       });
       trackEvent('push_foreground_received', {
         type: payload?.data?.type || 'unknown'
       });
-      const message = payload?.data?.type === 'photo_received'
-        ? 'New photo from your person'
-        : payload?.data?.type === 'like_received'
-          ? 'Your photo was liked'
-          : (payload?.notification?.body || 'New Pocofoto update');
-      setForegroundToast(message);
-      window.setTimeout(() => setForegroundToast(''), 3200);
+      notifications.handleForegroundMessage(payload);
+      window.setTimeout(() => notifications.clearForegroundMessage(), 3200);
     }).then((handlerUnsubscribe) => {
       if (!active) {
         handlerUnsubscribe?.();
@@ -187,7 +188,7 @@ export default function App() {
       active = false;
       unsubscribe?.();
     };
-  }, [user]);
+  }, [notifications, user]);
 
   const handlePaired = (newCoupleId) => {
     setPairingNotice('');
@@ -272,15 +273,21 @@ export default function App() {
           <Retune />
         </Suspense>
       )}
+      <NotificationPrompt
+        open={notifications.showPrompt && screen === 'main'}
+        onEnable={notifications.enable}
+        onDismiss={notifications.dismissPrompt}
+        busy={notifications.busy}
+      />
       <AnimatePresence>
-        {foregroundToast && (
+        {notifications.foregroundMessage && (
           <motion.div
             className="toast"
             initial={{ opacity: 0, y: 18, x: '-50%' }}
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: 18, x: '-50%' }}
           >
-            {foregroundToast}
+            {notifications.foregroundMessage}
           </motion.div>
         )}
       </AnimatePresence>
