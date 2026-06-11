@@ -1,12 +1,12 @@
 {
   "name": "pocofoto-app",
   "private": true,
-  "version": "0.2.23",
+  "version": "0.2.24",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test:unit": "node --test src/lib/*.test.js src/hooks/*.test.js src/components/*.test.js && vitest run src/components/*.test.jsx",
+    "test:unit": "node --test src/lib/*.test.js src/hooks/*.test.js src/components/*.test.js && vitest run src/components/*.test.jsx src/hooks/*.test.jsx",
     "lint": "eslint .",
     "lint:functions": "npm --prefix functions run lint",
     "backfill:palettes": "node scripts/backfillPhotoPalettes.mjs",

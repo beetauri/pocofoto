@@ -26,6 +26,8 @@ import {
   saveOfflineReviewDraft
 } from '../lib/offlineReviewDraft';
 import { usePaginatedPhotos } from '../hooks/usePaginatedPhotos';
+import { useCamera } from '../hooks/useCamera';
+import { CAPTURE_JPEG_QUALITY, fitCaptureDimensions } from '../lib/camera';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
@@ -208,16 +210,12 @@ function PhotoLoadMoreSentinel({ rootRef, hasMore, loading, error, onLoadMore })
 export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved }) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [cameraStatus, setCameraStatus] = useState('requesting');
-  const [cameraError, setCameraError] = useState('');
-  const [cameraStream, setCameraStream] = useState(null);
   const [toast, setToast] = useState('');
   const [profiles, setProfiles] = useState({});
   const [isCameraInView, setIsCameraInView] = useState(true);
   const [pendingScrollPhotoId, setPendingScrollPhotoId] = useState(null);
   const [activeView, setActiveView] = useState('home');
   const [mountedViews, setMountedViews] = useState(() => new Set(['home']));
-  const [facingMode, setFacingMode] = useState('environment');
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [reviewPhoto, setReviewPhoto] = useState(null);
   const [captionText, setCaptionText] = useState('');
@@ -236,8 +234,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const reviewPhotoRef = useRef(null);
   const feedRef = useRef(null);
   const cameraSlideRef = useRef(null);
-  const cameraStreamRef = useRef(null);
-  const requestVersionRef = useRef(0);
   const lastPhotoTimestampRef = useRef(null);
   const lastLikeTimestampRef = useRef(null);
   const swipeRef = useRef({
@@ -265,8 +261,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
   const buildCommit = import.meta.env.VITE_APP_COMMIT || 'dev';
   const isReviewingPhoto = Boolean(reviewPhoto);
-  const captureDisabled = uploading || sendingReviewPhoto || sendAnimationState !== 'idle';
-  const sendDisabled = captureDisabled || !isOnline;
   const activeIndex = views.indexOf(activeView);
   const reviewDraftKey = user?.uid && coupleId ? createReviewDraftKey(user.uid, coupleId) : null;
   const {
@@ -282,6 +276,33 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     setToast(message);
     window.setTimeout(() => setToast(''), duration);
   }, []);
+
+  const handleCameraError = useCallback((message) => {
+    showToast(message, 2500);
+  }, [showToast]);
+
+  const handleCameraTiming = useCallback((timing) => {
+    trackEvent('camera_ready', timing);
+  }, []);
+
+  const {
+    status: cameraStatus,
+    error: cameraError,
+    facingMode,
+    frozenFrame,
+    isBusy: cameraBusy,
+    retryCamera,
+    switchCamera
+  } = useCamera({
+    videoRef,
+    onError: handleCameraError,
+    onTiming: handleCameraTiming
+  });
+  const captureDisabled = uploading
+    || sendingReviewPhoto
+    || sendAnimationState !== 'idle'
+    || cameraBusy;
+  const sendDisabled = captureDisabled || !isOnline;
 
   const scrollToCamera = useCallback((behavior = 'smooth') => {
     feedRef.current?.scrollTo({ top: 0, behavior });
@@ -341,60 +362,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     const visibleHeight = Math.max(0, visibleBottom - visibleTop);
     return visibleHeight / Math.max(cameraRect.height, 1) >= 0.58;
   }, [isCameraInView]);
-
-  const stopCameraStream = useCallback((stream) => {
-    stream?.getTracks().forEach((track) => track.stop());
-  }, []);
-
-  const requestCamera = useCallback(async (mode = facingMode) => {
-    const requestVersion = requestVersionRef.current + 1;
-    requestVersionRef.current = requestVersion;
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraStatus('unavailable');
-      setCameraError('Camera is not available in this browser.');
-      return;
-    }
-
-    setCameraStatus('requesting');
-    setCameraError('');
-
-    const timeout = new Promise((_, reject) => {
-      window.setTimeout(() => reject(new Error('Camera request timed out.')), 10000);
-    });
-
-    try {
-      const stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: mode } },
-          audio: false
-        }),
-        timeout
-      ]);
-      if (requestVersion !== requestVersionRef.current) {
-        stopCameraStream(stream);
-        return;
-      }
-      setCameraStream((previous) => {
-        stopCameraStream(previous);
-        cameraStreamRef.current = stream;
-        return stream;
-      });
-      setCameraStatus('ready');
-    } catch (err) {
-      if (requestVersion !== requestVersionRef.current) return;
-      const denied = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
-      const timedOut = err?.message === 'Camera request timed out.';
-      setCameraStatus(denied ? 'denied' : 'error');
-      setCameraError(
-        denied
-          ? 'Camera access was blocked.'
-          : timedOut
-            ? 'Check the browser camera prompt, or try again.'
-            : 'Camera could not start.'
-      );
-    }
-  }, [facingMode, stopCameraStream]);
 
   useEffect(() => {
     if (!coupleId) return;
@@ -481,15 +448,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   }, [reviewDraftKey, reviewPhoto, captionText]);
 
   useEffect(() => {
-    requestCamera(facingMode);
-
-    return () => {
-      stopCameraStream(cameraStreamRef.current);
-      cameraStreamRef.current = null;
-    };
-  }, [requestCamera, facingMode, stopCameraStream]);
-
-  useEffect(() => {
     const feed = feedRef.current;
     const cameraSlide = cameraSlideRef.current;
     if (!feed || !cameraSlide) return;
@@ -502,27 +460,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     observer.observe(cameraSlide);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !cameraStream) return;
-
-    video.srcObject = cameraStream;
-    const playVideo = async () => {
-      try {
-        await video.play();
-      } catch (err) {
-        console.warn('Camera preview playback is waiting for user interaction.', err);
-      }
-    };
-    playVideo();
-
-    return () => {
-      if (video.srcObject === cameraStream) {
-        video.srcObject = null;
-      }
-    };
-  }, [cameraStream]);
 
   useEffect(() => {
     if (!coupleData?.users) return;
@@ -669,8 +606,9 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     setUploading(true);
     try {
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      const captureSize = fitCaptureDimensions(video.videoWidth, video.videoHeight);
+      canvas.width = captureSize.width;
+      canvas.height = captureSize.height;
       const ctx = canvas.getContext('2d');
       if (facingMode === 'user') {
         ctx.translate(canvas.width, 0);
@@ -682,7 +620,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
         canvas.toBlob((result) => {
           if (result) resolve(result);
           else reject(new Error('Unable to capture image'));
-        }, 'image/jpeg', 0.9);
+        }, 'image/jpeg', CAPTURE_JPEG_QUALITY);
       });
 
       setReviewPhoto(() => {
@@ -792,11 +730,11 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     }
   };
 
-  const handleSwitchCamera = () => {
+  const handleSwitchCamera = async () => {
     const nextMode = facingMode === 'environment' ? 'user' : 'environment';
-    setFacingMode(nextMode);
-    requestCamera(nextMode);
-    trackEvent('camera_switched', { facingMode: nextMode });
+    if (await switchCamera()) {
+      trackEvent('camera_switched', { facingMode: nextMode });
+    }
   };
 
   const handleToggleFlash = () => {
@@ -1083,16 +1021,21 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
             <div className="reels-feed" ref={feedRef}>
               <div className="reels-slide camera-reels-slide" ref={cameraSlideRef}>
                 <motion.article
-                  className={`camera-frame camera-live ${facingMode === 'user' ? 'front-camera' : ''} ${cameraStatus !== 'ready' ? 'empty' : ''}`}
+                  className={`camera-frame camera-live ${facingMode === 'user' ? 'front-camera' : ''}`}
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                 >
-                  {cameraStatus === 'ready' ? (
-                    <video ref={videoRef} playsInline muted autoPlay />
-                  ) : (
+                  <video ref={videoRef} playsInline muted autoPlay />
+                  {frozenFrame && (
+                    <div className="camera-switch-overlay" aria-label="Switching camera">
+                      <img src={frozenFrame} alt="" draggable={false} />
+                      <div className="spinner" />
+                    </div>
+                  )}
+                  {cameraStatus !== 'ready' && !frozenFrame && (
                     <div className="empty-state camera-state">
                       <PhotoIcon />
-                      {cameraStatus === 'requesting' ? (
+                      {cameraStatus === 'requesting' || cameraStatus === 'resuming' || cameraStatus === 'switching' ? (
                         <>
                           <strong>Starting camera</strong>
                           <span>Allow camera access to capture your next moment.</span>
@@ -1102,7 +1045,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
                         <>
                           <strong>{cameraStatus === 'denied' ? 'Camera blocked' : 'Camera unavailable'}</strong>
                           <span>{cameraError || 'Check camera access, then try again.'}</span>
-                          <button className="camera-retry-btn" type="button" onClick={() => requestCamera(facingMode)}>
+                          <button className="camera-retry-btn" type="button" onClick={retryCamera}>
                             Try again
                           </button>
                         </>
@@ -1154,7 +1097,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
                     aria-label={isReviewingPhoto ? 'Discard photo' : 'Toggle flash'}
                     aria-pressed={!isReviewingPhoto ? flashEnabled : undefined}
                     onClick={isReviewingPhoto ? handleDismissReviewPhoto : handleToggleFlash}
-                    disabled={sendingReviewPhoto}
+                    disabled={sendingReviewPhoto || cameraBusy}
                   >
                     {isReviewingPhoto ? <XIcon /> : <FlashIcon />}
                   </button>

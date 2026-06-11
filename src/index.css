@@ -760,6 +760,44 @@ button:not(:disabled),
     #111111;
 }
 
+.camera-switch-overlay,
+.camera-state {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.camera-switch-overlay {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  background: #000000;
+}
+
+.camera-switch-overlay img {
+  position: absolute;
+  inset: 0;
+}
+
+.camera-switch-overlay .spinner {
+  position: relative;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  padding: 8px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.42);
+  box-sizing: content-box;
+}
+
+.camera-state {
+  align-content: center;
+  padding: 28px;
+  text-align: center;
+  background: #111111;
+}
+
 .camera-state .spinner {
   margin-top: 4px;
 }
