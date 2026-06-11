@@ -249,6 +249,7 @@ export default function App() {
               onPaired={handlePaired}
               initialNotice={pairingNotice}
               onNoticeConsumed={handleNoticeConsumed}
+              notificationControls={notifications}
             />
           </motion.div>
         )}
@@ -264,6 +265,7 @@ export default function App() {
               coupleId={coupleId}
               isOnline={connectionStatus.isOnline}
               onPairingRemoved={handlePairingRemoved}
+              notificationControls={notifications}
             />
           </motion.div>
         )}
