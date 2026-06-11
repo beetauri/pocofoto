@@ -269,7 +269,8 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     loadingMorePhotos,
     photoLoadError,
     hasMorePhotos,
-    loadMorePhotos
+    loadMorePhotos,
+    updatePhotoLocal
   } = usePaginatedPhotos(coupleId);
 
   const showToast = useCallback((message, duration = 2500) => {
@@ -755,28 +756,31 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
 
   const handleLikePhoto = async (photo) => {
     if (uploading) return;
+    const isLiked = photo.liked || false;
+    const nextLiked = !isLiked;
+    updatePhotoLocal(photo.id, { liked: nextLiked });
     try {
-      const isLiked = photo.liked || false;
       const photoRef = doc(db, 'couples', coupleId, 'photos', photo.id);
 
       await updateDoc(photoRef, {
-        liked: !isLiked
+        liked: nextLiked
       });
 
       await updateDoc(doc(db, 'couples', coupleId), {
-        liked: !isLiked,
-        lastLike: !isLiked ? {
+        liked: nextLiked,
+        lastLike: nextLiked ? {
           userId: user.uid,
           timestamp: new Date().toISOString(),
           photoId: photo.id
         } : null
       });
 
-      if (!isLiked) {
+      if (nextLiked) {
         showToast('Photo liked', 1500);
         trackEvent('photo_liked', { photoId: photo.id });
       }
     } catch (err) {
+      updatePhotoLocal(photo.id, { liked: isLiked });
       console.error(err);
     }
   };
