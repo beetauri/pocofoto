@@ -301,6 +301,7 @@ export default function ProfileView({
             </AlertDialogContent>
           </AlertDialog>
         </Card>
+        <img className="easter-egg-mark" src="/senavebilal.svg" alt="" aria-hidden="true" />
       </div>
     </section>
   );

@@ -215,6 +215,15 @@ button:not(:disabled),
   color: var(--text-secondary);
 }
 
+.easter-egg-mark {
+  display: block;
+  width: 24px;
+  height: auto;
+  justify-self: center;
+  pointer-events: none;
+  user-select: none;
+}
+
 .screen-version span {
   color: var(--text-muted);
   font-size: 11px;

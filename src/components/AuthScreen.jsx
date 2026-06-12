@@ -139,6 +139,7 @@ export default function AuthScreen() {
         </motion.div>
       </motion.div>
       <div className="screen-version absolute bottom-0 left-0 right-0 pb-[max(env(safe-area-inset-bottom),16px)]">
+        <img className="easter-egg-mark" src="/senavebilal.svg" alt="" aria-hidden="true" />
         <span>Version</span>
         <strong>v{buildVersion} ({buildCommit})</strong>
       </div>
