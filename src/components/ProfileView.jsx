@@ -242,20 +242,20 @@ export default function ProfileView({
         </Card>
 
         {pushDebugEnabled && (
-          <Card className="profile-glass-card profile-diagnostics-card">
-            <span className="profile-card-label">Diagnostics</span>
+          <div className="profile-debug-panel">
+            <span className="profile-card-label">Push debug</span>
             <div className="profile-debug-actions">
-              <Button type="button" variant="outline" onClick={onRegisterPushDebug} disabled={registeringPushDebug}>
+              <button className="btn-ghost" type="button" onClick={onRegisterPushDebug} disabled={registeringPushDebug}>
                 {registeringPushDebug ? 'Registering...' : 'Register this device'}
-              </Button>
-              <Button type="button" variant="outline" onClick={onSendPushDebug} disabled={sendingPushDebug}>
+              </button>
+              <button className="btn-ghost" type="button" onClick={onSendPushDebug} disabled={sendingPushDebug}>
                 {sendingPushDebug ? 'Sending...' : 'Send test push to partner'}
-              </Button>
+              </button>
             </div>
             <p className="profile-debug-result">
               {pushDebugResult || 'Enable, register this browser, then send a test push.'}
             </p>
-          </Card>
+          </div>
         )}
 
         <Card className="profile-glass-card profile-danger-card">

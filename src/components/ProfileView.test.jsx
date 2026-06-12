@@ -128,20 +128,20 @@ describe('ProfileView', () => {
     expect(screen.queryByText('Privacy Notice')).not.toBeInTheDocument();
     expect(screen.queryByText('Terms of Use')).not.toBeInTheDocument();
     expect(screen.queryByText('v0.2.27 (abc1234)')).not.toBeInTheDocument();
-    expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument();
+    expect(screen.queryByText('Push debug')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /About/i }));
 
     expect(screen.getByText('Privacy Notice')).toBeInTheDocument();
     expect(screen.getByText('Terms of Use')).toBeInTheDocument();
     expect(screen.getByText('v0.2.27 (abc1234)')).toBeInTheDocument();
-    expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument();
+    expect(screen.queryByText('Push debug')).not.toBeInTheDocument();
   });
 
-  it('restores push diagnostics as a visible debug panel when debug mode is enabled', async () => {
+  it('restores the f4959d2 push debug panel when debug mode is enabled', async () => {
     const { user, props } = renderProfile({ pushDebugEnabled: true });
 
-    expect(screen.getByText('Diagnostics')).toBeInTheDocument();
+    expect(screen.getByText('Push debug')).toBeInTheDocument();
     expect(screen.getByText('Enable, register this browser, then send a test push.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Register this device' }));
@@ -194,14 +194,14 @@ describe('ProfileView', () => {
       '.profile-info-row',
       '.profile-unpair-button',
       '.profile-link-row',
-      '.profile-debug-panel',
       '.profile-version',
       '.confirm-backdrop',
       '.confirm-sheet'
     ];
 
-    expect(source.match(/profile-glass-card/g)).toHaveLength(5);
-    expect(source).toContain('profile-diagnostics-card');
+    expect(source.match(/profile-glass-card/g)).toHaveLength(4);
+    expect(source).toContain('profile-debug-panel');
+    expect(source).toContain('<span className="profile-card-label">Push debug</span>');
     expect(source).toContain('profile-danger-ghost');
     expect(css).toContain(`.profile-glass-card {
   overflow: hidden;
@@ -211,6 +211,21 @@ describe('ProfileView', () => {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
   -webkit-backdrop-filter: blur(24px) saturate(130%);
   backdrop-filter: blur(24px) saturate(130%);
+}`);
+    expect(css).toContain(`.profile-debug-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+  padding: 14px;
+  border: 1px solid rgba(157, 170, 255, 0.22);
+  border-radius: 18px;
+  background: rgba(157, 170, 255, 0.08);
+}`);
+    expect(css).toContain(`.profile-debug-actions .btn-ghost {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 13px;
 }`);
     expect(css).toContain(`.profile-danger-card {
   border-color: rgba(255, 255, 255, 0.1);
