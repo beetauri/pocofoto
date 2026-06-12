@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, db, onAuthStateChanged, doc, onSnapshot, onForegroundMessage } from './firebase';
-import { initAnalytics, trackEvent, identifyUser, resetAnalytics } from './analytics';
+import { initAnalytics, trackEvent, identifyUser, resetAnalytics, startScrollDepthTracking } from './analytics';
 import AuthScreen from './components/AuthScreen';
 import AppBackground from './components/AppBackground';
 import PairingScreen from './components/PairingScreen';
@@ -70,10 +70,12 @@ export default function App() {
 
   useEffect(() => {
     initAnalytics();
+    const stopScrollTracking = startScrollDepthTracking();
     if (!trackedAppOpen.current) {
       trackEvent('app_open');
       trackedAppOpen.current = true;
     }
+    return () => stopScrollTracking();
   }, []);
 
   useEffect(() => connectionStatusStore.subscribe((nextStatus) => {
