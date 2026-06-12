@@ -216,6 +216,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const partnerProfile = partnerUid ? profiles[partnerUid] : null;
   const displayName = myProfile?.displayName || user.displayName || user.email.split('@')[0];
   const partnerName = partnerProfile?.displayName || 'your person';
+  const partnerEmail = partnerProfile?.email || partnerProfile?.normalizedEmail || '';
   const partnerPhoto = partnerProfile?.profilePic || partnerProfile?.photoURL || '';
   const profilePic = myProfile?.profilePic || user.photoURL || '';
   const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
@@ -1185,6 +1186,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
             email={user.email}
             profilePic={profilePic}
             partnerName={partnerName}
+            partnerEmail={partnerEmail}
             partnerPic={partnerPhoto}
             buildVersion={buildVersion}
             buildCommit={buildCommit}
@@ -1268,4 +1270,3 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     </div>
   );
 }
-

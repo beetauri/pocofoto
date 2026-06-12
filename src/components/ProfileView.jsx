@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 
 const iconProps = { strokeWidth: 2.4, 'aria-hidden': true };
@@ -56,6 +55,7 @@ export default function ProfileView({
   email,
   profilePic,
   partnerName,
+  partnerEmail,
   partnerPic,
   buildVersion,
   buildCommit,
@@ -159,7 +159,10 @@ export default function ProfileView({
           <span className="profile-card-label">Paired with</span>
           <div className="profile-partner-row">
             <Avatar src={partnerPic} name={partnerName} size="md" />
-            <strong>{partnerName}</strong>
+            <div className="profile-partner-copy">
+              <strong>{partnerName}</strong>
+              <span>{partnerEmail || 'Google account email hidden'}</span>
+            </div>
           </div>
         </Card>
 
@@ -233,33 +236,31 @@ export default function ProfileView({
                   <span>Version</span>
                   <strong>v{buildVersion} ({buildCommit})</strong>
                 </div>
-                {pushDebugEnabled && (
-                  <>
-                    <Separator />
-                    <div className="profile-diagnostics">
-                      <span className="profile-card-label">Diagnostics</span>
-                      <div className="profile-debug-actions">
-                        <Button type="button" variant="outline" onClick={onRegisterPushDebug} disabled={registeringPushDebug}>
-                          {registeringPushDebug ? 'Registering...' : 'Register this device'}
-                        </Button>
-                        <Button type="button" variant="outline" onClick={onSendPushDebug} disabled={sendingPushDebug}>
-                          {sendingPushDebug ? 'Sending...' : 'Send test push to partner'}
-                        </Button>
-                      </div>
-                      <p className="profile-debug-result">
-                        {pushDebugResult || 'Enable, register this browser, then send a test push.'}
-                      </p>
-                    </div>
-                  </>
-                )}
               </div>
             </CollapsibleContent>
           </Collapsible>
         </Card>
 
+        {pushDebugEnabled && (
+          <Card className="profile-glass-card profile-diagnostics-card">
+            <span className="profile-card-label">Diagnostics</span>
+            <div className="profile-debug-actions">
+              <Button type="button" variant="outline" onClick={onRegisterPushDebug} disabled={registeringPushDebug}>
+                {registeringPushDebug ? 'Registering...' : 'Register this device'}
+              </Button>
+              <Button type="button" variant="outline" onClick={onSendPushDebug} disabled={sendingPushDebug}>
+                {sendingPushDebug ? 'Sending...' : 'Send test push to partner'}
+              </Button>
+            </div>
+            <p className="profile-debug-result">
+              {pushDebugResult || 'Enable, register this browser, then send a test push.'}
+            </p>
+          </Card>
+        )}
+
         <Card className="profile-glass-card profile-danger-card">
           <AlertDialog open={removePairingOpen} onOpenChange={setRemovePairingOpen}>
-            <Button className="profile-danger-action" type="button" variant="destructive" onClick={() => setRemovePairingOpen(true)}>
+            <Button className="profile-danger-action profile-danger-ghost" type="button" variant="ghost" onClick={() => setRemovePairingOpen(true)}>
               <Link2Off {...iconProps} />
               Remove pairing
             </Button>
@@ -280,7 +281,7 @@ export default function ProfileView({
           </AlertDialog>
 
           <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
-            <Button className="profile-danger-action" type="button" variant="outline" onClick={() => setLogoutOpen(true)}>
+            <Button className="profile-danger-action profile-danger-ghost" type="button" variant="ghost" onClick={() => setLogoutOpen(true)}>
               <LogOut {...iconProps} />
               Log out
             </Button>

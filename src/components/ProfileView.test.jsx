@@ -10,6 +10,7 @@ function renderProfile(overrides = {}) {
     email: 'bilal@example.com',
     profilePic: '',
     partnerName: 'Alex',
+    partnerEmail: 'alex@example.com',
     partnerPic: '',
     buildVersion: '0.2.27',
     buildCommit: 'abc1234',
@@ -33,12 +34,12 @@ function renderProfile(overrides = {}) {
 }
 
 describe('ProfileView', () => {
-  it('renders identity and partner name without partner email', () => {
+  it('renders identity plus partner name and email', () => {
     renderProfile();
 
     expect(screen.getByRole('heading', { name: 'Bilal' })).toBeInTheDocument();
     expect(screen.getByText('Alex')).toBeInTheDocument();
-    expect(screen.queryByText(/alex@example.com/i)).not.toBeInTheDocument();
+    expect(screen.getByText('alex@example.com')).toBeInTheDocument();
     expect(screen.getByText('B')).toBeInTheDocument();
   });
 
@@ -137,18 +138,15 @@ describe('ProfileView', () => {
     expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument();
   });
 
-  it('shows push diagnostics only in debug mode after About expands', async () => {
+  it('restores push diagnostics as a visible debug panel when debug mode is enabled', async () => {
     const { user, props } = renderProfile({ pushDebugEnabled: true });
-
-    expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Register this device' })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /About/i }));
-    await user.click(screen.getByRole('button', { name: 'Register this device' }));
-    await user.click(screen.getByRole('button', { name: 'Send test push to partner' }));
 
     expect(screen.getByText('Diagnostics')).toBeInTheDocument();
     expect(screen.getByText('Enable, register this browser, then send a test push.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Register this device' }));
+    await user.click(screen.getByRole('button', { name: 'Send test push to partner' }));
+
     expect(props.onRegisterPushDebug).toHaveBeenCalledTimes(1);
     expect(props.onSendPushDebug).toHaveBeenCalledTimes(1);
   });
@@ -202,7 +200,9 @@ describe('ProfileView', () => {
       '.confirm-sheet'
     ];
 
-    expect(source.match(/profile-glass-card/g)).toHaveLength(4);
+    expect(source.match(/profile-glass-card/g)).toHaveLength(5);
+    expect(source).toContain('profile-diagnostics-card');
+    expect(source).toContain('profile-danger-ghost');
     expect(css).toContain(`.profile-glass-card {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -211,6 +211,17 @@ describe('ProfileView', () => {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
   -webkit-backdrop-filter: blur(24px) saturate(130%);
   backdrop-filter: blur(24px) saturate(130%);
+}`);
+    expect(css).toContain(`.profile-danger-card {
+  border-color: rgba(255, 255, 255, 0.1);
+}`);
+    expect(css).toContain(`.profile-danger-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--danger);
+}`);
+    expect(css).not.toContain(`.profile-danger-card {
+  border-color: rgba(255, 92, 122, 0.22);
 }`);
     oldSelectors.forEach((selector) => {
       expect(css).not.toContain(selector);
