@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -27,7 +26,7 @@
   --color-control: var(--bg-control);
   --color-control-hover: var(--bg-control-hover);
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Nunito', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -75,7 +74,7 @@
   --radius-lg: 34px;
   --radius-xl: 44px;
   --radius-full: 9999px;
-  --font: Inter, ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  --font: 'Nunito', ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --pwa-safe-area-background: #000000;

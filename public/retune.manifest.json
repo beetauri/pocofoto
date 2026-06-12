@@ -49,7 +49,7 @@
         "variable": "--text-muted"
       },
       "font": {
-        "value": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        "value": "'Nunito', -apple-system, BlinkMacSystemFont, sans-serif",
         "variable": "--font"
       }
     },
