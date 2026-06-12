@@ -70,11 +70,51 @@ export function initAnalytics() {
       capture_pageview: true,
       capture_pageleave: true,
       autocapture: true,
+      rageclick: true,
+      capture_copied_text: true,
+      capture_dead_clicks: true,
+      capture_exceptions: true,
+      capture_heatmaps: true,
+      capture_performance: {
+        network_timing: true,
+        web_vitals: true,
+        web_vitals_attribution: true
+      },
+      disable_session_recording: false,
       disable_scroll_properties: false,
+      enable_recording_console_log: true,
+      mask_all_element_attributes: false,
+      mask_all_text: false,
+      mask_personal_data_properties: false,
+      opt_out_capturing_by_default: false,
+      opt_out_persistence_by_default: false,
+      person_profiles: 'always',
+      respect_dnt: false,
       scroll_root_selector: ['.reels-feed', 'html'],
       session_recording: {
-        maskAllInputs: true,
-        maskTextSelector: 'input, textarea, [data-ph-mask]'
+        maskAllInputs: false,
+        maskInputOptions: {
+          color: false,
+          date: false,
+          'datetime-local': false,
+          email: false,
+          month: false,
+          number: false,
+          range: false,
+          search: false,
+          tel: false,
+          text: false,
+          time: false,
+          url: false,
+          week: false,
+          textarea: false,
+          select: false,
+          password: false
+        },
+        maskTextSelector: null,
+        recordBody: true,
+        recordHeaders: true,
+        sampleRate: 1
       }
     });
   }
