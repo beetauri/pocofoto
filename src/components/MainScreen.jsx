@@ -22,6 +22,7 @@ import {
   loadOfflineReviewDraft,
   saveOfflineReviewDraft
 } from '../lib/offlineReviewDraft';
+import { triggerHaptic } from '../lib/haptics';
 import { usePaginatedPhotos } from '../hooks/usePaginatedPhotos';
 import { useCamera } from '../hooks/useCamera';
 import { CAPTURE_JPEG_QUALITY, fitCaptureDimensions, getCoverCrop } from '../lib/camera';
@@ -565,6 +566,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
       return;
     }
 
+    triggerHaptic('tap');
     setUploading(true);
     try {
       const canvas = document.createElement('canvas');
@@ -629,6 +631,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
       showToast('Reconnect to send', 3000);
       return;
     }
+    triggerHaptic('tap');
     setSendingReviewPhoto(true);
     try {
       const caption = buildCaptionPayload(captionText);

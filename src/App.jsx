@@ -15,6 +15,7 @@ import {
   getCachedUserRoute,
   setCachedUserRoute
 } from './lib/userRouteCache';
+import { triggerHaptic } from './lib/haptics';
 
 const Retune = import.meta.env.DEV
   ? lazy(() => import('retune').then((module) => ({ default: module.Retune })))
@@ -198,6 +199,7 @@ export default function App() {
       setPairStateKnown(true);
       setCachedUserRoute(user.uid, { coupleId: newCoupleId });
     }
+    triggerHaptic('success');
     trackEvent('pairing_completed', { coupleId: newCoupleId });
   };
 
