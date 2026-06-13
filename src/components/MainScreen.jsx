@@ -552,6 +552,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
       return;
     }
 
+    triggerHaptic('tap');
     const video = videoRef.current;
     if (video && (!video.videoWidth || !video.videoHeight)) {
       try {
@@ -566,7 +567,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
       return;
     }
 
-    triggerHaptic('tap');
     setUploading(true);
     try {
       const canvas = document.createElement('canvas');

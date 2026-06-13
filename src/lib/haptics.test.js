@@ -31,7 +31,7 @@ test('triggerHaptic sends the tap pattern to supported browsers', () => {
   });
 
   assert.equal(triggerHaptic('tap'), true);
-  assert.deepEqual(calls, [10]);
+  assert.deepEqual(calls, [35]);
 });
 
 test('triggerHaptic sends the success pattern to supported browsers', () => {
@@ -44,7 +44,7 @@ test('triggerHaptic sends the success pattern to supported browsers', () => {
   });
 
   assert.equal(triggerHaptic('success'), true);
-  assert.deepEqual(calls, [[12, 40, 18]]);
+  assert.deepEqual(calls, [[35, 60, 35]]);
 });
 
 test('triggerHaptic no-ops when vibration is unsupported', () => {

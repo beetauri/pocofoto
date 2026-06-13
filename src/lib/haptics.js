@@ -1,6 +1,6 @@
 const hapticPatterns = {
-  tap: 10,
-  success: [12, 40, 18]
+  tap: 35,
+  success: [35, 60, 35]
 };
 
 function canVibrate() {

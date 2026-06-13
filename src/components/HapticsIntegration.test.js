@@ -9,7 +9,13 @@ test('MainScreen triggers tap haptics only after accepted shutter capture guards
   assert.match(mainScreenSource, /import \{ triggerHaptic \} from '\.\.\/lib\/haptics';/);
   assert.match(
     mainScreenSource,
-    /const handleCapture = async \(\) => \{[\s\S]*?if \(captureDisabled\) return;[\s\S]*?if \(!cameraSlideIsMostlyVisible\(\)\) \{[\s\S]*?return;[\s\S]*?\}[\s\S]*?triggerHaptic\('tap'\);/
+    /const handleCapture = async \(\) => \{[\s\S]*?if \(captureDisabled\) return;[\s\S]*?if \(!cameraSlideIsMostlyVisible\(\)\) \{[\s\S]*?return;[\s\S]*?\}[\s\S]*?if \(cameraStatus !== 'ready'\) \{[\s\S]*?return;[\s\S]*?\}[\s\S]*?triggerHaptic\('tap'\);/
+  );
+});
+
+test('MainScreen keeps capture haptics before async camera recovery', () => {
+  assert.ok(
+    mainScreenSource.indexOf("triggerHaptic('tap');") < mainScreenSource.indexOf('await video.play();')
   );
 });
 
