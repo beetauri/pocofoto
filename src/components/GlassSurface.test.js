@@ -37,8 +37,13 @@ test('Retune glass values are applied to the nav and photo overlays', () => {
 });
 
 test('Retune icon details are scoped to the grid and mini shutter icons', () => {
+  const miniShutterRule = cssRule('.mini-shutter-nav-icon svg');
+
   assert.match(mainScreenSource, /function GridIcon\(\)[\s\S]*?<LucideGridIcon[^>]*strokeWidth=\{2\.2\}/);
-  assert.match(mainScreenSource, /<circle[^>]*r="4\.7"[^>]*className="h-px w-px"/);
+  assert.match(mainScreenSource, /function ShutterIcon\(\{ pressed = false \}\)/);
+  assert.match(mainScreenSource, /<motion\.circle[\s\S]*className="shutter-icon-inner"[\s\S]*r="39\.7217"/);
+  assert.match(miniShutterRule, /width:\s*44px/);
+  assert.match(miniShutterRule, /height:\s*44px/);
 });
 
 test('prefixed backdrop filters precede standard declarations for production CSS transforms', () => {

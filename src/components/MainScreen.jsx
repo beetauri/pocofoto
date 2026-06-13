@@ -6,7 +6,6 @@ import {
   LayoutGrid as LucideGridIcon,
   RefreshCw as LucideSwitchCameraIcon,
   Send as LucideSendIcon,
-  SendHorizontal as LucideSendHorizontalIcon,
   X as LucideXIcon,
   UserRound as LucideUserIcon,
   Zap as LucideFlashIcon
@@ -32,6 +31,10 @@ const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 const pushDebugEnabled = import.meta.env.VITE_ENABLE_PUSH_DEBUG === 'true';
 const MAX_CAPTION_LENGTH = 36;
 const SEND_REVIEW_TIMEOUT_MS = 25000;
+const shutterInnerVariants = {
+  rest: { scale: 1 },
+  tap: { scale: 0.75 }
+};
 
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
@@ -65,12 +68,20 @@ function GridIcon() {
   return <LucideGridIcon {...lucideIconProps} strokeWidth={2.2} />;
 }
 
-function MiniShutterIcon() {
+function ShutterIcon({ pressed = false }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" fill="var(--accent)" />
-      <circle cx="12" cy="12" r="6.4" fill="#111" />
-      <circle cx="12" cy="12" r="4.7" fill="#f4f4f4" className="h-px w-px" />
+    <svg className="shutter-icon" width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <path d="M96 48C96 74.5097 74.5097 96 48 96C21.4903 96 0 74.5097 0 48C0 21.4903 21.4903 0 48 0C74.5097 0 96 21.4903 96 48ZM4.8 48C4.8 71.8587 24.1413 91.2 48 91.2C71.8587 91.2 91.2 71.8587 91.2 48C91.2 24.1413 71.8587 4.8 48 4.8C24.1413 4.8 4.8 24.1413 4.8 48Z" fill="#4F72FC" />
+      <motion.circle
+        className="shutter-icon-inner"
+        cx="48"
+        cy="48"
+        r="39.7217"
+        fill="#D9D9D9"
+        variants={shutterInnerVariants}
+        animate={pressed ? 'tap' : 'rest'}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
+      />
     </svg>
   );
 }
@@ -81,10 +92,6 @@ function HeartIcon({ filled = false }) {
 
 function SendIcon() {
   return <LucideSendIcon {...lucideIconProps} />;
-}
-
-function SendHorizontalIcon() {
-  return <LucideSendHorizontalIcon {...lucideIconProps} />;
 }
 
 function PhotoIcon() {
@@ -185,6 +192,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const [captionText, setCaptionText] = useState('');
   const [sendingReviewPhoto, setSendingReviewPhoto] = useState(false);
   const [sendAnimationState, setSendAnimationState] = useState('idle');
+  const [shutterPressed, setShutterPressed] = useState(false);
   const [removingPairing, setRemovingPairing] = useState(false);
   const [registeringPushDebug, setRegisteringPushDebug] = useState(false);
   const [sendingPushDebug, setSendingPushDebug] = useState(false);
@@ -198,6 +206,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const cameraSlideRef = useRef(null);
   const lastPhotoTimestampRef = useRef(null);
   const lastLikeTimestampRef = useRef(null);
+  const shutterReleaseTimeoutRef = useRef(null);
   const swipeRef = useRef({
     axis: null,
     currentX: 0,
@@ -292,6 +301,30 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     setCaptionText('');
     setSendingReviewPhoto(false);
     setSendAnimationState('idle');
+  }, []);
+
+  const pressShutter = useCallback(() => {
+    if (shutterReleaseTimeoutRef.current) {
+      window.clearTimeout(shutterReleaseTimeoutRef.current);
+      shutterReleaseTimeoutRef.current = null;
+    }
+    setShutterPressed(true);
+  }, []);
+
+  const releaseShutter = useCallback(() => {
+    if (shutterReleaseTimeoutRef.current) {
+      window.clearTimeout(shutterReleaseTimeoutRef.current);
+    }
+    shutterReleaseTimeoutRef.current = window.setTimeout(() => {
+      setShutterPressed(false);
+      shutterReleaseTimeoutRef.current = null;
+    }, 75);
+  }, []);
+
+  useEffect(() => () => {
+    if (shutterReleaseTimeoutRef.current) {
+      window.clearTimeout(shutterReleaseTimeoutRef.current);
+    }
   }, []);
 
   const clearCurrentReviewDraft = useCallback(async () => {
@@ -1037,10 +1070,10 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={
                           sendAnimationState === 'sent'
-                            ? { opacity: 0, y: '-112%', scale: 1 }
+                            ? { opacity: 1, y: '-112%', scale: 1 }
                             : { opacity: 1, y: 0, scale: 1 }
                         }
-                        exit={{ opacity: 0 }}
+                        exit={{ opacity: sendAnimationState === 'sent' ? 1 : 0 }}
                         transition={{
                           duration: sendAnimationState === 'sent' ? 0.38 : 0.18,
                           ease: 'easeInOut'
@@ -1086,9 +1119,27 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
                     aria-label={isReviewingPhoto ? 'Send photo' : 'Capture photo'}
                     onClick={isReviewingPhoto ? handleSendReviewPhoto : handleCapture}
                     disabled={isReviewingPhoto ? sendDisabled : captureDisabled}
-                    whileTap={{ scale: 0.9 }}
+                    onTapStart={pressShutter}
+                    onTap={releaseShutter}
+                    onTapCancel={releaseShutter}
                   >
-                    {(uploading || sendingReviewPhoto) ? <div className="spinner" /> : isReviewingPhoto ? <SendHorizontalIcon /> : null}
+                    <ShutterIcon pressed={shutterPressed} />
+                    {isReviewingPhoto && !sendingReviewPhoto && (
+                      <motion.span
+                        className="shutter-send-icon"
+                        aria-hidden="true"
+                        initial={{ opacity: 0, scale: 0.72 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.075, ease: 'easeOut' }}
+                      >
+                        <SendIcon />
+                      </motion.span>
+                    )}
+                    {(uploading || sendingReviewPhoto) && (
+                      <span className="shutter-spinner" aria-hidden="true">
+                        <div className="spinner" />
+                      </span>
+                    )}
                   </motion.button>
                   <button
                     className="camera-tool-btn"
@@ -1242,7 +1293,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
               </motion.span>
             ) : (
               <motion.span key="shutter" className="mini-shutter-nav-icon" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
-                <MiniShutterIcon />
+                <ShutterIcon />
               </motion.span>
             )}
           </AnimatePresence>
