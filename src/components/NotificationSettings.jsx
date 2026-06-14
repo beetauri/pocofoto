@@ -91,6 +91,12 @@ export default function NotificationSettings({
               <dt>Token</dt>
               <dd>{diagnostics.tokenFingerprint || 'not registered'}</dd>
             </div>
+            {status.registrationError && (
+              <div>
+                <dt>Registration</dt>
+                <dd>{status.registrationError.reason || status.registrationError.message}</dd>
+              </div>
+            )}
             <div>
               <dt>Partner devices</dt>
               <dd>{diagnostics.partnerTokenCount ?? 'unknown'}</dd>

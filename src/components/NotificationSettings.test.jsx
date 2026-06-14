@@ -24,6 +24,23 @@ it('keeps diagnostics collapsed and reports zero registered devices as non-succe
   expect(screen.getByText('No registered devices')).toBeVisible();
 });
 
+it('shows the last registration error in diagnostics', async () => {
+  render(
+    <NotificationSettings
+      status={{
+        permission: 'granted',
+        enabled: false,
+        registrationError: { reason: 'messaging/unsupported-browser', message: 'Messaging token unavailable' }
+      }}
+      diagnostics={{}}
+    />
+  );
+
+  await userEvent.click(screen.getByRole('button', { name: 'Notification diagnostics' }));
+  expect(screen.getByText('Registration')).toBeVisible();
+  expect(screen.getByText('messaging/unsupported-browser')).toBeVisible();
+});
+
 it('offers registration, current-device, and partner-device tests', async () => {
   const registerDevice = vi.fn();
   const testThisDevice = vi.fn();
