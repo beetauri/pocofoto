@@ -129,7 +129,7 @@ test('disable removes server registration even if local token deletion fails', a
   assert.deepEqual(calls.at(-1).data, { deviceId: 'device-1' });
 });
 
-test('startup sync respects a stored current-device opt-out', async () => {
+test('startup sync heals granted-permission devices with a stored disabled flag', async () => {
   const calls = [];
   const client = createNotificationClient({
     notificationApi: { permission: 'granted' },
@@ -147,8 +147,8 @@ test('startup sync respects a stored current-device opt-out', async () => {
   });
 
   assert.equal(client.getStatus().enabled, false);
-  assert.equal((await client.syncGrantedPermission()).status, 'disabled');
-  assert.deepEqual(calls, []);
+  assert.equal((await client.syncGrantedPermission()).status, 'registered');
+  assert.equal(calls.at(-1).name, 'registerFcmToken');
 });
 
 test('logout cleanup removes registration without persisting a disabled preference', async () => {

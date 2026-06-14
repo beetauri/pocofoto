@@ -185,10 +185,6 @@ export function createNotificationClient({
     async syncGrantedPermission() {
       const permission = getPermission();
       if (permission !== 'granted') return { status: permission };
-      if (getNotificationsEnabled() === false) {
-        localEnabled = false;
-        return { status: 'disabled' };
-      }
       const result = await registerCurrentToken();
       if (result.status === 'registered') {
         localEnabled = true;

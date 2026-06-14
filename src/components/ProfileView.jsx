@@ -246,6 +246,7 @@ export default function ProfileView({
             onEnable={notificationControls.enable}
             onDisable={notificationControls.disable}
             onRefreshDiagnostics={notificationControls.refreshDiagnostics}
+            onRegisterDevice={notificationControls.enable}
             onTestThisDevice={notificationControls.testThisDevice}
             onTestPartnerDevices={notificationControls.testPartnerDevices}
           />

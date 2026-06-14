@@ -24,7 +24,8 @@ it('keeps diagnostics collapsed and reports zero registered devices as non-succe
   expect(screen.getByText('No registered devices')).toBeVisible();
 });
 
-it('offers current-device and partner-device tests', async () => {
+it('offers registration, current-device, and partner-device tests', async () => {
+  const registerDevice = vi.fn();
   const testThisDevice = vi.fn();
   const testPartnerDevices = vi.fn();
 
@@ -32,12 +33,15 @@ it('offers current-device and partner-device tests', async () => {
     <NotificationSettings
       status={{ permission: 'granted', enabled: true }}
       diagnostics={{}}
+      onRegisterDevice={registerDevice}
       onTestThisDevice={testThisDevice}
       onTestPartnerDevices={testPartnerDevices}
     />
   );
 
   await userEvent.click(screen.getByRole('button', { name: 'Notification diagnostics' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Register this device' }));
+  expect(registerDevice).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Test this device' })).toBeVisible();
   expect(screen.getByRole('button', { name: "Test partner's devices" })).toBeVisible();
 });

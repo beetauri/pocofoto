@@ -26,6 +26,7 @@ export default function NotificationSettings({
   onEnable,
   onDisable,
   onRefreshDiagnostics,
+  onRegisterDevice,
   onTestThisDevice,
   onTestPartnerDevices
 }) {
@@ -97,6 +98,9 @@ export default function NotificationSettings({
           </dl>
           <p className="notification-status">{formatLastTest(diagnostics.lastTest)}</p>
           <div className="notification-diagnostics-actions">
+            <button className="btn-ghost" type="button" onClick={onRegisterDevice || onEnable} disabled={disabled || busy}>
+              Register this device
+            </button>
             <button className="btn-ghost" type="button" onClick={onTestThisDevice} disabled={testDisabled}>
               Test this device
             </button>
