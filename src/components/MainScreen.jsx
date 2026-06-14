@@ -14,7 +14,6 @@ import HistoryScreen from './HistoryScreen';
 import ProfileView from './ProfileView';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, uploadBytesResumable, getDownloadURL, signOut, collection, addDoc, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
-import { requestAndRegisterPushToken, sendTestPushNotification } from '../pushNotifications';
 import {
   clearOfflineReviewDraft,
   createReviewDraftKey,
@@ -28,7 +27,6 @@ import { CAPTURE_JPEG_QUALITY, fitCaptureDimensions, getCoverCrop } from '../lib
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
-const pushDebugEnabled = import.meta.env.VITE_ENABLE_PUSH_DEBUG === 'true';
 const MAX_CAPTION_LENGTH = 36;
 const SEND_REVIEW_TIMEOUT_MS = 25000;
 const shutterInnerVariants = {
@@ -178,7 +176,7 @@ function PhotoLoadMoreSentinel({ rootRef, hasMore, loading, error, onLoadMore })
   );
 }
 
-export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved }) {
+export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved, notificationControls = null }) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState('');
@@ -194,9 +192,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   const [sendAnimationState, setSendAnimationState] = useState('idle');
   const [shutterPressed, setShutterPressed] = useState(false);
   const [removingPairing, setRemovingPairing] = useState(false);
-  const [registeringPushDebug, setRegisteringPushDebug] = useState(false);
-  const [sendingPushDebug, setSendingPushDebug] = useState(false);
-  const [pushDebugResult, setPushDebugResult] = useState('');
   const profileFileRef = useRef(null);
   const videoRef = useRef(null);
   const captionInputRef = useRef(null);
@@ -783,7 +778,13 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    try {
+      await notificationControls?.cleanupBeforeLogout?.();
+    } catch (error) {
+      console.warn('Notification cleanup before logout failed.', { code: error?.code || 'unknown' });
+    } finally {
+      await signOut(auth);
+    }
   };
 
   const handleRemovePairing = async () => {
@@ -799,69 +800,6 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
       showToast(message, 3200);
     } finally {
       setRemovingPairing(false);
-    }
-  };
-
-  const formatPushDebugResult = (result) => {
-    const tokenCount = result?.tokenCount ?? 0;
-    const successCount = result?.successCount ?? 0;
-    const failureCount = result?.failureCount ?? 0;
-    const staleDeletedCount = result?.staleDeletedCount ?? 0;
-    const failureCodes = Array.isArray(result?.failureCodes) ? result.failureCodes.filter(Boolean) : [];
-    const staleText = staleDeletedCount > 0 ? `, stale deleted: ${staleDeletedCount}` : '';
-    const codeText = failureCodes.length ? `, codes: ${failureCodes.join(', ')}` : '';
-    return `tokens: ${tokenCount}, success: ${successCount}, failed: ${failureCount}${staleText}${codeText}`;
-  };
-
-  const handleRegisterPushDebug = async () => {
-    if (registeringPushDebug) return;
-    setRegisteringPushDebug(true);
-    setPushDebugResult('Registering this device...');
-    try {
-      const result = await requestAndRegisterPushToken();
-      const message = result.ok
-        ? 'registered: this browser has an FCM token'
-        : `registration: ${result.reason || 'failed'}`;
-      setPushDebugResult(message);
-      showToast(message, 3200);
-      console.debug('Push debug registration result.', result);
-      trackEvent('push_debug_register_result', {
-        status: result.ok ? 'registered' : result.reason || 'failed'
-      });
-    } catch (err) {
-      const message = err?.message?.replace(/^Firebase: /, '') || 'registration: failed';
-      setPushDebugResult(message);
-      showToast(message, 3600);
-      console.error('Push debug registration failed.', err);
-      trackEvent('push_debug_register_result', { status: 'error' });
-    } finally {
-      setRegisteringPushDebug(false);
-    }
-  };
-
-  const handleSendPushDebug = async () => {
-    if (sendingPushDebug) return;
-    setSendingPushDebug(true);
-    setPushDebugResult('Sending test push...');
-    try {
-      const result = await sendTestPushNotification();
-      const message = formatPushDebugResult(result);
-      setPushDebugResult(message);
-      showToast(message, 3600);
-      console.debug('Push debug send result.', result);
-      trackEvent('push_debug_test_result', {
-        tokenCount: result?.tokenCount ?? 0,
-        successCount: result?.successCount ?? 0,
-        failureCount: result?.failureCount ?? 0
-      });
-    } catch (err) {
-      const message = err?.message?.replace(/^Firebase: /, '') || 'test push: failed';
-      setPushDebugResult(message);
-      showToast(message, 3600);
-      console.error('Push debug send failed.', err);
-      trackEvent('push_debug_test_result', { status: 'error' });
-    } finally {
-      setSendingPushDebug(false);
     }
   };
 
@@ -1251,12 +1189,7 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
             onSaveDisplayName={handleSaveDisplayName}
             onLogout={handleLogout}
             onRemovePairing={handleRemovePairing}
-            pushDebugEnabled={pushDebugEnabled}
-            pushDebugResult={pushDebugResult}
-            registeringPushDebug={registeringPushDebug}
-            sendingPushDebug={sendingPushDebug}
-            onRegisterPushDebug={handleRegisterPushDebug}
-            onSendPushDebug={handleSendPushDebug}
+            notificationControls={notificationControls}
           />}
         </section>
       </motion.div>

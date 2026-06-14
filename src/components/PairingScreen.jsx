@@ -59,7 +59,7 @@ function parseError(err, fallback = 'Something went wrong. Please try again.') {
   return raw.replace(/^Firebase: /, '').replace(/\.$/, '.');
 }
 
-export default function PairingScreen({ user, isOnline = true, onPaired, initialNotice = '', onNoticeConsumed }) {
+export default function PairingScreen({ user, isOnline = true, onPaired, initialNotice = '', onNoticeConsumed, notificationControls = null }) {
   const [workingId, setWorkingId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -221,7 +221,28 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    try {
+      await notificationControls?.cleanupBeforeLogout?.();
+    } catch (error) {
+      console.warn('Notification cleanup before logout failed.', { code: error?.code || 'unknown' });
+    } finally {
+      await signOut(auth);
+    }
+  };
+
+  const handleEnableNotifications = async () => {
+    setWorkingId('enable-notifications');
+    setError('');
+    try {
+      const result = await notificationControls?.enable?.();
+      if (result?.status === 'registered') setNotice('Notifications enabled on this device.');
+      else if (result?.status === 'denied') setNotice('Enable notifications in your browser or device settings.');
+      else setNotice('Notifications are not available on this device.');
+    } catch (err) {
+      setError(parseError(err, 'Could not enable notifications.'));
+    } finally {
+      setWorkingId('');
+    }
   };
 
   return (
@@ -262,6 +283,27 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
           <div className="pairing-offline-note" role="status">
             Pairing needs connection. You can continue when you're back online.
           </div>
+        )}
+
+        {notificationControls && (
+          <section className="pairing-notification-action" aria-label="Notifications">
+            <div>
+              <strong>Pairing notifications</strong>
+              <span>
+                {notificationControls.status?.permission === 'denied'
+                  ? 'Enable notifications in your browser or device settings.'
+                  : 'Enable this device so pairing invites can reach you.'}
+              </span>
+            </div>
+            <button
+              className="mini-btn"
+              type="button"
+              onClick={handleEnableNotifications}
+              disabled={!isOnline || notificationControls.busy || workingId === 'enable-notifications'}
+            >
+              {workingId === 'enable-notifications' ? 'Enabling...' : 'Enable notifications'}
+            </button>
+          </section>
         )}
 
         {sortedIncoming.length > 0 && (

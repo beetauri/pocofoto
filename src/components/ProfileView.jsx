@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import NotificationSettings from './NotificationSettings';
 
 const iconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 
@@ -66,12 +67,7 @@ export default function ProfileView({
   onSaveDisplayName,
   onLogout,
   onRemovePairing,
-  pushDebugEnabled,
-  pushDebugResult,
-  registeringPushDebug,
-  sendingPushDebug,
-  onRegisterPushDebug,
-  onSendPushDebug
+  notificationControls
 }) {
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(displayName);
@@ -241,21 +237,18 @@ export default function ProfileView({
           </Collapsible>
         </Card>
 
-        {pushDebugEnabled && (
-          <div className="profile-debug-panel">
-            <span className="profile-card-label">Push debug</span>
-            <div className="profile-debug-actions">
-              <button className="btn-ghost" type="button" onClick={onRegisterPushDebug} disabled={registeringPushDebug}>
-                {registeringPushDebug ? 'Registering...' : 'Register this device'}
-              </button>
-              <button className="btn-ghost" type="button" onClick={onSendPushDebug} disabled={sendingPushDebug}>
-                {sendingPushDebug ? 'Sending...' : 'Send test push to partner'}
-              </button>
-            </div>
-            <p className="profile-debug-result">
-              {pushDebugResult || 'Enable, register this browser, then send a test push.'}
-            </p>
-          </div>
+        {notificationControls && (
+          <NotificationSettings
+            status={notificationControls.status}
+            diagnostics={notificationControls.diagnostics || {}}
+            busy={notificationControls.busy}
+            cooldownUntil={notificationControls.cooldownUntil}
+            onEnable={notificationControls.enable}
+            onDisable={notificationControls.disable}
+            onRefreshDiagnostics={notificationControls.refreshDiagnostics}
+            onTestThisDevice={notificationControls.testThisDevice}
+            onTestPartnerDevices={notificationControls.testPartnerDevices}
+          />
         )}
 
         <Card className="profile-glass-card profile-danger-card">

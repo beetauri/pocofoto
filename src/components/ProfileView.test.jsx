@@ -21,12 +21,7 @@ function renderProfile(overrides = {}) {
     onSaveDisplayName: vi.fn().mockResolvedValue(undefined),
     onLogout: vi.fn().mockResolvedValue(undefined),
     onRemovePairing: vi.fn().mockResolvedValue(undefined),
-    pushDebugEnabled: false,
-    pushDebugResult: '',
-    registeringPushDebug: false,
-    sendingPushDebug: false,
-    onRegisterPushDebug: vi.fn(),
-    onSendPushDebug: vi.fn(),
+    notificationControls: null,
     ...overrides,
   };
 
@@ -138,17 +133,29 @@ describe('ProfileView', () => {
     expect(screen.queryByText('Push debug')).not.toBeInTheDocument();
   });
 
-  it('restores the f4959d2 push debug panel when debug mode is enabled', async () => {
-    const { user, props } = renderProfile({ pushDebugEnabled: true });
+  it('shows notification diagnostics when notification controls are available', async () => {
+    const notificationControls = {
+      status: { permission: 'granted', enabled: true },
+      diagnostics: { deviceId: 'device-1', workerState: 'activated', activeDeviceCount: 1 },
+      busy: false,
+      cooldownUntil: 0,
+      enable: vi.fn(),
+      disable: vi.fn(),
+      refreshDiagnostics: vi.fn(),
+      testThisDevice: vi.fn(),
+      testPartnerDevices: vi.fn()
+    };
+    const { user } = renderProfile({ notificationControls });
 
-    expect(screen.getByText('Push debug')).toBeInTheDocument();
-    expect(screen.getByText('Enable, register this browser, then send a test push.')).toBeInTheDocument();
+    expect(screen.getByText('Notifications')).toBeInTheDocument();
+    expect(screen.getByText('Notification diagnostics')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Register this device' }));
-    await user.click(screen.getByRole('button', { name: 'Send test push to partner' }));
+    await user.click(screen.getByRole('button', { name: 'Notification diagnostics' }));
+    await user.click(screen.getByRole('button', { name: 'Test this device' }));
+    await user.click(screen.getByRole('button', { name: "Test partner's devices" }));
 
-    expect(props.onRegisterPushDebug).toHaveBeenCalledTimes(1);
-    expect(props.onSendPushDebug).toHaveBeenCalledTimes(1);
+    expect(notificationControls.testThisDevice).toHaveBeenCalledTimes(1);
+    expect(notificationControls.testPartnerDevices).toHaveBeenCalledTimes(1);
   });
 
   it('uses distinct dialogs for log out and remove pairing actions', async () => {
@@ -200,8 +207,7 @@ describe('ProfileView', () => {
     ];
 
     expect(source.match(/profile-glass-card/g)).toHaveLength(4);
-    expect(source).toContain('profile-debug-panel');
-    expect(source).toContain('<span className="profile-card-label">Push debug</span>');
+    expect(source).toContain('<NotificationSettings');
     expect(source).toContain('profile-danger-ghost');
     expect(css).toContain(`.profile-glass-card {
   overflow: hidden;
@@ -212,16 +218,16 @@ describe('ProfileView', () => {
   -webkit-backdrop-filter: blur(24px) saturate(130%);
   backdrop-filter: blur(24px) saturate(130%);
 }`);
-    expect(css).toContain(`.profile-debug-panel {
+    expect(css).toContain(`.notification-setting {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin-top: 2px;
   padding: 14px;
   border: 1px solid rgba(157, 170, 255, 0.22);
   border-radius: 18px;
   background: rgba(157, 170, 255, 0.08);
 }`);
-    expect(css).toContain(`.profile-debug-actions .btn-ghost {
+    expect(css).toContain(`.notification-diagnostics-actions .btn-ghost {
   min-height: 44px;
   padding: 0 12px;
   border-radius: 14px;
