@@ -39,6 +39,41 @@ test('granted startup registers current token without requesting permission', as
   }]);
 });
 
+test('permission granted alone does not mark notifications enabled', async () => {
+  const client = createNotificationClient({
+    notificationApi: { permission: 'granted' },
+    getNotificationsEnabled: () => null,
+    getMessagingRegistration: async () => ({ active: {} }),
+    getToken: async () => {
+      throw Object.assign(new Error('Messaging token unavailable'), { code: 'messaging/unsupported-browser' });
+    },
+    call: async () => ({ ok: true }),
+    vapidKey: 'vapid'
+  });
+
+  assert.equal(client.getStatus().enabled, false);
+  const result = await client.syncGrantedPermission();
+  assert.equal(result.status, 'no-token');
+  assert.equal(result.reason, 'messaging/unsupported-browser');
+  assert.equal(client.getStatus().enabled, false);
+  assert.equal(client.getStatus().registrationError.reason, 'messaging/unsupported-browser');
+});
+
+test('iOS browser tabs are not treated as push-capable unless standalone', async () => {
+  const client = createNotificationClient({
+    notificationApi: { permission: 'granted' },
+    isPushContextSupported: () => false,
+    getMessagingRegistration: async () => ({ active: {} }),
+    getToken: async () => 'token-1',
+    call: async () => ({ ok: true }),
+    vapidKey: 'vapid'
+  });
+
+  assert.equal(client.getStatus().supported, false);
+  assert.equal(client.getStatus().permission, 'unsupported');
+  assert.equal((await client.syncGrantedPermission()).status, 'unsupported');
+});
+
 test('enable requests permission only from the explicit action', async () => {
   let requests = 0;
   const client = createNotificationClient({

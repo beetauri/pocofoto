@@ -457,11 +457,11 @@ export const sendTestPushToThisDevice = onCall(async (request) => {
   const deviceId = request.data?.deviceId;
   if (!deviceId || typeof deviceId !== 'string') throw new HttpsError('invalid-argument', 'Device ID is required.');
   try {
-    await enforceAndRecordTestCooldown(uid);
     const snap = await db.doc(`users/${uid}/fcmTokens/${deviceId}`).get();
     if (!snap.exists || snap.data().enabled === false) {
       return { ok: false, outcome: 'no_registered_devices', tokenCount: 0, successCount: 0, failureCount: 0, staleDeletedCount: 0, failureCodes: [] };
     }
+    await enforceAndRecordTestCooldown(uid);
     const event = {
       eventId: `debug_device:${uid}:${deviceId}:${Date.now()}`,
       type: 'debug_test',

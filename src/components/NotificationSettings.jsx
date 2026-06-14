@@ -1,9 +1,11 @@
 import { useState } from 'react';
 
 function permissionCopy(status = {}) {
+  if (status.registrationError?.message) return status.registrationError.message;
   if (status.permission === 'denied') return 'Enable notifications in your browser or device settings.';
   if (status.permission === 'unsupported') return 'Notifications are unavailable in this browser.';
   if (status.enabled) return 'This device is enabled for Pocofoto notifications.';
+  if (status.permission === 'granted') return 'Permission is granted, but this device still needs a registered push token.';
   return 'Enable this device to receive Pocofoto notifications.';
 }
 
@@ -28,7 +30,7 @@ export default function NotificationSettings({
   onTestPartnerDevices
 }) {
   const [expanded, setExpanded] = useState(false);
-  const enabled = Boolean(status.enabled ?? status.permission === 'granted');
+  const enabled = Boolean(status.enabled);
   const disabled = busy || status.permission === 'unsupported';
   const inCooldown = cooldownUntil > Date.now();
   const testDisabled = busy || inCooldown || !enabled;

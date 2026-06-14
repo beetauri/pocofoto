@@ -46,6 +46,14 @@ function userAgentSummary() {
   return typeof navigator === 'undefined' ? '' : navigator.userAgent;
 }
 
+function defaultPushContextSupported() {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return true;
+  const userAgent = navigator.userAgent || '';
+  const iOS = /iPad|iPhone|iPod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!iOS) return true;
+  return navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)')?.matches === true;
+}
+
 async function defaultMessagingRegistration() {
   if (typeof navigator === 'undefined' || !navigator.serviceWorker) return null;
   return navigator.serviceWorker.register(MESSAGING_SW_PATH, {
@@ -83,19 +91,37 @@ export function createNotificationClient({
   deleteToken = defaultDeleteToken,
   call = defaultCallable,
   userAgent = userAgentSummary(),
-  vapidKey: configuredVapidKey = vapidKey
+  vapidKey: configuredVapidKey = vapidKey,
+  isPushContextSupported = defaultPushContextSupported
 } = {}) {
   const getPermission = () => notificationPermissionState(notificationApi);
-  let localEnabled = getNotificationsEnabled();
+  let localEnabled = getNotificationsEnabled() === true;
+  let lastRegistrationError = null;
 
   async function registerCurrentToken() {
+    if (!isPushContextSupported()) {
+      lastRegistrationError = {
+        reason: 'ios-requires-home-screen',
+        message: 'iOS web push requires the app to be installed from Safari to the Home Screen.'
+      };
+      return { status: 'unsupported', ...lastRegistrationError };
+    }
     if (!configuredVapidKey) return { status: 'unsupported', reason: 'missing-vapid-key' };
     const registration = await getMessagingRegistration();
     if (!registration) return { status: 'unsupported', reason: 'missing-service-worker' };
-    const token = await getToken({
-      vapidKey: configuredVapidKey,
-      serviceWorkerRegistration: registration
-    });
+    let token;
+    try {
+      token = await getToken({
+        vapidKey: configuredVapidKey,
+        serviceWorkerRegistration: registration
+      });
+    } catch (error) {
+      lastRegistrationError = {
+        reason: error?.code || 'token-registration-failed',
+        message: error?.message || 'Could not create an FCM token for this browser.'
+      };
+      return { status: 'no-token', ...lastRegistrationError };
+    }
     if (!token) return { status: 'no-token', reason: 'no-token' };
     const deviceId = getDeviceId();
     const response = await call('registerFcmToken', {
@@ -104,6 +130,7 @@ export function createNotificationClient({
       permission: getPermission(),
       userAgent
     });
+    lastRegistrationError = null;
     return {
       status: 'registered',
       tokenFingerprint: response?.tokenFingerprint || formatTokenFingerprint(token),
@@ -125,10 +152,12 @@ export function createNotificationClient({
   return {
     getStatus() {
       const permission = getPermission();
+      const contextSupported = isPushContextSupported();
       return {
-        permission,
-        supported: permission !== 'unsupported',
-        enabled: localEnabled ?? permission === 'granted'
+        permission: contextSupported ? permission : 'unsupported',
+        supported: permission !== 'unsupported' && contextSupported,
+        enabled: localEnabled,
+        registrationError: lastRegistrationError
       };
     },
     async enable() {

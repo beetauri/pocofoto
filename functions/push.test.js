@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -41,6 +42,13 @@ test('duplicate token values target one device response slot', () => {
 test('test cooldown applies across both diagnostic actions', () => {
   assert.throws(() => enforceTestCooldown({ lastTestAtMs: 1000, nowMs: 9000, cooldownMs: 10000 }), /2000/);
   assert.doesNotThrow(() => enforceTestCooldown({ lastTestAtMs: 1000, nowMs: 11000, cooldownMs: 10000 }));
+});
+
+test('this-device diagnostics do not consume cooldown when no token exists', () => {
+  const source = readFileSync(new URL('./index.js', import.meta.url), 'utf8');
+  const functionBody = source.match(/export const sendTestPushToThisDevice = onCall[\s\S]*?export const getNotificationDiagnostics/)[0];
+
+  assert.ok(functionBody.indexOf('db.doc(`users/${uid}/fcmTokens/${deviceId}`).get()') < functionBody.indexOf('enforceAndRecordTestCooldown(uid)'));
 });
 
 test('token fingerprints are stable and do not expose the token', () => {
