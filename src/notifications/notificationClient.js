@@ -173,6 +173,16 @@ export function createNotificationClient({
       }
       return result;
     },
+    async registerDevice() {
+      const permission = getPermission();
+      if (permission !== 'granted') return { status: permission };
+      const result = await registerCurrentToken();
+      if (result.status === 'registered') {
+        localEnabled = true;
+        setNotificationsEnabled(true);
+      }
+      return result;
+    },
     async removeCurrentRegistration() {
       return removeCurrentRegistration();
     },

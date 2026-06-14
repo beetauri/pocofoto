@@ -78,6 +78,18 @@ export function useNotifications({
     }
   }, [client, refreshDiagnostics]);
 
+  const registerDevice = useCallback(async () => {
+    setBusy(true);
+    try {
+      const result = await client.registerDevice();
+      setStatus(client.getStatus());
+      if (result?.status === 'registered') await refreshDiagnostics().catch(() => null);
+      return result;
+    } finally {
+      setBusy(false);
+    }
+  }, [client, refreshDiagnostics]);
+
   const disable = useCallback(async () => {
     setBusy(true);
     try {
@@ -139,6 +151,7 @@ export function useNotifications({
     showPrompt,
     busy,
     enable,
+    registerDevice,
     disable,
     dismissPrompt,
     cleanupBeforeLogout,
@@ -155,6 +168,7 @@ export function useNotifications({
     showPrompt,
     busy,
     enable,
+    registerDevice,
     disable,
     dismissPrompt,
     cleanupBeforeLogout,

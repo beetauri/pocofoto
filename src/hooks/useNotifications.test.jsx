@@ -10,6 +10,7 @@ function noopClient(overrides = {}) {
     getStatus: vi.fn(() => ({ permission: 'default', enabled: false, supported: true })),
     syncGrantedPermission: vi.fn().mockResolvedValue({ status: 'default' }),
     enable: vi.fn().mockResolvedValue({ status: 'registered' }),
+    registerDevice: vi.fn().mockResolvedValue({ status: 'registered' }),
     disable: vi.fn().mockResolvedValue({ status: 'disabled' }),
     cleanupBeforeLogout: vi.fn().mockResolvedValue({ status: 'disabled' }),
     getDiagnostics: vi.fn().mockResolvedValue({}),
@@ -100,5 +101,49 @@ describe('useNotifications', () => {
     act(() => result.current.handleForegroundMessage({ data: { eventId: 'e1', body: 'New photo' } }));
 
     expect(result.current.foregroundMessage).toBe('');
+  });
+
+  it('registers a device without refreshing diagnostics when token registration fails', async () => {
+    const client = noopClient({
+      registerDevice: vi.fn().mockResolvedValue({ status: 'no-token', reason: 'messaging/unsupported-browser' }),
+      getDiagnostics: vi.fn().mockResolvedValue({ tokenFingerprint: 'should-not-load' })
+    });
+    const store = { isPromptDismissed: vi.fn(() => false), dismissPrompt: vi.fn(), rememberEvent: vi.fn(() => true) };
+    const { result } = renderHook(() => useNotifications({
+      user,
+      paired: true,
+      online: true,
+      client,
+      store
+    }));
+
+    await act(async () => {
+      await result.current.registerDevice();
+    });
+
+    expect(client.registerDevice).toHaveBeenCalledOnce();
+    expect(client.getDiagnostics).not.toHaveBeenCalled();
+  });
+
+  it('refreshes diagnostics after successful explicit device registration', async () => {
+    const client = noopClient({
+      registerDevice: vi.fn().mockResolvedValue({ status: 'registered' }),
+      getDiagnostics: vi.fn().mockResolvedValue({ tokenFingerprint: 'fp-token' })
+    });
+    const store = { isPromptDismissed: vi.fn(() => false), dismissPrompt: vi.fn(), rememberEvent: vi.fn(() => true) };
+    const { result } = renderHook(() => useNotifications({
+      user,
+      paired: true,
+      online: true,
+      client,
+      store
+    }));
+
+    await act(async () => {
+      await result.current.registerDevice();
+    });
+
+    expect(client.registerDevice).toHaveBeenCalledOnce();
+    expect(client.getDiagnostics).toHaveBeenCalledOnce();
   });
 });

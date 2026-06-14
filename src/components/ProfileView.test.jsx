@@ -140,6 +140,7 @@ describe('ProfileView', () => {
       busy: false,
       cooldownUntil: 0,
       enable: vi.fn(),
+      registerDevice: vi.fn(),
       disable: vi.fn(),
       refreshDiagnostics: vi.fn(),
       testThisDevice: vi.fn(),
@@ -151,9 +152,12 @@ describe('ProfileView', () => {
     expect(screen.getByText('Notification diagnostics')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Notification diagnostics' }));
+    await user.click(screen.getByRole('button', { name: 'Register this device' }));
     await user.click(screen.getByRole('button', { name: 'Test this device' }));
     await user.click(screen.getByRole('button', { name: "Test partner's devices" }));
 
+    expect(notificationControls.registerDevice).toHaveBeenCalledTimes(1);
+    expect(notificationControls.enable).not.toHaveBeenCalled();
     expect(notificationControls.testThisDevice).toHaveBeenCalledTimes(1);
     expect(notificationControls.testPartnerDevices).toHaveBeenCalledTimes(1);
   });

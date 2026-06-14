@@ -98,6 +98,30 @@ test('enable requests permission only from the explicit action', async () => {
   assert.equal(requests, 1);
 });
 
+test('explicit registerDevice calls registerFcmToken when permission is already granted', async () => {
+  const calls = [];
+  const client = createNotificationClient({
+    notificationApi: { permission: 'granted', requestPermission: async () => 'denied' },
+    getDeviceId: () => 'device-1',
+    getMessagingRegistration: async () => ({ active: {} }),
+    getToken: async () => 'token-1',
+    deleteToken: async () => true,
+    call: async (name, data) => {
+      calls.push({ name, data });
+      return { ok: true, tokenFingerprint: 'fp-token-1' };
+    },
+    vapidKey: 'vapid',
+    userAgent: 'Test Browser'
+  });
+
+  const result = await client.registerDevice();
+
+  assert.equal(result.status, 'registered');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].name, 'registerFcmToken');
+  assert.equal(calls[0].data.token, 'token-1');
+});
+
 test('disable removes server registration even if local token deletion fails', async () => {
   const calls = [];
   let preference = null;
