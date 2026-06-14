@@ -2,6 +2,19 @@ import admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import {
+  createLikeReceivedEvent,
+  createPairingAcceptedEvent,
+  createPairingRemovedEvent,
+  createPairingRequestEvent,
+  createPhotoReceivedEvent,
+  enforceTestCooldown,
+  expireStaleRegistrations,
+  getNotificationDiagnostics as loadNotificationDiagnostics,
+  registerDeviceToken,
+  removeDeviceToken,
+  sendPushToUser
+} from './push.js';
 
 admin.initializeApp();
 
@@ -56,95 +69,30 @@ function displaySnapshot(user) {
   };
 }
 
-function summarizeUserAgent(userAgent = '') {
-  return String(userAgent).slice(0, 180);
+function nowTimestamp() {
+  return Timestamp.now();
 }
 
-async function deleteStaleFcmTokens(tokenDocs, responses) {
-  const staleDeletes = [];
-  responses.forEach((result, index) => {
-    if (!result.success && [
-      'messaging/registration-token-not-registered',
-      'messaging/invalid-registration-token'
-    ].includes(result.error?.code)) {
-      staleDeletes.push(tokenDocs[index].ref.delete());
-    }
-  });
-  await Promise.all(staleDeletes);
-  return staleDeletes.length;
-}
-
-function summarizePushFailures(responses) {
-  const failureDetails = responses
-    .map((result, index) => result.success ? null : {
-      tokenIndex: index,
-      code: result.error?.code || 'unknown',
-      message: result.error?.message || ''
-    })
-    .filter(Boolean);
-  const failureCodes = [...new Set(failureDetails.map((failure) => failure.code))];
-  return { failureDetails, failureCodes };
-}
-
-async function sendMulticastToUser(uid, message, context = {}) {
-  console.log('push_send_started', {
-    ...context,
-    recipientId: uid
-  });
-  const tokensSnap = await db.collection(`users/${uid}/fcmTokens`).get();
-  const tokenDocs = tokensSnap.docs.filter((doc) => doc.data().token);
-  const tokens = tokenDocs.map((doc) => doc.data().token);
-  console.log('push_send_tokens_loaded', {
-    ...context,
-    recipientId: uid,
-    tokenCount: tokens.length
-  });
-  if (tokens.length === 0) {
-    console.log('push_send_completed', {
-      ...context,
-      recipientId: uid,
-      tokenCount: 0,
-      successCount: 0,
-      failureCount: 0,
-      staleDeletedCount: 0,
-      failureCodes: []
-    });
-    return { tokenCount: 0, successCount: 0, failureCount: 0, staleDeletedCount: 0, failureCodes: [] };
+function toHttpsError(error) {
+  if (error instanceof HttpsError) return error;
+  if (error?.code === 'resource-exhausted') {
+    return new HttpsError('resource-exhausted', error.message, { retryAfterSeconds: error.retryAfterSeconds || 10 });
   }
+  return new HttpsError('internal', error?.message || 'Push notification failed.');
+}
 
+async function sendEventBestEffort(recipientId, event, context = {}) {
   try {
-    const response = await messaging.sendEachForMulticast({
-      tokens,
-      ...message
-    });
-    const { failureDetails, failureCodes } = summarizePushFailures(response.responses);
-    const staleDeletedCount = await deleteStaleFcmTokens(tokenDocs, response.responses);
-    console.log('push_send_completed', {
+    return await sendPushToUser({ db, messaging, uid: recipientId, event, context, now: nowTimestamp });
+  } catch (error) {
+    console.error('push_send_best_effort_failed', {
       ...context,
-      recipientId: uid,
-      tokenCount: tokens.length,
-      successCount: response.successCount,
-      failureCount: response.failureCount,
-      staleDeletedCount,
-      failureCodes,
-      failureDetails
+      eventId: event.eventId,
+      recipientId,
+      code: error?.code || 'unknown',
+      message: error?.message || ''
     });
-    return {
-      tokenCount: tokens.length,
-      successCount: response.successCount,
-      failureCount: response.failureCount,
-      staleDeletedCount,
-      failureCodes
-    };
-  } catch (err) {
-    console.error('push_send_failed', {
-      ...context,
-      recipientId: uid,
-      tokenCount: tokens.length,
-      code: err?.code || 'unknown',
-      message: err?.message || ''
-    });
-    throw err;
+    return { outcome: 'failed', tokenCount: 0, successCount: 0, failureCount: 0, staleDeletedCount: 0, failureCodes: [error?.code || 'unknown'] };
   }
 }
 
@@ -297,22 +245,8 @@ export const notifyPhotoReceived = onDocumentCreated('couples/{coupleId}/photos/
   const sender = senderSnap.exists ? { id: senderId, ...senderSnap.data() } : { id: senderId };
   const senderName = sender.displayName || sender.email || 'Your person';
 
-  const sendResult = await sendMulticastToUser(recipientId, {
-    notification: {
-      title: "You've got a new photo!",
-      body: `${senderName} sent you a photo.`
-    },
-    webpush: {
-      fcmOptions: {
-        link: '/'
-      }
-    },
-    data: {
-      type: 'photo_received',
-      coupleId,
-      photoId
-    }
-  }, {
+  const pushEvent = createPhotoReceivedEvent({ photoId, coupleId, senderName });
+  const sendResult = await sendEventBestEffort(recipientId, pushEvent, {
     notificationType: 'photo_received',
     coupleId,
     photoId,
@@ -382,23 +316,8 @@ export const notifyPhotoLiked = onDocumentUpdated('couples/{coupleId}', async (e
   const liker = likerSnap.exists ? { id: likerId, ...likerSnap.data() } : { id: likerId };
   const likerName = liker.displayName || liker.email || 'Your person';
 
-  const sendResult = await sendMulticastToUser(recipientId, {
-    notification: {
-      title: 'Your photo got a like!',
-      body: `${likerName} liked your photo.`
-    },
-    webpush: {
-      fcmOptions: {
-        link: '/'
-      }
-    },
-    data: {
-      type: 'like_received',
-      coupleId,
-      photoId,
-      likerId
-    }
-  }, {
+  const pushEvent = createLikeReceivedEvent({ photoId, coupleId, likerId, likeTimestamp, senderName: likerName });
+  const sendResult = await sendEventBestEffort(recipientId, pushEvent, {
     notificationType: 'like_received',
     coupleId,
     photoId,
@@ -461,69 +380,154 @@ export const removePairing = onCall(async (request) => {
   await invalidateActiveCodesForUsers([uid, ...partnerIds], 'canceled');
 
   const initiator = displaySnapshot(user);
-  await Promise.all(partnerIds.map((partnerId) => {
-    return db.collection(`users/${partnerId}/notifications`).add({
+  await Promise.all(partnerIds.map(async (partnerId) => {
+    const notificationRef = await db.collection(`users/${partnerId}/notifications`).add({
       type: 'pairing_removed',
       status: 'unread',
       coupleId,
       initiator,
       createdAt: FieldValue.serverTimestamp()
     });
+    await sendEventBestEffort(partnerId, createPairingRemovedEvent({
+      coupleId,
+      removalId: notificationRef.id,
+      senderName: initiator.displayName
+    }), {
+      notificationType: 'pairing_removed',
+      coupleId,
+      senderId: uid
+    });
   }));
 
   return { ok: true, coupleId };
 });
 
-export const sendTestPushNotification = onCall(async (request) => {
-  const senderId = requireUid(request);
-  const sender = await getUser(senderId);
-  const coupleId = sender.coupleId;
+async function getPartnerIdForUser(uid) {
+  const user = await getUser(uid);
+  const coupleId = user.coupleId;
   if (!coupleId || typeof coupleId !== 'string') {
     throw new HttpsError('failed-precondition', 'You are not currently paired.');
   }
-
   const coupleSnap = await db.doc(`couples/${coupleId}`).get();
-  if (!coupleSnap.exists) {
-    throw new HttpsError('not-found', 'Pairing record not found.');
-  }
-
+  if (!coupleSnap.exists) throw new HttpsError('not-found', 'Pairing record not found.');
   const users = Array.isArray(coupleSnap.data().users) ? coupleSnap.data().users : [];
-  if (!users.includes(senderId)) {
-    throw new HttpsError('permission-denied', 'You are not a member of this pairing.');
-  }
-  const recipientId = users.find((uid) => uid !== senderId);
-  if (!recipientId) {
-    throw new HttpsError('failed-precondition', 'Paired user not found.');
-  }
+  if (!users.includes(uid)) throw new HttpsError('permission-denied', 'You are not a member of this pairing.');
+  const partnerId = users.find((memberUid) => memberUid !== uid);
+  if (!partnerId) throw new HttpsError('failed-precondition', 'Paired user not found.');
+  return { user, coupleId, partnerId };
+}
 
-  const senderName = sender.displayName || sender.email || 'Your person';
-  const context = {
-    notificationType: 'debug_test',
-    coupleId,
-    senderId
-  };
-  const sendResult = await sendMulticastToUser(recipientId, {
-    notification: {
-      title: 'Debug push from Pocofoto',
-      body: `${senderName} sent a test notification.`
-    },
-    webpush: {
-      fcmOptions: {
-        link: '/'
-      }
-    },
-    data: {
+async function enforceAndRecordTestCooldown(uid) {
+  const ref = db.doc(`users/${uid}/private/notificationDiagnostics`);
+  const snap = await ref.get();
+  enforceTestCooldown({
+    lastTestAtMs: snap.exists ? (snap.data().lastTestPushAt?.toMillis?.() || 0) : 0,
+    nowMs: Date.now(),
+    cooldownMs: 10000
+  });
+  await ref.set({ lastTestPushAt: FieldValue.serverTimestamp() }, { merge: true });
+}
+
+export const sendTestPushToPartnerDevices = onCall(async (request) => {
+  const senderId = requireUid(request);
+  try {
+    await enforceAndRecordTestCooldown(senderId);
+    const { user, coupleId, partnerId } = await getPartnerIdForUser(senderId);
+    const senderName = user.displayName || user.email || 'Your person';
+    const event = {
+      eventId: `debug_partner:${senderId}:${Date.now()}`,
       type: 'debug_test',
-      coupleId,
-      senderId
-    }
-  }, context);
+      title: 'Debug push from Pocofoto',
+      body: `${senderName} sent a test notification.`,
+      data: { coupleId, senderId },
+      link: '/',
+      ttlSeconds: 300
+    };
+    const sendResult = await sendPushToUser({ db, messaging, uid: partnerId, event, context: { notificationType: 'debug_test', coupleId, senderId }, now: nowTimestamp });
+    return { ok: sendResult.outcome === 'sent', recipientId: partnerId, ...sendResult };
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
 
-  return {
-    ok: true,
-    recipientId,
-    ...sendResult
-  };
+export const sendTestPushNotification = sendTestPushToPartnerDevices;
+
+export const sendTestPushToThisDevice = onCall(async (request) => {
+  const uid = requireUid(request);
+  const deviceId = request.data?.deviceId;
+  if (!deviceId || typeof deviceId !== 'string') throw new HttpsError('invalid-argument', 'Device ID is required.');
+  try {
+    await enforceAndRecordTestCooldown(uid);
+    const snap = await db.doc(`users/${uid}/fcmTokens/${deviceId}`).get();
+    if (!snap.exists || snap.data().enabled === false) {
+      return { ok: false, outcome: 'no_registered_devices', tokenCount: 0, successCount: 0, failureCount: 0, staleDeletedCount: 0, failureCodes: [] };
+    }
+    const event = {
+      eventId: `debug_device:${uid}:${deviceId}:${Date.now()}`,
+      type: 'debug_test',
+      title: 'Debug push from Pocofoto',
+      body: 'This device is registered for Pocofoto notifications.',
+      data: { deviceId },
+      link: '/',
+      ttlSeconds: 300
+    };
+    const data = Object.fromEntries(Object.entries({
+      ...event.data,
+      eventId: event.eventId,
+      type: event.type,
+      title: event.title,
+      body: event.body,
+      link: event.link
+    }).map(([key, value]) => [key, String(value)]));
+    const response = await messaging.sendEachForMulticast({
+      tokens: [snap.data().token],
+      data,
+      webpush: { headers: { TTL: '300' }, fcmOptions: { link: '/' } }
+    });
+    return {
+      ok: response.successCount > 0,
+      outcome: response.successCount > 0 ? 'sent' : 'failed',
+      tokenCount: 1,
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      staleDeletedCount: 0,
+      failureCodes: response.responses.filter((item) => !item.success).map((item) => item.error?.code || 'unknown')
+    };
+  } catch (error) {
+    throw toHttpsError(error);
+  }
+});
+
+export const getNotificationDiagnostics = onCall(async (request) => {
+  const uid = requireUid(request);
+  const deviceId = request.data?.deviceId;
+  if (!deviceId || typeof deviceId !== 'string') throw new HttpsError('invalid-argument', 'Device ID is required.');
+  const partnerId = await getPartnerIdForUser(uid).then((result) => result.partnerId).catch(() => null);
+  return loadNotificationDiagnostics({ db, uid, deviceId, partnerId, now: nowTimestamp });
+});
+
+export const registerFcmToken = onCall(async (request) => {
+  const uid = requireUid(request);
+  const { token, deviceId, permission, userAgent } = request.data || {};
+  if (!token || typeof token !== 'string') throw new HttpsError('invalid-argument', 'FCM token is required.');
+  if (!deviceId || typeof deviceId !== 'string') throw new HttpsError('invalid-argument', 'Device ID is required.');
+  console.log('fcm_token_registration_started', { uid, deviceIdLength: deviceId.length });
+  const result = await registerDeviceToken({ db, uid, token, deviceId, permission, userAgent, now: nowTimestamp });
+  console.log('fcm_token_registration_completed', { uid, deviceId, tokenFingerprint: result.tokenFingerprint });
+  return result;
+});
+
+export const removeFcmToken = onCall(async (request) => {
+  const uid = requireUid(request);
+  const deviceId = request.data?.deviceId;
+  if (!deviceId || typeof deviceId !== 'string') throw new HttpsError('invalid-argument', 'Device ID is required.');
+  return removeDeviceToken({ db, uid, deviceId });
+});
+
+export const expireFcmTokens = onSchedule('every 24 hours', async () => {
+  const result = await expireStaleRegistrations({ db, now: nowTimestamp, maxAgeDays: 60 });
+  console.log('fcm_token_expiry_completed', result);
+  return result;
 });
 
 export const acceptPairingRequest = onCall(async (request) => {
@@ -556,6 +560,16 @@ export const acceptPairingRequest = onCall(async (request) => {
     status: 'resolved',
     resolvedAt: FieldValue.serverTimestamp()
   }, { merge: true });
+
+  const accepter = await getUser(uid);
+  await sendEventBestEffort(data.senderId, createPairingAcceptedEvent({
+    requestId,
+    senderName: accepter.displayName || accepter.email || 'Your person'
+  }), {
+    notificationType: 'pairing_accepted',
+    coupleId,
+    senderId: uid
+  });
 
   return { coupleId };
 });
@@ -664,47 +678,31 @@ export const redeemPairingCode = onCall(async (request) => {
     coupleId,
     resolvedAt: FieldValue.serverTimestamp()
   });
+  const redeemerUser = await getUser(uid);
+  await sendEventBestEffort(codeData.creatorId, createPairingAcceptedEvent({
+    requestId: `code:${code}`,
+    senderName: redeemerUser.displayName || redeemerUser.email || 'Your person'
+  }), {
+    notificationType: 'pairing_accepted',
+    coupleId,
+    senderId: uid
+  });
   return { coupleId };
 });
 
-export const registerFcmToken = onCall(async (request) => {
-  const uid = requireUid(request);
-  const token = request.data?.token;
-  if (!token || typeof token !== 'string') {
-    console.log('fcm_token_registration_rejected', {
-      uid,
-      reason: 'missing_token'
-    });
-    throw new HttpsError('invalid-argument', 'FCM token is required.');
-  }
-  const tokenId = encodeURIComponent(token).replace(/\./g, '%2E').slice(0, 1400);
-  console.log('fcm_token_registration_started', {
-    uid,
-    tokenIdLength: tokenId.length,
-    userAgent: summarizeUserAgent(request.data?.userAgent || '')
+export const notifyPairingRequest = onDocumentCreated('pairingRequests/{requestId}', async (event) => {
+  const requestData = event.data?.data();
+  const { requestId } = event.params;
+  if (!requestData || requestData.status !== 'pending' || !requestData.senderId || !requestData.recipientId) return;
+  const sender = requestData.sender || await getUser(requestData.senderId).catch(() => ({ displayName: 'Your person' }));
+  await sendEventBestEffort(requestData.recipientId, createPairingRequestEvent({
+    requestId,
+    senderName: sender.displayName || sender.email || 'Your person'
+  }), {
+    notificationType: 'pairing_request',
+    requestId,
+    senderId: requestData.senderId
   });
-  await db.doc(`users/${uid}/fcmTokens/${tokenId}`).set({
-    token,
-    userAgent: request.data?.userAgent || '',
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp()
-  }, { merge: true });
-  console.log('fcm_token_registration_completed', {
-    uid,
-    tokenIdLength: tokenId.length
-  });
-  return { ok: true };
-});
-
-export const removeFcmToken = onCall(async (request) => {
-  const uid = requireUid(request);
-  const token = request.data?.token;
-  if (!token || typeof token !== 'string') {
-    throw new HttpsError('invalid-argument', 'FCM token is required.');
-  }
-  const tokenId = encodeURIComponent(token).replace(/\./g, '%2E').slice(0, 1400);
-  await db.doc(`users/${uid}/fcmTokens/${tokenId}`).delete();
-  return { ok: true };
 });
 
 export const expirePairingArtifacts = onSchedule('every 15 minutes', async () => {

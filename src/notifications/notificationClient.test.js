@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createNotificationClient, formatTokenFingerprint } from './notificationClient.js';
+import {
+  createNotificationClient,
+  formatTokenFingerprint,
+  readNotificationIntent
+} from './notificationClient.js';
 
 test('granted startup registers current token without requesting permission', async () => {
   const calls = [];
@@ -60,9 +64,14 @@ test('enable requests permission only from the explicit action', async () => {
 
 test('disable removes server registration even if local token deletion fails', async () => {
   const calls = [];
+  let preference = null;
   const client = createNotificationClient({
     notificationApi: { permission: 'granted' },
     getDeviceId: () => 'device-1',
+    getNotificationsEnabled: () => preference,
+    setNotificationsEnabled: (enabled) => {
+      preference = enabled;
+    },
     getMessagingRegistration: async () => ({}),
     getToken: async () => 'token-1',
     deleteToken: async () => {
@@ -78,8 +87,57 @@ test('disable removes server registration even if local token deletion fails', a
   const result = await client.disable();
 
   assert.equal(result.status, 'disabled');
+  assert.equal(client.getStatus().enabled, false);
+  assert.equal(preference, false);
   assert.equal(calls.at(-1).name, 'removeFcmToken');
   assert.deepEqual(calls.at(-1).data, { deviceId: 'device-1' });
+});
+
+test('startup sync respects a stored current-device opt-out', async () => {
+  const calls = [];
+  const client = createNotificationClient({
+    notificationApi: { permission: 'granted' },
+    getDeviceId: () => 'device-1',
+    getNotificationsEnabled: () => false,
+    setNotificationsEnabled: () => {},
+    getMessagingRegistration: async () => ({}),
+    getToken: async () => 'token-1',
+    deleteToken: async () => true,
+    call: async (name, data) => {
+      calls.push({ name, data });
+      return { ok: true };
+    },
+    vapidKey: 'vapid'
+  });
+
+  assert.equal(client.getStatus().enabled, false);
+  assert.equal((await client.syncGrantedPermission()).status, 'disabled');
+  assert.deepEqual(calls, []);
+});
+
+test('logout cleanup removes registration without persisting a disabled preference', async () => {
+  const calls = [];
+  let preference = true;
+  const client = createNotificationClient({
+    notificationApi: { permission: 'granted' },
+    getDeviceId: () => 'device-1',
+    getNotificationsEnabled: () => preference,
+    setNotificationsEnabled: (enabled) => {
+      preference = enabled;
+    },
+    getMessagingRegistration: async () => ({}),
+    getToken: async () => 'token-1',
+    deleteToken: async () => true,
+    call: async (name, data) => {
+      calls.push({ name, data });
+      return { ok: true };
+    },
+    vapidKey: 'vapid'
+  });
+
+  assert.equal((await client.cleanupBeforeLogout()).status, 'removed');
+  assert.equal(preference, true);
+  assert.equal(calls.at(-1).name, 'removeFcmToken');
 });
 
 test('diagnostics and token fingerprints never expose raw tokens', async () => {
@@ -100,4 +158,13 @@ test('diagnostics and token fingerprints never expose raw tokens', async () => {
   assert.equal(diagnostics.deviceId, 'device-1');
   assert.equal(diagnostics.workerState, 'activated');
   assert.equal(diagnostics.tokenFingerprint.includes('secret-token-value'), false);
+});
+
+test('notification click search params become app intents', () => {
+  assert.deepEqual(readNotificationIntent('?notification=photo&photoId=photo-1'), {
+    type: 'photo',
+    photoId: 'photo-1'
+  });
+  assert.deepEqual(readNotificationIntent('?pairing=requests'), { type: 'pairing' });
+  assert.equal(readNotificationIntent('?notification=photo'), null);
 });

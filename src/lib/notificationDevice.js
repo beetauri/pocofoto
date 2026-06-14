@@ -1,6 +1,7 @@
 const DEVICE_ID_KEY = 'pocofoto:notifications:device-id';
 const DISMISS_PREFIX = 'pocofoto:notifications:prompt-dismissed:';
 const RECENT_EVENTS_KEY = 'pocofoto:notifications:recent-events';
+const DEVICE_ENABLED_KEY = 'pocofoto:notifications:device-enabled';
 
 function browserStorage() {
   return typeof window !== 'undefined' ? window.localStorage : null;
@@ -61,6 +62,14 @@ export function createNotificationDeviceStore({
     },
     isPromptDismissed(uid) {
       return Boolean(storage.getItem(`${DISMISS_PREFIX}${uid}`));
+    },
+    setNotificationsEnabled(enabled) {
+      storage.setItem(DEVICE_ENABLED_KEY, enabled ? 'true' : 'false');
+    },
+    getNotificationsEnabled() {
+      const value = storage.getItem(DEVICE_ENABLED_KEY);
+      if (value === null) return null;
+      return value === 'true';
     },
     hasSeenEvent(eventId) {
       return readRecent().some((event) => event.id === eventId);

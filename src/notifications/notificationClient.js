@@ -12,6 +12,36 @@ export function formatTokenFingerprint(token) {
   return `fp-${Math.abs(hash).toString(36).padStart(6, '0').slice(0, 10)}`;
 }
 
+export function readNotificationIntent(search = (typeof window !== 'undefined' ? window.location.search : '')) {
+  const params = new URLSearchParams(search || '');
+  if (params.get('notification') === 'photo' && params.get('photoId')) {
+    return {
+      type: 'photo',
+      photoId: params.get('photoId')
+    };
+  }
+  if (params.get('pairing') === 'requests') {
+    return {
+      type: 'pairing'
+    };
+  }
+  return null;
+}
+
+export function clearNotificationIntent({
+  history = typeof window !== 'undefined' ? window.history : null,
+  location = typeof window !== 'undefined' ? window.location : null
+} = {}) {
+  if (!history?.replaceState || !location) return;
+  const params = new URLSearchParams(location.search || '');
+  params.delete('notification');
+  params.delete('photoId');
+  params.delete('pairing');
+  const nextSearch = params.toString();
+  const nextUrl = `${location.pathname}${nextSearch ? `?${nextSearch}` : ''}${location.hash || ''}`;
+  history.replaceState(history.state, '', nextUrl);
+}
+
 function userAgentSummary() {
   return typeof navigator === 'undefined' ? '' : navigator.userAgent;
 }
@@ -43,6 +73,8 @@ function currentNotificationApi() {
 export function createNotificationClient({
   notificationApi = currentNotificationApi(),
   getDeviceId = () => notificationDeviceStore.getDeviceId(),
+  getNotificationsEnabled = () => notificationDeviceStore.getNotificationsEnabled(),
+  setNotificationsEnabled = (enabled) => notificationDeviceStore.setNotificationsEnabled(enabled),
   getMessagingRegistration = defaultMessagingRegistration,
   getToken = defaultGetToken,
   deleteToken = defaultDeleteToken,
@@ -51,6 +83,7 @@ export function createNotificationClient({
   vapidKey: configuredVapidKey = vapidKey
 } = {}) {
   const getPermission = () => notificationPermissionState(notificationApi);
+  let localEnabled = getNotificationsEnabled();
 
   async function registerCurrentToken() {
     if (!configuredVapidKey) return { status: 'unsupported', reason: 'missing-vapid-key' };
@@ -75,12 +108,24 @@ export function createNotificationClient({
     };
   }
 
+  async function removeCurrentRegistration() {
+    const deviceId = getDeviceId();
+    try {
+      await deleteToken();
+    } catch {
+      // Server cleanup still owns the user-visible remove result.
+    }
+    await call('removeFcmToken', { deviceId });
+    return { status: 'removed', deviceId };
+  }
+
   return {
     getStatus() {
+      const permission = getPermission();
       return {
-        permission: getPermission(),
-        supported: getPermission() !== 'unsupported',
-        enabled: getPermission() === 'granted'
+        permission,
+        supported: permission !== 'unsupported',
+        enabled: localEnabled ?? permission === 'granted'
       };
     },
     async enable() {
@@ -89,25 +134,38 @@ export function createNotificationClient({
         ? 'granted'
         : await notificationApi.requestPermission();
       if (permission !== 'granted') return { status: permission };
-      return registerCurrentToken();
+      const result = await registerCurrentToken();
+      if (result.status === 'registered') {
+        localEnabled = true;
+        setNotificationsEnabled(true);
+      }
+      return result;
+    },
+    async removeCurrentRegistration() {
+      return removeCurrentRegistration();
     },
     async disable() {
-      const deviceId = getDeviceId();
-      try {
-        await deleteToken();
-      } catch {
-        // Server cleanup still owns the user-visible disable result.
-      }
-      await call('removeFcmToken', { deviceId });
-      return { status: 'disabled', deviceId };
+      const result = await removeCurrentRegistration();
+      localEnabled = false;
+      setNotificationsEnabled(false);
+      return { status: 'disabled', deviceId: result.deviceId };
     },
     async syncGrantedPermission() {
       const permission = getPermission();
       if (permission !== 'granted') return { status: permission };
-      return registerCurrentToken();
+      if (getNotificationsEnabled() === false) {
+        localEnabled = false;
+        return { status: 'disabled' };
+      }
+      const result = await registerCurrentToken();
+      if (result.status === 'registered') {
+        localEnabled = true;
+        setNotificationsEnabled(true);
+      }
+      return result;
     },
     async cleanupBeforeLogout() {
-      return this.disable();
+      return removeCurrentRegistration();
     },
     async getDiagnostics() {
       const deviceId = getDeviceId();

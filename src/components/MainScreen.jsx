@@ -176,7 +176,15 @@ function PhotoLoadMoreSentinel({ rootRef, hasMore, loading, error, onLoadMore })
   );
 }
 
-export default function MainScreen({ user, coupleId, isOnline = true, onPairingRemoved, notificationControls = null }) {
+export default function MainScreen({
+  user,
+  coupleId,
+  isOnline = true,
+  onPairingRemoved,
+  notificationControls = null,
+  notificationIntent = null,
+  onNotificationIntentConsumed = null
+}) {
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState('');
@@ -472,11 +480,11 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
   }, [coupleData?.users]);
 
   useLayoutEffect(() => {
-    if (!pendingScrollPhotoId || photos.length === 0 || activeView === 'home') return;
+    if (!pendingScrollPhotoId || photos.length === 0) return;
 
     if (positionHistoryPhotoBeforeOpen(pendingScrollPhotoId)) {
       setPendingScrollPhotoId(null);
-      setActiveView('home');
+      if (activeView !== 'home') setActiveView('home');
     }
   }, [pendingScrollPhotoId, photos, positionHistoryPhotoBeforeOpen, activeView]);
 
@@ -820,6 +828,14 @@ export default function MainScreen({ user, coupleId, isOnline = true, onPairingR
     setMountedViews((current) => current.has(view) ? current : new Set([...current, view]));
     setActiveView(view);
   };
+
+  useEffect(() => {
+    if (notificationIntent?.type !== 'photo' || !notificationIntent.photoId) return;
+    setMountedViews((current) => current.has('home') ? current : new Set([...current, 'home']));
+    setPendingScrollPhotoId(notificationIntent.photoId);
+    setActiveView('home');
+    onNotificationIntentConsumed?.();
+  }, [notificationIntent, onNotificationIntentConsumed]);
 
   const resetSwipe = () => {
     swipeRef.current.tracking = false;
