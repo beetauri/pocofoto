@@ -20,7 +20,7 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
-    match /couples/{coupleId}/{fileName} {
+    match /couples/{coupleId}/{allPaths=**} {
       allow read: if signedIn() && currentCoupleId() == coupleId;
       allow write: if signedIn()
         && currentCoupleId() == coupleId

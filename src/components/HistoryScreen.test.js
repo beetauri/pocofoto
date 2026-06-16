@@ -16,6 +16,11 @@ test('History grid images use native loading hints', () => {
   assert.match(historyScreenSource, /<img[^>]*\sdecoding="async"/);
 });
 
+test('History grid prefers thumbnails and falls back to full photo URLs', () => {
+  assert.match(historyScreenSource, /const historyImageUrl = photo\.thumbnailUrl \|\| photo\.photoUrl;/);
+  assert.match(historyScreenSource, /src=\{historyImageUrl\}/);
+});
+
 test('History consumes shared photos without a duplicate Firestore listener', () => {
   assert.match(historyScreenSource, /photos,\s*loading,\s*hasMore,\s*loadingMore,\s*loadError,\s*onLoadMore/);
   assert.doesNotMatch(historyScreenSource, /from ['"]\.\.\/firebase['"]/);
