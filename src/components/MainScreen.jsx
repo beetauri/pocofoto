@@ -24,6 +24,11 @@ import { triggerHaptic } from '../lib/haptics';
 import { usePaginatedPhotos } from '../hooks/usePaginatedPhotos';
 import { useCamera } from '../hooks/useCamera';
 import { CAPTURE_JPEG_QUALITY, fitCaptureDimensions, getCoverCrop } from '../lib/camera';
+import {
+  createHistoryThumbnailBlob,
+  HISTORY_THUMBNAIL_EXTENSION,
+  HISTORY_THUMBNAIL_TYPE
+} from '../lib/photoThumbnails';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
@@ -544,12 +549,28 @@ export default function MainScreen({
     });
   };
 
+  const uploadHistoryThumbnail = async (blob, timestampStr) => {
+    try {
+      const thumbnailBlob = await createHistoryThumbnailBlob(blob);
+      const thumbnailPath = `couples/${coupleId}/thumbnails/${timestampStr}.${HISTORY_THUMBNAIL_EXTENSION}`;
+      const thumbnailRef = ref(storage, thumbnailPath);
+      await uploadBytes(thumbnailRef, thumbnailBlob, {
+        contentType: HISTORY_THUMBNAIL_TYPE
+      });
+      return await getDownloadURL(thumbnailRef);
+    } catch (err) {
+      console.warn('History thumbnail upload failed.', err);
+      return null;
+    }
+  };
+
   const uploadPhotoBlob = async (blob, caption = null) => {
+    const timestampStr = new Date().toISOString();
     const filename = `couples/${coupleId}/${Date.now()}.jpg`;
     const storageRef = ref(storage, filename);
     await uploadBlobWithTimeout(storageRef, blob);
     const url = await getDownloadURL(storageRef);
-    const timestampStr = new Date().toISOString();
+    const thumbnailUrl = await uploadHistoryThumbnail(blob, timestampStr);
 
     const photoPayload = {
       photoUrl: url,
@@ -557,6 +578,14 @@ export default function MainScreen({
       timestamp: timestampStr,
       liked: false
     };
+
+    if (thumbnailUrl) {
+      Object.assign(photoPayload, {
+        thumbnailUrl,
+        thumbnailSize: 256,
+        thumbnailFormat: 'webp'
+      });
+    }
 
     if (caption) {
       photoPayload.caption = caption;

@@ -1,7 +1,7 @@
 {
   "name": "pocofoto-app",
   "private": true,
-  "version": "0.2.36",
+  "version": "0.2.37",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "lint:functions": "npm --prefix functions run lint",
     "backfill:palettes": "node scripts/backfillPhotoPalettes.mjs",
+    "backfill:thumbnails": "node scripts/backfillPhotoThumbnails.mjs",
     "emulators": "sh -c 'if [ -d .firebase-emulator-data ]; then firebase emulators:start --project demo-locket-local --import .firebase-emulator-data --export-on-exit .firebase-emulator-data; else firebase emulators:start --project demo-locket-local --export-on-exit .firebase-emulator-data; fi'",
     "emulators:fresh": "firebase emulators:start --project demo-locket-local",
     "preview": "vite preview"

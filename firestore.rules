@@ -60,6 +60,28 @@ service cloud.firestore {
         || isValidPaletteV2(request.resource.data.paletteV2);
     }
 
+    function hasValidOptionalThumbnailUrl() {
+      return !('thumbnailUrl' in request.resource.data)
+        || (request.resource.data.thumbnailUrl is string
+          && request.resource.data.thumbnailUrl.matches('https://.*'));
+    }
+
+    function hasValidOptionalThumbnailSize() {
+      return !('thumbnailSize' in request.resource.data)
+        || request.resource.data.thumbnailSize == 256;
+    }
+
+    function hasValidOptionalThumbnailFormat() {
+      return !('thumbnailFormat' in request.resource.data)
+        || request.resource.data.thumbnailFormat == 'webp';
+    }
+
+    function hasValidOptionalThumbnailMetadata() {
+      return hasValidOptionalThumbnailUrl()
+        && hasValidOptionalThumbnailSize()
+        && hasValidOptionalThumbnailFormat();
+    }
+
     function onlyOwnProfileFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly([
@@ -148,7 +170,8 @@ service cloud.firestore {
         allow create: if isCoupleMember(coupleId)
           && request.resource.data.senderId == request.auth.uid
           && hasValidOptionalCaption()
-          && hasValidOptionalPaletteV2();
+          && hasValidOptionalPaletteV2()
+          && hasValidOptionalThumbnailMetadata();
         allow update: if isCoupleMember(coupleId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['liked']);
         allow delete: if false;

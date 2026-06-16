@@ -31,6 +31,66 @@
       "skillPath": "skills/finishing-a-development-branch/SKILL.md",
       "computedHash": "932d23af11a3eb2b758f5b1d9aec7b6d28ddd26658328414f87f34dff7179d19"
     },
+    "firebase-ai-logic-basics": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-ai-logic-basics/SKILL.md",
+      "computedHash": "ce0480c0dfa863050f6a08ccb3b543f298321c372422a8cfa6eb8982279029e9"
+    },
+    "firebase-app-hosting-basics": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-app-hosting-basics/SKILL.md",
+      "computedHash": "7f0e0330510b4e6b06bcede472cebb183a491b8a0098f92d7563454c40d78050"
+    },
+    "firebase-auth-basics": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-auth-basics/SKILL.md",
+      "computedHash": "0d29bda451353a92c3b6048a943a46c28cee267ec2e3b148f6207630adba3d73"
+    },
+    "firebase-basics": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-basics/SKILL.md",
+      "computedHash": "88fb9ee785fa7aaa74b2c662e53b2aca0b9ee4b67c84587ee017460f54b97471"
+    },
+    "firebase-crashlytics": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-crashlytics/SKILL.md",
+      "computedHash": "2c2b5ad36eeea0910b2e335e84d678c6af75dad3ccf73033fcb7e5a8768cabbc"
+    },
+    "firebase-data-connect": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-data-connect-basics/SKILL.md",
+      "computedHash": "2dfebf7892b9b17f8022057be93a1b3c11438f2c0ce89e9d56ef7be16b7cdecd"
+    },
+    "firebase-firestore": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-firestore/SKILL.md",
+      "computedHash": "659c60ba81cb70c41a5d6b4ca33312a8e0461468510b2214fd185af9ac925174"
+    },
+    "firebase-hosting-basics": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-hosting-basics/SKILL.md",
+      "computedHash": "fb86fd4035e8e6379931faeb443557ac6f2e43fde04b397433f287e69b6532a9"
+    },
+    "firebase-remote-config-basics": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-remote-config-basics/SKILL.md",
+      "computedHash": "855963d0c979692811c8b0ea112aba94894ca4f538934268d33e7e4665e7412b"
+    },
+    "firebase-security-rules-auditor": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-security-rules-auditor/SKILL.md",
+      "computedHash": "5a90e991bb9acfd3e43bfb570498dee60b9cef94cbb80cfb99257c7e4f61c1a0"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -48,6 +108,12 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "computedHash": "5d9444ffe5c240f2d20081c42c547112e1b8c372375a14e4c98df4d94bde11e1"
+    },
+    "pwa-expert": {
+      "source": "erichowens/some_claude_skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/pwa-expert/SKILL.md",
+      "computedHash": "c8603e4378a701df1141e3794b191f28a97ed79089a4639945844ea27506bdb4"
     },
     "receiving-code-review": {
       "source": "obra/superpowers",
@@ -72,6 +138,12 @@
       "sourceType": "github",
       "skillPath": "skills/systematic-debugging/SKILL.md",
       "computedHash": "7246fdd3a795fc3daff0af72044ca99bf836e4e6a46844742858786fdfb86488"
+    },
+    "tailwind-v4-shadcn": {
+      "source": "secondsky/claude-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/tailwind-v4-shadcn/skills/tailwind-v4-shadcn/SKILL.md",
+      "computedHash": "c2b354b64cbd922c8d93121091d079026e2c8a3ca81c07c4f31b6e738c2695f1"
     },
     "test-driven-development": {
       "source": "obra/superpowers",
@@ -120,6 +192,12 @@
       "sourceType": "github",
       "skillPath": "skills/writing-skills/SKILL.md",
       "computedHash": "b0e3065034610df41b9119445b5fd052042752bb3e598ca66aea2403a7c7685e"
+    },
+    "xcode-project-setup": {
+      "source": "firebase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/xcode-project-setup/SKILL.md",
+      "computedHash": "65fc8ef640574e34cd315cef3a2e8ea6eb2d3b29d38eba18e1e749d812215161"
     }
   }
 }
