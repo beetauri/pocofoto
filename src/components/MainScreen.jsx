@@ -6,6 +6,7 @@ import {
   LayoutGrid as LucideGridIcon,
   RefreshCw as LucideSwitchCameraIcon,
   Send as LucideSendIcon,
+  Trash2 as LucideTrashIcon,
   X as LucideXIcon,
   UserRound as LucideUserIcon,
   Zap as LucideFlashIcon
@@ -20,6 +21,23 @@ import {
   loadOfflineReviewDraft,
   saveOfflineReviewDraft
 } from '../lib/offlineReviewDraft';
+import {
+  LOCAL_PHOTO_STATUS,
+  appendLocalPhoto,
+  createLocalPhoto,
+  deleteLocalPhoto,
+  findNextUploadableLocalPhoto,
+  markLocalPhotoFailed,
+  markLocalPhotoPending,
+  markLocalPhotoUploading,
+  replaceLocalPhotoWithServerPhoto
+} from '../lib/localPhotoQueue';
+import {
+  clearLocalPhotoQueue,
+  createLocalPhotoQueueKey,
+  loadLocalPhotoQueue,
+  saveLocalPhotoQueue
+} from '../lib/localPhotoQueueStore';
 import { triggerHaptic } from '../lib/haptics';
 import { usePaginatedPhotos } from '../hooks/usePaginatedPhotos';
 import { useCamera } from '../hooks/useCamera';
@@ -107,6 +125,10 @@ function FlashIcon() {
 
 function SwitchCameraIcon() {
   return <LucideSwitchCameraIcon {...lucideIconProps} />;
+}
+
+function TrashIcon() {
+  return <LucideTrashIcon {...lucideIconProps} />;
 }
 
 function clampCaptionText(value) {
@@ -201,6 +223,9 @@ export default function MainScreen({
   const [flashEnabled, setFlashEnabled] = useState(false);
   const [reviewPhoto, setReviewPhoto] = useState(null);
   const [captionText, setCaptionText] = useState('');
+  const [localPhotos, setLocalPhotos] = useState([]);
+  const [localPhotoQueueReady, setLocalPhotoQueueReady] = useState(false);
+  const [queueUploadingPhotoId, setQueueUploadingPhotoId] = useState(null);
   const [sendingReviewPhoto, setSendingReviewPhoto] = useState(false);
   const [sendAnimationState, setSendAnimationState] = useState('idle');
   const [shutterPressed, setShutterPressed] = useState(false);
@@ -210,6 +235,8 @@ export default function MainScreen({
   const captionInputRef = useRef(null);
   const reviewPhotoUrlRef = useRef(null);
   const reviewPhotoRef = useRef(null);
+  const localPhotosRef = useRef([]);
+  const queueUploadInFlightRef = useRef(false);
   const feedRef = useRef(null);
   const cameraSlideRef = useRef(null);
   const lastPhotoTimestampRef = useRef(null);
@@ -242,6 +269,7 @@ export default function MainScreen({
   const isReviewingPhoto = Boolean(reviewPhoto);
   const activeIndex = views.indexOf(activeView);
   const reviewDraftKey = user?.uid && coupleId ? createReviewDraftKey(user.uid, coupleId) : null;
+  const localPhotoQueueKey = user?.uid && coupleId ? createLocalPhotoQueueKey(user.uid, coupleId) : null;
   const {
     photos,
     loadingPhotos,
@@ -249,8 +277,10 @@ export default function MainScreen({
     photoLoadError,
     hasMorePhotos,
     loadMorePhotos,
-    updatePhotoLocal
-  } = usePaginatedPhotos(coupleId);
+    updatePhotoLocal,
+    insertServerPhotoLocal
+  } = usePaginatedPhotos(coupleId, localPhotos);
+  const hasQueueUpload = Boolean(queueUploadingPhotoId);
 
   const showToast = useCallback((message, duration = 2500) => {
     setToast(message);
@@ -278,8 +308,7 @@ export default function MainScreen({
     onError: handleCameraError,
     onTiming: handleCameraTiming
   });
-  const captureDisabled = uploading
-    || sendingReviewPhoto
+  const captureDisabled = sendingReviewPhoto
     || sendAnimationState !== 'idle'
     || cameraBusy;
   const sendDisabled = captureDisabled || !isOnline;
@@ -300,11 +329,11 @@ export default function MainScreen({
     return true;
   }, []);
 
-  const clearReviewPhoto = useCallback(() => {
-    if (reviewPhotoUrlRef.current) {
+  const clearReviewPhoto = useCallback(({ preserveObjectUrl = false } = {}) => {
+    if (!preserveObjectUrl && reviewPhotoUrlRef.current) {
       URL.revokeObjectURL(reviewPhotoUrlRef.current);
-      reviewPhotoUrlRef.current = null;
     }
+    reviewPhotoUrlRef.current = null;
     setReviewPhoto(null);
     setCaptionText('');
     setSendingReviewPhoto(false);
@@ -343,6 +372,68 @@ export default function MainScreen({
       console.warn('Unable to clear offline review draft.', err);
     }
   }, [reviewDraftKey]);
+
+  useEffect(() => {
+    localPhotosRef.current = localPhotos;
+  }, [localPhotos]);
+
+  useEffect(() => {
+    let active = true;
+    setLocalPhotoQueueReady(false);
+
+    if (!localPhotoQueueKey) {
+      setLocalPhotos([]);
+      setLocalPhotoQueueReady(true);
+      return undefined;
+    }
+
+    loadLocalPhotoQueue(localPhotoQueueKey)
+      .then((savedPhotos) => {
+        if (!active) return;
+        if (!Array.isArray(savedPhotos)) {
+          setLocalPhotos([]);
+          return;
+        }
+        const restoredPhotos = savedPhotos.map((photo) => ({
+          ...photo,
+          photoUrl: URL.createObjectURL(photo.blob),
+          status: photo.status === LOCAL_PHOTO_STATUS.FAILED
+            ? LOCAL_PHOTO_STATUS.FAILED
+            : LOCAL_PHOTO_STATUS.PENDING
+        }));
+        setLocalPhotos(restoredPhotos);
+      })
+      .catch((err) => {
+        console.warn('Unable to restore local photo queue.', err);
+      })
+      .finally(() => {
+        if (active) setLocalPhotoQueueReady(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [localPhotoQueueKey]);
+
+  useEffect(() => {
+    if (!localPhotoQueueKey || !localPhotoQueueReady) return;
+    const persistablePhotos = localPhotos.map(({ photoUrl, ...photo }) => photo);
+    if (persistablePhotos.length === 0) {
+      clearLocalPhotoQueue(localPhotoQueueKey).catch((err) => {
+        console.warn('Unable to clear local photo queue.', err);
+      });
+      return;
+    }
+    saveLocalPhotoQueue(localPhotoQueueKey, persistablePhotos).catch((err) => {
+      console.warn('Unable to persist local photo queue.', err);
+    });
+  }, [localPhotoQueueKey, localPhotoQueueReady, localPhotos]);
+
+  useEffect(() => () => {
+    localPhotosRef.current.forEach((photo) => {
+      if (photo.photoUrl?.startsWith('blob:')) URL.revokeObjectURL(photo.photoUrl);
+    });
+  }, []);
 
   const focusCaptionInput = useCallback(() => {
     requestAnimationFrame(() => {
@@ -549,7 +640,7 @@ export default function MainScreen({
     });
   };
 
-  const uploadHistoryThumbnail = async (blob, timestampStr) => {
+  const uploadHistoryThumbnail = useCallback(async (blob, timestampStr) => {
     try {
       const thumbnailBlob = await createHistoryThumbnailBlob(blob);
       const thumbnailPath = `couples/${coupleId}/thumbnails/${timestampStr}.${HISTORY_THUMBNAIL_EXTENSION}`;
@@ -562,9 +653,9 @@ export default function MainScreen({
       console.warn('History thumbnail upload failed.', err);
       return null;
     }
-  };
+  }, [coupleId]);
 
-  const uploadPhotoBlob = async (blob, caption = null) => {
+  const uploadPhotoBlob = useCallback(async (blob, caption = null) => {
     const timestampStr = new Date().toISOString();
     const filename = `couples/${coupleId}/${Date.now()}.jpg`;
     const storageRef = ref(storage, filename);
@@ -602,7 +693,42 @@ export default function MainScreen({
 
     const createdPhotoId = photoRef?.id || photoRef?._id;
     trackEvent('photo_sent', { coupleId, photoId: createdPhotoId || null });
-  };
+
+    return {
+      id: createdPhotoId,
+      ...photoPayload
+    };
+  }, [coupleId, uploadHistoryThumbnail, user.uid]);
+
+  const processLocalPhotoQueue = useCallback(async () => {
+    if (queueUploadInFlightRef.current || !isOnline) return;
+    const nextPhoto = findNextUploadableLocalPhoto(localPhotosRef.current);
+    if (!nextPhoto) return;
+
+    queueUploadInFlightRef.current = true;
+    setQueueUploadingPhotoId(nextPhoto.id);
+    setLocalPhotos((current) => markLocalPhotoUploading(current, nextPhoto.id));
+
+    try {
+      const serverPhoto = await uploadPhotoBlob(nextPhoto.blob, nextPhoto.caption);
+      const result = replaceLocalPhotoWithServerPhoto(localPhotosRef.current, nextPhoto.id, serverPhoto);
+      if (nextPhoto.photoUrl?.startsWith('blob:')) URL.revokeObjectURL(nextPhoto.photoUrl);
+      setLocalPhotos(result.localPhotos);
+      insertServerPhotoLocal(result.serverPhoto);
+      showToast('Photo sent');
+    } catch (err) {
+      console.error(err);
+      setLocalPhotos((current) => markLocalPhotoFailed(current, nextPhoto.id, err?.message || "Couldn't send photo"));
+    } finally {
+      queueUploadInFlightRef.current = false;
+      setQueueUploadingPhotoId(null);
+    }
+  }, [insertServerPhotoLocal, isOnline, showToast, uploadPhotoBlob]);
+
+  useEffect(() => {
+    if (!localPhotoQueueReady) return;
+    processLocalPhotoQueue();
+  }, [isOnline, localPhotoQueueReady, localPhotos, processLocalPhotoQueue]);
 
   const handleCapture = async () => {
     if (captureDisabled) return;
@@ -690,7 +816,7 @@ export default function MainScreen({
     trackEvent('photo_review_dismissed', { coupleId });
   };
 
-  const handleSendReviewPhoto = async () => {
+  const handleSendReviewPhoto = () => {
     if (!reviewPhoto || sendingReviewPhoto) return;
     if (!isOnline) {
       showToast('Reconnect to send', 3000);
@@ -698,22 +824,32 @@ export default function MainScreen({
     }
     triggerHaptic('tap');
     setSendingReviewPhoto(true);
-    try {
-      const caption = buildCaptionPayload(captionText);
-      await uploadPhotoBlob(reviewPhoto.blob, caption);
-      await clearCurrentReviewDraft();
-      setSendAnimationState('sent');
-      showToast('Photo sent');
-      window.setTimeout(() => {
-        clearReviewPhoto();
-        scrollToCamera('auto');
-      }, 420);
-    } catch (err) {
-      console.error(err);
-      showToast(err?.message || "Couldn't send photo", 3000);
-      setSendingReviewPhoto(false);
-    }
+
+    const caption = buildCaptionPayload(captionText);
+    const localPhoto = createLocalPhoto({
+      blob: reviewPhoto.blob,
+      caption,
+      coupleId,
+      objectUrl: reviewPhoto.url,
+      senderId: user.uid
+    });
+
+    setLocalPhotos((current) => appendLocalPhoto(current, localPhoto));
+    clearCurrentReviewDraft();
+    clearReviewPhoto({ preserveObjectUrl: true });
+    scrollToCamera('auto');
+    trackEvent('photo_send_queued', { coupleId, localPhotoId: localPhoto.id });
   };
+
+  const handleRetryLocalPhoto = useCallback((photoId) => {
+    setLocalPhotos((current) => markLocalPhotoPending(current, photoId));
+  }, []);
+
+  const handleDeleteLocalPhoto = useCallback((photoId) => {
+    const photo = localPhotosRef.current.find((item) => item.id === photoId);
+    if (photo?.photoUrl?.startsWith('blob:')) URL.revokeObjectURL(photo.photoUrl);
+    setLocalPhotos((current) => deleteLocalPhoto(current, photoId));
+  }, []);
 
   const handleProfilePhotoChange = async (e) => {
     const file = e.target.files?.[0];
