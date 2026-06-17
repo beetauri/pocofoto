@@ -836,7 +836,7 @@ export default function MainScreen({
     setLocalPhotos((current) => appendLocalPhoto(current, localPhoto));
     clearCurrentReviewDraft();
     clearReviewPhoto({ preserveObjectUrl: true });
-    scrollToCamera('auto');
+    setPendingScrollPhotoId(localPhoto.id);
     trackEvent('photo_send_queued', { coupleId, localPhotoId: localPhoto.id });
   };
 
