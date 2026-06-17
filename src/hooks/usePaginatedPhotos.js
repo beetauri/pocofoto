@@ -14,12 +14,13 @@ import {
   PHOTO_PAGE_SIZE,
   mergePhotoPages
 } from './photoPagination.js';
+import { mergeServerAndLocalPhotos } from '../lib/localPhotoQueue.js';
 
 function photosFromSnapshot(snapshot) {
   return snapshot.docs.map((photoDoc) => ({ id: photoDoc.id, ...photoDoc.data() }));
 }
 
-export function usePaginatedPhotos(coupleId) {
+export function usePaginatedPhotos(coupleId, localPhotos = []) {
   const [firstPage, setFirstPage] = useState([]);
   const [olderPages, setOlderPages] = useState([]);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
@@ -101,8 +102,8 @@ export function usePaginatedPhotos(coupleId) {
   }, [coupleId, hasMorePhotos]);
 
   const photos = useMemo(
-    () => mergePhotoPages(firstPage, olderPages),
-    [firstPage, olderPages]
+    () => mergeServerAndLocalPhotos(mergePhotoPages(firstPage, olderPages), localPhotos),
+    [firstPage, olderPages, localPhotos]
   );
 
   const updatePhotoLocal = useCallback((photoId, updater) => {
@@ -115,6 +116,22 @@ export function usePaginatedPhotos(coupleId) {
     firstPageRef.current = firstPageRef.current.map(applyUpdate);
   }, []);
 
+  const insertServerPhotoLocal = useCallback((serverPhoto) => {
+    if (!serverPhoto?.id) return;
+
+    const insertSorted = (page) => {
+      const withoutDuplicate = page.filter((photo) => photo.id !== serverPhoto.id);
+      return [...withoutDuplicate, serverPhoto].sort((a, b) => {
+        const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return bTime - aTime;
+      });
+    };
+
+    setFirstPage((page) => insertSorted(page));
+    firstPageRef.current = insertSorted(firstPageRef.current);
+  }, []);
+
   return {
     photos,
     loadingPhotos,
@@ -122,6 +139,7 @@ export function usePaginatedPhotos(coupleId) {
     photoLoadError,
     hasMorePhotos,
     loadMorePhotos,
-    updatePhotoLocal
+    updatePhotoLocal,
+    insertServerPhotoLocal
   };
 }
