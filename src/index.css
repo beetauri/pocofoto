@@ -886,6 +886,55 @@ button:not(:disabled),
   padding: 14px 6px 0;
 }
 
+.photo-local-status,
+.photo-local-actions {
+  justify-content: center;
+  min-height: 58px;
+}
+
+.photo-local-sending {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.photo-local-sending .spinner {
+  width: 18px;
+  height: 18px;
+}
+
+.photo-local-actions.failed {
+  gap: 12px;
+}
+
+.photo-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 118px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.photo-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: rgba(239, 68, 68, 0.14);
+  color: #ff6b6b;
+}
+
 .photo-meta {
   display: flex;
   align-items: baseline;

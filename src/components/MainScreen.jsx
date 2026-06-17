@@ -280,7 +280,6 @@ export default function MainScreen({
     updatePhotoLocal,
     insertServerPhotoLocal
   } = usePaginatedPhotos(coupleId, localPhotos);
-  const hasQueueUpload = Boolean(queueUploadingPhotoId);
 
   const showToast = useCallback((message, duration = 2500) => {
     setToast(message);
@@ -1281,6 +1280,10 @@ export default function MainScreen({
               ) : photos.length > 0 ? (
                 photos.map((photo) => {
                   const isPhotoMine = photo.senderId === user.uid;
+                  const isLocalPhoto = Boolean(photo.localOnly);
+                  const isLocalFailed = isLocalPhoto && photo.status === LOCAL_PHOTO_STATUS.FAILED;
+                  const isLocalSending = photo.localOnly && photo.status !== LOCAL_PHOTO_STATUS.FAILED;
+                  const queuedPhotoIsUploading = photo.id === queueUploadingPhotoId;
                   const photoTimestamp = photo.timestamp ? new Date(photo.timestamp) : null;
                   const senderProfile = photo.senderId === user.uid ? myProfile : profiles[photo.senderId];
                   const senderName = isPhotoMine ? displayName : senderProfile?.displayName || partnerName;
@@ -1302,29 +1305,60 @@ export default function MainScreen({
                             <div className="caption-pill photo-caption-pill">{photoCaption}</div>
                           )}
                         </div>
-                        <div className="photo-meta-row">
-                          <div className="photo-meta">
-                            <strong>{isPhotoMine ? 'You' : senderName}</strong>
-                            <span>{timeAgo(photoTimestamp)}</span>
-                          </div>
-                          {isPhotoMine ? (
-                            <div className="status-chip" aria-label={photo.liked ? 'Liked' : 'Sent'}>
-                              {photo.liked ? <HeartIcon filled /> : <SendIcon />}
-                              {photo.liked ? 'Liked' : 'Sent'}
-                            </div>
-                          ) : (
-                            <motion.button
-                              className="like-btn"
-                              type="button"
-                              aria-label={photo.liked ? 'Unlike photo' : 'Like photo'}
-                              onClick={() => handleLikePhoto(photo)}
-                              whileTap={{ scale: 0.86 }}
-                              style={{ color: photo.liked ? 'var(--accent)' : '#fff' }}
+                        {isLocalSending ? (
+                          <div className="photo-meta-row photo-local-status">
+                            <div
+                              className="photo-local-sending"
+                              role="status"
+                              aria-label={queuedPhotoIsUploading ? 'Sending photo' : 'Photo queued'}
                             >
-                              <HeartIcon filled={photo.liked} />
-                            </motion.button>
-                          )}
-                        </div>
+                              <div className="spinner" />
+                              <span>Sending…</span>
+                            </div>
+                          </div>
+                        ) : isLocalFailed ? (
+                          <div className="photo-meta-row photo-local-actions failed">
+                            <button
+                              className="photo-retry-btn"
+                              type="button"
+                              onClick={() => handleRetryLocalPhoto(photo.id)}
+                            >
+                              Retry
+                            </button>
+                            <button
+                              className="photo-delete-btn"
+                              type="button"
+                              aria-label="Delete failed photo"
+                              onClick={() => handleDeleteLocalPhoto(photo.id)}
+                            >
+                              <TrashIcon />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="photo-meta-row">
+                            <div className="photo-meta">
+                              <strong>{isPhotoMine ? 'You' : senderName}</strong>
+                              <span>{timeAgo(photoTimestamp)}</span>
+                            </div>
+                            {isPhotoMine ? (
+                              <div className="status-chip" aria-label={photo.liked ? 'Liked' : 'Sent'}>
+                                {photo.liked ? <HeartIcon filled /> : <SendIcon />}
+                                {photo.liked ? 'Liked' : 'Sent'}
+                              </div>
+                            ) : (
+                              <motion.button
+                                className="like-btn"
+                                type="button"
+                                aria-label={photo.liked ? 'Unlike photo' : 'Like photo'}
+                                onClick={() => handleLikePhoto(photo)}
+                                whileTap={{ scale: 0.86 }}
+                                style={{ color: photo.liked ? 'var(--accent)' : '#fff' }}
+                              >
+                                <HeartIcon filled={photo.liked} />
+                              </motion.button>
+                            )}
+                          </div>
+                        )}
                       </motion.article>
                     </div>
                   );
