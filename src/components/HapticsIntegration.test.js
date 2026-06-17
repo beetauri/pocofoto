@@ -22,7 +22,7 @@ test('MainScreen keeps capture haptics before async camera recovery', () => {
 test('MainScreen triggers tap haptics only after accepted send guards', () => {
   assert.match(
     mainScreenSource,
-    /const handleSendReviewPhoto = async \(\) => \{[\s\S]*?if \(!reviewPhoto \|\| sendingReviewPhoto\) return;[\s\S]*?if \(!isOnline\) \{[\s\S]*?return;[\s\S]*?\}[\s\S]*?triggerHaptic\('tap'\);/
+    /const handleSendReviewPhoto = \(\) => \{[\s\S]*?if \(!reviewPhoto \|\| sendingReviewPhoto\) return;[\s\S]*?if \(!isOnline\) \{[\s\S]*?return;[\s\S]*?\}[\s\S]*?triggerHaptic\('tap'\);/
   );
 });
 

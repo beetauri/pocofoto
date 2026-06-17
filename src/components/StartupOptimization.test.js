@@ -20,7 +20,7 @@ test('History and Profile mount only after first navigation', () => {
 });
 
 test('Home and History share the paginated photo source', () => {
-  assert.match(mainSource, /usePaginatedPhotos\(coupleId\)/);
+  assert.match(mainSource, /usePaginatedPhotos\(coupleId, localPhotos\)/);
   assert.match(mainSource, /<HistoryScreen[\s\S]*photos=\{photos\}[\s\S]*onLoadMore=\{loadMorePhotos\}/);
   assert.match(mainSource, /<PhotoLoadMoreSentinel[\s\S]*onLoadMore=\{loadMorePhotos\}/);
 });

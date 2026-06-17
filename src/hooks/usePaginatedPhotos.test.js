@@ -7,6 +7,7 @@ import {
   PHOTO_PAGE_SIZE,
   mergePhotoPages
 } from './photoPagination.js';
+import { mergeServerAndLocalPhotos } from '../lib/localPhotoQueue.js';
 
 const source = readFileSync(new URL('./usePaginatedPhotos.js', import.meta.url), 'utf8');
 const paginationSource = readFileSync(new URL('./photoPagination.js', import.meta.url), 'utf8');
@@ -40,4 +41,24 @@ test('exposes a local photo updater for optimistic actions on paginated photos',
   assert.match(source, /setOlderPages\(\(pages\) => pages\.map\(\(page\) => page\.map\(applyUpdate\)\)\)/);
   assert.match(source, /firstPageRef\.current = firstPageRef\.current\.map\(applyUpdate\)/);
   assert.match(source, /updatePhotoLocal/);
+});
+
+test('appends local queue photos after merged server pages', () => {
+  const serverPhotos = mergePhotoPages(
+    [{ id: 'server-2' }, { id: 'server-1' }],
+    [[{ id: 'older-1' }]]
+  );
+  const photos = mergeServerAndLocalPhotos(serverPhotos, [
+    { id: 'local-1', localOnly: true },
+    { id: 'local-2', localOnly: true }
+  ]);
+
+  assert.deepEqual(photos.map((photo) => photo.id), ['server-2', 'server-1', 'older-1', 'local-1', 'local-2']);
+});
+
+test('usePaginatedPhotos accepts local photos and exposes server insertion for reconciliation', () => {
+  assert.match(source, /export function usePaginatedPhotos\(coupleId, localPhotos = \[\]\)/);
+  assert.match(source, /mergeServerAndLocalPhotos\(mergePhotoPages\(firstPage, olderPages\), localPhotos\)/);
+  assert.match(source, /const insertServerPhotoLocal = useCallback/);
+  assert.match(source, /insertServerPhotoLocal/);
 });
