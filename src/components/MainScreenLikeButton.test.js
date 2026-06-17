@@ -5,7 +5,7 @@ import test from 'node:test';
 const source = readFileSync(new URL('./MainScreen.jsx', import.meta.url), 'utf8');
 
 test('like button applies optimistic local state before Firestore writes', () => {
-  assert.match(source, /loadMorePhotos,\s*updatePhotoLocal\s*\}\s*=\s*usePaginatedPhotos\(coupleId\)/);
+  assert.match(source, /loadMorePhotos,\s*updatePhotoLocal,\s*insertServerPhotoLocal\s*\}\s*=\s*usePaginatedPhotos\(coupleId, localPhotos\)/);
   assert.match(source, /const nextLiked = !isLiked/);
   assert.match(source, /updatePhotoLocal\(photo\.id, \{ liked: nextLiked \}\)/);
   assert.match(

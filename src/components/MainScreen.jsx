@@ -416,7 +416,7 @@ export default function MainScreen({
 
   useEffect(() => {
     if (!localPhotoQueueKey || !localPhotoQueueReady) return;
-    const persistablePhotos = localPhotos.map(({ photoUrl, ...photo }) => photo);
+    const persistablePhotos = localPhotos.map(({ photoUrl: _photoUrl, ...photo }) => photo);
     if (persistablePhotos.length === 0) {
       clearLocalPhotoQueue(localPhotoQueueKey).catch((err) => {
         console.warn('Unable to clear local photo queue.', err);
