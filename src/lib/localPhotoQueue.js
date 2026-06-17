@@ -92,7 +92,7 @@ export function findNextUploadableLocalPhoto(localPhotos) {
 export function mergeServerAndLocalPhotos(serverPhotos, localPhotos) {
   const serverIds = new Set(serverPhotos.map((photo) => photo.id));
   const unresolvedLocalPhotos = localPhotos.filter((photo) => photo.localOnly && !serverIds.has(photo.id));
-  return [...serverPhotos, ...unresolvedLocalPhotos];
+  return [...unresolvedLocalPhotos, ...serverPhotos];
 }
 
 export function replaceLocalPhotoWithServerPhoto(localPhotos, localPhotoId, serverPhoto) {
