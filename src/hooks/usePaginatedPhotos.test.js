@@ -43,7 +43,7 @@ test('exposes a local photo updater for optimistic actions on paginated photos',
   assert.match(source, /updatePhotoLocal/);
 });
 
-test('appends local queue photos after merged server pages', () => {
+test('prepends local queue photos before merged server pages', () => {
   const serverPhotos = mergePhotoPages(
     [{ id: 'server-2' }, { id: 'server-1' }],
     [[{ id: 'older-1' }]]
@@ -53,7 +53,7 @@ test('appends local queue photos after merged server pages', () => {
     { id: 'local-2', localOnly: true }
   ]);
 
-  assert.deepEqual(photos.map((photo) => photo.id), ['server-2', 'server-1', 'older-1', 'local-1', 'local-2']);
+  assert.deepEqual(photos.map((photo) => photo.id), ['local-1', 'local-2', 'server-2', 'server-1', 'older-1']);
 });
 
 test('usePaginatedPhotos accepts local photos and exposes server insertion for reconciliation', () => {

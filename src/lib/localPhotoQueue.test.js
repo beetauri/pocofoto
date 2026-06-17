@@ -44,7 +44,7 @@ test('appends local photos after previous local photos', () => {
   assert.deepEqual(queue.map((photo) => photo.id), ['local-1', 'local-2']);
 });
 
-test('merges local photos after server photos without reshuffling pending items', () => {
+test('merges local photos before server photos without reshuffling pending items', () => {
   const serverPhotos = [
     { id: 'server-new', timestamp: '2026-06-17T10:05:00.000Z' },
     { id: 'server-old', timestamp: '2026-06-17T09:59:00.000Z' }
@@ -56,7 +56,7 @@ test('merges local photos after server photos without reshuffling pending items'
 
   const merged = mergeServerAndLocalPhotos(serverPhotos, localPhotos);
 
-  assert.deepEqual(merged.map((photo) => photo.id), ['server-new', 'server-old', 'local-1', 'local-2']);
+  assert.deepEqual(merged.map((photo) => photo.id), ['local-1', 'local-2', 'server-new', 'server-old']);
 });
 
 test('selects pending uploads sequentially and skips failed items', () => {
