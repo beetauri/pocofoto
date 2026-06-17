@@ -48,8 +48,3 @@ test('failed local photos show retry and icon-only delete actions', () => {
   assert.match(source, /handleRetryLocalPhoto\(photo\.id\)/);
   assert.match(source, /handleDeleteLocalPhoto\(photo\.id\)/);
 });
-
-test('queued send scrolls to the local pending photo instead of hiding it at the camera', () => {
-  assert.match(source, /setPendingScrollPhotoId\(localPhoto\.id\)/);
-  assert.doesNotMatch(source, /setLocalPhotos\(\(current\) => appendLocalPhoto\(current, localPhoto\)\)[\s\S]*scrollToCamera\('auto'\)/);
-});
