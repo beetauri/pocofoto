@@ -2609,6 +2609,71 @@ button:not(:disabled),
   }
 }
 
+.sentry-error-screen {
+  display: grid;
+  min-height: 100vh;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  place-items: center;
+  background: var(--bg-primary);
+}
+
+.sentry-error-card {
+  display: grid;
+  width: min(100%, 400px);
+  gap: 22px;
+  padding: 28px;
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
+  background: var(--bg-card);
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.48);
+}
+
+.sentry-error-card > img {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+}
+
+.sentry-error-eyebrow {
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sentry-error-card h1 {
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-size: 26px;
+  line-height: 1.08;
+}
+
+.sentry-error-card h1 + p {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sentry-error-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.sentry-error-actions button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+
+.sentry-error-actions svg {
+  width: 18px;
+  height: 18px;
+}
+
 @media (max-height: 720px) {
   .app-header {
     padding-bottom: 12px;

@@ -1,34 +1,20 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import * as Sentry from '@sentry/react'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.jsx'
+import SentryErrorFallback from './components/SentryErrorFallback.jsx'
 import {
   markPwaReloadPending,
   markPwaUpdateReady,
   setPwaUpdateServiceWorker
 } from './pwaUpdates'
+import {
+  initializeSentry,
+  SentryErrorBoundary
+} from './sentry'
 
-Sentry.init({
-  dsn: 'https://37e76835c6905119d5eea9072c4518ea@o4511554579529728.ingest.de.sentry.io/4511591670218832',
-  dataCollection: {
-    // Set userInfo to false and httpBodies to [] here to disable collecting them.
-  },
-  integrations: [
-    Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration()
-  ],
-  tracesSampleRate: 1.0,
-  tracePropagationTargets: [
-    'localhost',
-    '127.0.0.1',
-    /^https:\/\/[^/]+\.cloudfunctions\.net\//
-  ],
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-  enableLogs: true
-})
+initializeSentry()
 
 const PWA_RELOAD_GUARD_KEY = 'pocofoto:pwa-update-reloaded-at'
 const PWA_RELOAD_GUARD_WINDOW_MS = 30 * 1000
@@ -81,7 +67,9 @@ document.addEventListener('visibilitychange', () => {
 window.setInterval(checkForPwaUpdate, PWA_UPDATE_CHECK_INTERVAL_MS)
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <SentryErrorBoundary fallback={SentryErrorFallback}>
+    <StrictMode>
+      <App />
+    </StrictMode>
+  </SentryErrorBoundary>,
 )

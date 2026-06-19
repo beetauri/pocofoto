@@ -19,6 +19,7 @@ import {
   setCachedUserRoute
 } from './lib/userRouteCache';
 import { triggerHaptic } from './lib/haptics';
+import { syncSentryUser } from './sentry';
 
 const Retune = import.meta.env.DEV
   ? lazy(() => import('retune').then((module) => ({ default: module.Retune })))
@@ -98,6 +99,7 @@ export default function App() {
   // Listen for auth changes
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      syncSentryUser(firebaseUser);
       setUser(firebaseUser);
       if (!firebaseUser) {
         trackEvent('auth_signed_out');

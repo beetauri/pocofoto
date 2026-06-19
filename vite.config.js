@@ -5,8 +5,13 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import {
+  createSentryRelease,
+  getSentryBuildConfig
+} from './scripts/sentryBuildConfig.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
@@ -28,6 +33,8 @@ function getGitCommit() {
 
 const buildVersion = packageJson.version || '0.0.0'
 const buildCommit = getGitCommit()
+const sentryRelease = createSentryRelease(buildVersion, buildCommit)
+const sentryBuild = getSentryBuildConfig(process.env)
 
 export default defineConfig({
   test: {
@@ -42,9 +49,11 @@ export default defineConfig({
   },
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(buildVersion),
-    'import.meta.env.VITE_APP_COMMIT': JSON.stringify(buildCommit)
+    'import.meta.env.VITE_APP_COMMIT': JSON.stringify(buildCommit),
+    'import.meta.env.VITE_SENTRY_RELEASE': JSON.stringify(sentryRelease)
   },
   build: {
+    sourcemap: sentryBuild.enabled ? 'hidden' : false,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -127,6 +136,17 @@ export default defineConfig({
           }
         ]
       }
+    }),
+    sentryBuild.enabled && sentryVitePlugin({
+      authToken: sentryBuild.authToken,
+      org: sentryBuild.org,
+      project: sentryBuild.project,
+      release: {
+        name: sentryRelease
+      },
+      sourcemaps: {
+        filesToDeleteAfterUpload: './dist/**/*.map'
+      }
     })
-  ],
+  ].filter(Boolean),
 })

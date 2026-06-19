@@ -14,3 +14,11 @@ test('App owns paired-user notification onboarding', () => {
   assert.match(appSource, /<NotificationPrompt/);
   assert.match(appSource, /open=\{notifications\.showPrompt && screen === 'main'\}/);
 });
+
+test('App synchronizes complete Firebase identity with Sentry', () => {
+  assert.match(appSource, /import \{ syncSentryUser \} from '\.\/sentry';/);
+  assert.match(
+    appSource,
+    /onAuthStateChanged\(auth, \(firebaseUser\) => \{[\s\S]*syncSentryUser\(firebaseUser\);[\s\S]*setUser\(firebaseUser\);/
+  );
+});
