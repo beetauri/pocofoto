@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import * as Sentry from '@sentry/react'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.jsx'
@@ -8,6 +9,26 @@ import {
   markPwaUpdateReady,
   setPwaUpdateServiceWorker
 } from './pwaUpdates'
+
+Sentry.init({
+  dsn: 'https://37e76835c6905119d5eea9072c4518ea@o4511554579529728.ingest.de.sentry.io/4511591670218832',
+  dataCollection: {
+    // Set userInfo to false and httpBodies to [] here to disable collecting them.
+  },
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration()
+  ],
+  tracesSampleRate: 1.0,
+  tracePropagationTargets: [
+    'localhost',
+    '127.0.0.1',
+    /^https:\/\/[^/]+\.cloudfunctions\.net\//
+  ],
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+  enableLogs: true
+})
 
 const PWA_RELOAD_GUARD_KEY = 'pocofoto:pwa-update-reloaded-at'
 const PWA_RELOAD_GUARD_WINDOW_MS = 30 * 1000
