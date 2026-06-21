@@ -1,6 +1,7 @@
 export default {
   screenLabel: 'Home',
   you: 'You',
+  yourPerson: 'your person',
   sharedMoment: 'Shared moment',
   capturedPreview: 'Captured preview',
   startup: {
@@ -22,7 +23,8 @@ export default {
     label: 'Camera controls',
     capture: 'Take photo',
     flash: 'Toggle flash',
-    switchCamera: 'Switch camera'
+    switchCamera: 'Switch camera',
+    flashUnavailable: 'Flash controls are coming soon.'
   },
   queue: {
     sending: 'Sending to your person…',
@@ -37,7 +39,8 @@ export default {
     liked: 'Loved',
     like: 'Love this photo',
     unlike: 'Remove love',
-    likedToast: 'Your photo got some love.'
+    likedToast: 'Your photo got some love.',
+    sentToast: 'Your photo is on its way.'
   },
   time: {
     justNow: 'Just now',
@@ -55,6 +58,7 @@ export default {
     start: 'The camera couldn’t start. Give it another try.',
     switch: 'We couldn’t switch cameras.',
     restore: 'We couldn’t bring the camera back. Try again.',
+    notReady: 'The camera is still waking up. Try again in a moment.',
     offlineSend: 'Reconnect to send this photo to your person.',
     capture: 'That photo didn’t work. Give it another try.',
     upload: 'This photo couldn’t be sent. Try again when you’re ready.'

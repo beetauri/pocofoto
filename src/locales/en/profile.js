@@ -34,6 +34,7 @@ export default {
     photoUpdated: 'Your profile photo looks lovely.',
     photoUpdateError: 'We couldn’t update your profile photo. Try again.',
     photoRemoved: 'Profile photo removed.',
+    nameUpdated: 'Your name is updated.',
     pairingRemoveError: 'We couldn’t stop the pairing. Try again.'
   }
 };

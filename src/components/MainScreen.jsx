@@ -214,7 +214,7 @@ export default function MainScreen({
   notificationIntent = null,
   onNotificationIntentConsumed = null
 }) {
-  const { t } = useTranslation(['camera', 'common', 'pairing', 'profile']);
+  const { t } = useTranslation(['camera', 'common', 'pairing', 'profile', 'notifications']);
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState('');
@@ -263,7 +263,7 @@ export default function MainScreen({
   const myProfile = profiles[user.uid];
   const partnerProfile = partnerUid ? profiles[partnerUid] : null;
   const displayName = myProfile?.displayName || user.displayName || user.email.split('@')[0];
-  const partnerName = partnerProfile?.displayName || 'your person';
+  const partnerName = partnerProfile?.displayName || t('yourPerson');
   const partnerEmail = partnerProfile?.email || partnerProfile?.normalizedEmail || '';
   const partnerPhoto = partnerProfile?.profilePic || partnerProfile?.photoURL || '';
   const profilePic = myProfile?.profilePic || user.photoURL || '';
@@ -469,7 +469,7 @@ export default function MainScreen({
 
         if (data.senderId && data.senderId !== user.uid && data.timestamp) {
           if (lastPhotoTimestampRef.current && data.timestamp !== lastPhotoTimestampRef.current) {
-            showToast('New photo from your person');
+            showToast(t('notifications:foreground.photo'));
           }
           lastPhotoTimestampRef.current = data.timestamp;
         } else if (data.timestamp) {
@@ -478,7 +478,7 @@ export default function MainScreen({
 
         if (data.lastLike && data.lastLike.userId !== user.uid && data.lastLike.timestamp) {
           if (lastLikeTimestampRef.current && data.lastLike.timestamp !== lastLikeTimestampRef.current) {
-            showToast('Your photo was liked');
+            showToast(t('notifications:foreground.loved'));
           }
           lastLikeTimestampRef.current = data.lastLike.timestamp;
         } else if (data.lastLike?.timestamp) {
@@ -487,7 +487,7 @@ export default function MainScreen({
       }
     });
     return () => unsub();
-  }, [coupleId, user.uid, showToast]);
+  }, [coupleId, user.uid, showToast, t]);
 
   useEffect(() => {
     reviewPhotoRef.current = reviewPhoto;
@@ -717,7 +717,7 @@ export default function MainScreen({
       if (nextPhoto.photoUrl?.startsWith('blob:')) URL.revokeObjectURL(nextPhoto.photoUrl);
       setLocalPhotos(result.localPhotos);
       insertServerPhotoLocal(result.serverPhoto);
-      showToast('Photo sent');
+      showToast(t('photo.sentToast'));
     } catch (err) {
       console.error(err);
       setLocalPhotos((current) => markLocalPhotoFailed(current, nextPhoto.id, err?.message || "Couldn't send photo"));
@@ -725,7 +725,7 @@ export default function MainScreen({
       queueUploadInFlightRef.current = false;
       setQueueUploadingPhotoId(null);
     }
-  }, [insertServerPhotoLocal, isOnline, showToast, uploadPhotoBlob]);
+  }, [insertServerPhotoLocal, isOnline, showToast, t, uploadPhotoBlob]);
 
   useEffect(() => {
     if (!localPhotoQueueReady) return;
@@ -741,7 +741,7 @@ export default function MainScreen({
     }
 
     if (cameraStatus !== 'ready') {
-      showToast('Camera is not ready yet', 2200);
+      showToast(t('errors.notReady'), 2200);
       return;
     }
 
@@ -756,7 +756,7 @@ export default function MainScreen({
     }
 
     if (!video?.videoWidth || !video?.videoHeight) {
-      showToast('Camera is not ready yet', 2200);
+      showToast(t('errors.notReady'), 2200);
       return;
     }
 
@@ -895,7 +895,7 @@ export default function MainScreen({
       console.warn('Could not sync Firebase Auth display name.', err);
     }
 
-    showToast('Display name updated');
+    showToast(t('profile:toasts.nameUpdated'));
     trackEvent('display_name_updated');
   };
 
@@ -918,7 +918,7 @@ export default function MainScreen({
 
   const handleToggleFlash = () => {
     setFlashEnabled((current) => !current);
-    showToast('Flash toggle is a device placeholder for now', 1800);
+    showToast(t('controls.flashUnavailable'), 1800);
   };
 
   const handleLikePhoto = async (photo) => {

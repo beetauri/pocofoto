@@ -34,3 +34,12 @@ test('MainScreen bounds restored draft send attempts so the review UI can recove
   assert.match(mainScreenSource, /task\.cancel\(\)/);
   assert.match(mainScreenSource, /setSendingReviewPhoto\(false\)/);
 });
+
+test('MainScreen routes all customer-facing toasts through translations', () => {
+  assert.match(mainScreenSource, /t\('notifications:foreground\.photo'\)/);
+  assert.match(mainScreenSource, /t\('notifications:foreground\.loved'\)/);
+  assert.match(mainScreenSource, /t\('photo\.sentToast'\)/);
+  assert.match(mainScreenSource, /t\('errors\.notReady'\)/);
+  assert.match(mainScreenSource, /t\('profile:toasts\.nameUpdated'\)/);
+  assert.match(mainScreenSource, /t\('controls\.flashUnavailable'\)/);
+});
