@@ -2,15 +2,38 @@ import * as Sentry from '@sentry/react'
 
 const dsn = 'https://37e76835c6905119d5eea9072c4518ea@o4511554579529728.ingest.de.sentry.io/4511591670218832'
 
+export const replayPrivacyOptions = {
+  maskAllText: false,
+  maskAllInputs: false,
+  blockAllMedia: false,
+  mask: [],
+  block: [],
+  ignore: []
+}
+
 export function createSentryOptions({ isProduction, mode, release }) {
   return {
     dsn,
     environment: mode,
     release,
-    dataCollection: {},
+    dataCollection: {
+      userInfo: true,
+      cookies: true,
+      httpHeaders: { request: true, response: true },
+      httpBodies: [
+        'incomingRequest',
+        'outgoingRequest',
+        'incomingResponse',
+        'outgoingResponse'
+      ],
+      queryParams: true,
+      genAI: { inputs: true, outputs: true },
+      stackFrameVariables: true,
+      frameContextLines: 10
+    },
     integrations: [
       Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration(),
+      Sentry.replayIntegration(replayPrivacyOptions),
       Sentry.consoleLoggingIntegration({
         levels: ['debug', 'info', 'log', 'warn', 'error', 'trace', 'assert']
       }),

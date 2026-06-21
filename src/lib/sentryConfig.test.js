@@ -3,8 +3,20 @@ import test from 'node:test'
 
 import {
   createSentryOptions,
+  replayPrivacyOptions,
   syncSentryUser
 } from '../sentry.js'
+
+test('disables all built-in Replay masking and blocking', () => {
+  assert.deepEqual(replayPrivacyOptions, {
+    maskAllText: false,
+    maskAllInputs: false,
+    blockAllMedia: false,
+    mask: [],
+    block: [],
+    ignore: []
+  })
+})
 
 test('uses balanced production sampling and complete integrations', () => {
   const options = createSentryOptions({
@@ -21,6 +33,21 @@ test('uses balanced production sampling and complete integrations', () => {
   assert.equal(options.replaysSessionSampleRate, 0.1)
   assert.equal(options.replaysOnErrorSampleRate, 1.0)
   assert.equal(options.enableLogs, true)
+  assert.deepEqual(options.dataCollection, {
+    userInfo: true,
+    cookies: true,
+    httpHeaders: { request: true, response: true },
+    httpBodies: [
+      'incomingRequest',
+      'outgoingRequest',
+      'incomingResponse',
+      'outgoingResponse'
+    ],
+    queryParams: true,
+    genAI: { inputs: true, outputs: true },
+    stackFrameVariables: true,
+    frameContextLines: 10
+  })
 
   const integrationNames = options.integrations.map((integration) => integration.name)
   for (const name of [
