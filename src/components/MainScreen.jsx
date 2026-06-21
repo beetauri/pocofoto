@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
   Heart as LucideHeartIcon,
   Image as LucidePhotoIcon,
@@ -180,6 +181,7 @@ function uploadBlobWithTimeout(storageRef, blob) {
 }
 
 function PhotoLoadMoreSentinel({ rootRef, hasMore, loading, error, onLoadMore }) {
+  const { t } = useTranslation('common');
   const sentinelRef = useRef(null);
 
   useEffect(() => {
@@ -198,7 +200,7 @@ function PhotoLoadMoreSentinel({ rootRef, hasMore, loading, error, onLoadMore })
   return (
     <div className="photo-load-more home-photo-load-more" ref={sentinelRef}>
       {loading && <div className="spinner" />}
-      {error && <button type="button" onClick={onLoadMore}>Try again</button>}
+      {error && <button type="button" onClick={onLoadMore}>{t('actions.tryAgain')}</button>}
     </div>
   );
 }
@@ -212,6 +214,7 @@ export default function MainScreen({
   notificationIntent = null,
   onNotificationIntentConsumed = null
 }) {
+  const { t } = useTranslation(['camera', 'common', 'pairing', 'profile']);
   const [coupleData, setCoupleData] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState('');
@@ -802,7 +805,7 @@ export default function MainScreen({
       trackEvent('photo_review_opened', { coupleId });
     } catch (err) {
       console.error(err);
-      showToast('Failed to capture photo', 3000);
+      showToast(t('errors.capture'), 3000);
     } finally {
       setUploading(false);
     }
@@ -818,7 +821,7 @@ export default function MainScreen({
   const handleSendReviewPhoto = () => {
     if (!reviewPhoto || sendingReviewPhoto) return;
     if (!isOnline) {
-      showToast('Reconnect to send', 3000);
+      showToast(t('errors.offlineSend'), 3000);
       return;
     }
     triggerHaptic('tap');
@@ -940,7 +943,7 @@ export default function MainScreen({
       });
 
       if (nextLiked) {
-        showToast('Photo liked', 1500);
+        showToast(t('photo.likedToast'), 1500);
         trackEvent('photo_liked', { photoId: photo.id });
       }
     } catch (err) {
@@ -978,9 +981,9 @@ export default function MainScreen({
   const timeAgo = (date) => {
     if (!date) return '';
     const diff = (Date.now() - date.getTime()) / 1000;
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 60) return t('time.justNow');
+    if (diff < 3600) return t('time.minutesAgo', { count: Math.floor(diff / 60) });
+    if (diff < 86400) return t('time.hoursAgo', { count: Math.floor(diff / 3600) });
     return date.toLocaleDateString();
   };
 
@@ -1145,7 +1148,7 @@ export default function MainScreen({
           )}
         </section>
 
-        <section className="shell-view home-screen" aria-label="Home">
+        <section className="shell-view home-screen" aria-label={t('screenLabel')}>
           <main className="camera-stage">
             <div className="reels-feed" ref={feedRef}>
               <div className="reels-slide camera-reels-slide" ref={cameraSlideRef}>
@@ -1156,7 +1159,7 @@ export default function MainScreen({
                 >
                   <video ref={videoRef} playsInline muted autoPlay />
                   {frozenFrame && (
-                    <div className="camera-switch-overlay" aria-label="Switching camera">
+                    <div className="camera-switch-overlay" aria-label={t('startup.switching')}>
                       <img src={frozenFrame} alt="" draggable={false} />
                       <div className="spinner" />
                     </div>
@@ -1166,16 +1169,16 @@ export default function MainScreen({
                       <PhotoIcon />
                       {cameraStatus === 'requesting' || cameraStatus === 'resuming' || cameraStatus === 'switching' ? (
                         <>
-                          <strong>Starting camera</strong>
-                          <span>Allow camera access to capture your next moment.</span>
+                          <strong>{t('startup.title')}</strong>
+                          <span>{t('startup.body')}</span>
                           <div className="spinner" />
                         </>
                       ) : (
                         <>
-                          <strong>{cameraStatus === 'denied' ? 'Camera blocked' : 'Camera unavailable'}</strong>
-                          <span>{cameraError || 'Check camera access, then try again.'}</span>
+                          <strong>{cameraStatus === 'denied' ? t('startup.blocked') : t('startup.unavailable')}</strong>
+                          <span>{cameraError || t('errors.start')}</span>
                           <button className="camera-retry-btn" type="button" onClick={retryCamera}>
-                            Try again
+                            {t('startup.retry')}
                           </button>
                         </>
                       )}
@@ -1197,10 +1200,10 @@ export default function MainScreen({
                           ease: 'easeInOut'
                         }}
                       >
-                        <img src={reviewPhoto.url} alt="Captured preview" draggable={false} />
+                        <img src={reviewPhoto.url} alt={t('capturedPreview')} draggable={false} />
                         <label className="caption-pill caption-editor">
                           <span className="caption-editor-sizer" aria-hidden="true">
-                            {captionText.length > 0 ? captionText : 'add a caption'}
+                            {captionText.length > 0 ? captionText : t('review.captionPlaceholder')}
                           </span>
                           <input
                             ref={captionInputRef}
@@ -1209,8 +1212,8 @@ export default function MainScreen({
                             maxLength={MAX_CAPTION_LENGTH}
                             inputMode="text"
                             enterKeyHint="done"
-                            placeholder="add a caption"
-                            aria-label="Photo caption"
+                            placeholder={t('review.captionPlaceholder')}
+                            aria-label={t('review.captionLabel')}
                             disabled={sendingReviewPhoto}
                           />
                         </label>
@@ -1219,11 +1222,11 @@ export default function MainScreen({
                   </AnimatePresence>
                 </motion.article>
 
-                <div className="camera-item-controls" aria-label="Camera controls">
+                <div className="camera-item-controls" aria-label={t('controls.label')}>
                   <button
                     className={`camera-tool-btn ${!isReviewingPhoto && flashEnabled ? 'active' : ''}`}
                     type="button"
-                    aria-label={isReviewingPhoto ? 'Discard photo' : 'Toggle flash'}
+                    aria-label={isReviewingPhoto ? t('review.discard') : t('controls.flash')}
                     aria-pressed={!isReviewingPhoto ? flashEnabled : undefined}
                     onClick={isReviewingPhoto ? handleDismissReviewPhoto : handleToggleFlash}
                     disabled={sendingReviewPhoto || cameraBusy}
@@ -1234,7 +1237,7 @@ export default function MainScreen({
                     id="main-capture-btn"
                     className="shutter-btn"
                     type="button"
-                    aria-label={isReviewingPhoto ? 'Send photo' : 'Capture photo'}
+                    aria-label={isReviewingPhoto ? t('review.send') : t('controls.capture')}
                     onClick={isReviewingPhoto ? handleSendReviewPhoto : handleCapture}
                     disabled={isReviewingPhoto ? sendDisabled : captureDisabled}
                     onTapStart={pressShutter}
@@ -1262,7 +1265,7 @@ export default function MainScreen({
                   <button
                     className="camera-tool-btn"
                     type="button"
-                    aria-label={isReviewingPhoto ? 'Add caption' : 'Switch camera'}
+                    aria-label={isReviewingPhoto ? t('review.addCaption') : t('controls.switchCamera')}
                     onClick={isReviewingPhoto ? focusCaptionInput : handleSwitchCamera}
                     disabled={sendingReviewPhoto}
                   >
@@ -1300,7 +1303,7 @@ export default function MainScreen({
                         animate={{ opacity: 1, scale: 1 }}
                       >
                         <div className="camera-frame">
-                          <img src={photo.photoUrl} alt="Shared moment" loading="lazy" decoding="async" draggable={false} />
+                          <img src={photo.photoUrl} alt={t('sharedMoment')} loading="lazy" decoding="async" draggable={false} />
                           {photoCaption.length > 0 && (
                             <div className="caption-pill photo-caption-pill">{photoCaption}</div>
                           )}
@@ -1310,10 +1313,10 @@ export default function MainScreen({
                             <div
                               className="photo-local-sending"
                               role="status"
-                              aria-label={queuedPhotoIsUploading ? 'Sending photo' : 'Photo queued'}
+                              aria-label={queuedPhotoIsUploading ? t('queue.sendingLabel') : t('queue.queued')}
                             >
                               <div className="spinner" />
-                              <span>Sending…</span>
+                              <span>{t('queue.sending')}</span>
                             </div>
                           </div>
                         ) : isLocalFailed ? (
@@ -1323,12 +1326,12 @@ export default function MainScreen({
                               type="button"
                               onClick={() => handleRetryLocalPhoto(photo.id)}
                             >
-                              Retry
+                              {t('queue.retry')}
                             </button>
                             <button
                               className="photo-delete-btn"
                               type="button"
-                              aria-label="Delete failed photo"
+                              aria-label={t('queue.delete')}
                               onClick={() => handleDeleteLocalPhoto(photo.id)}
                             >
                               <TrashIcon />
@@ -1337,23 +1340,23 @@ export default function MainScreen({
                         ) : (
                           <div className="photo-meta-row">
                             <div className="photo-meta">
-                              <strong>{isPhotoMine ? 'You' : senderName}</strong>
+                              <strong>{isPhotoMine ? t('you') : senderName}</strong>
                               <span>{timeAgo(photoTimestamp)}</span>
                             </div>
                             {isPhotoMine ? (
                               <div
                                 className="status-chip notranslate"
                                 translate="no"
-                                aria-label={photo.liked ? 'Liked' : 'Sent'}
+                                aria-label={photo.liked ? t('photo.liked') : t('photo.sent')}
                               >
                                 {photo.liked ? <HeartIcon filled /> : <SendIcon />}
-                                {photo.liked ? 'Liked' : 'Sent'}
+                                {photo.liked ? t('photo.liked') : t('photo.sent')}
                               </div>
                             ) : (
                               <motion.button
                                 className="like-btn"
                                 type="button"
-                                aria-label={photo.liked ? 'Unlike photo' : 'Like photo'}
+                                aria-label={photo.liked ? t('photo.unlike') : t('photo.like')}
                                 onClick={() => handleLikePhoto(photo)}
                                 whileTap={{ scale: 0.86 }}
                                 style={{ color: photo.liked ? 'var(--accent)' : '#fff' }}
@@ -1381,8 +1384,8 @@ export default function MainScreen({
                   <div className="camera-frame empty">
                     <div className="empty-state">
                       <PhotoIcon />
-                      <strong>No photos yet</strong>
-                      <span>Tap the shutter to send your first shared moment.</span>
+                      <strong>{t('empty.title')}</strong>
+                      <span>{t('empty.body')}</span>
                     </div>
                   </div>
                 </div>
@@ -1421,11 +1424,11 @@ export default function MainScreen({
         style={{ display: 'none' }}
       />
 
-      <nav className="bottom-nav" aria-label="Primary">
+      <nav className="bottom-nav" aria-label={t('common:navigation.primary')}>
         <button
           className={`nav-item ${activeView === 'history' ? 'active' : ''}`}
           type="button"
-          aria-label="History"
+          aria-label={t('common:navigation.history')}
           aria-current={activeView === 'history' ? 'page' : undefined}
           onClick={() => goToView('history')}
         >
@@ -1434,7 +1437,7 @@ export default function MainScreen({
         <button
           className={`nav-item home-nav-item ${activeView === 'home' ? 'active' : ''}`}
           type="button"
-          aria-label={activeView === 'home' && !isCameraInView ? 'Scroll to camera' : 'Home'}
+          aria-label={activeView === 'home' && !isCameraInView ? t('common:navigation.scrollToCamera') : t('common:navigation.home')}
           aria-current={activeView === 'home' ? 'page' : undefined}
           onClick={() => goToView('home')}
         >
@@ -1453,7 +1456,7 @@ export default function MainScreen({
         <button
           className={`nav-item ${activeView === 'profile' ? 'active' : ''}`}
           type="button"
-          aria-label="Profile"
+          aria-label={t('common:navigation.profile')}
           aria-current={activeView === 'profile' ? 'page' : undefined}
           onClick={() => goToView('profile')}
         >

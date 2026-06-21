@@ -146,7 +146,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       const data = await callFunction('acceptPairingRequest', { requestId: request.id });
       if (data.coupleId) onPaired(data.coupleId);
       trackEvent('pairing_request_accepted', { requestId: request.id, coupleId: data.coupleId || null });
-    } catch (err) {
+    } catch {
       setError(t('errors.accept'));
     } finally {
       setWorkingId('');
@@ -160,7 +160,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       await callFunction('declinePairingRequest', { requestId: request.id });
       trackEvent('pairing_request_declined', { requestId: request.id });
       setNotice(t('invites.declined'));
-    } catch (err) {
+    } catch {
       setError(t('errors.decline'));
     } finally {
       setWorkingId('');
@@ -175,7 +175,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       await callFunction('cancelPairingRequest', { requestId: outgoing.id });
       trackEvent('pairing_request_canceled', { requestId: outgoing.id });
       setNotice(t('invites.canceled'));
-    } catch (err) {
+    } catch {
       setError(t('errors.cancel'));
     } finally {
       setWorkingId('');
@@ -190,7 +190,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       const data = await callFunction('createPairingCode');
       setPairingCode(data.code);
       trackEvent('pairing_code_created');
-    } catch (err) {
+    } catch {
       setError(t('errors.createCode'));
     } finally {
       setWorkingId('');
@@ -205,7 +205,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       const data = await callFunction('redeemPairingCode', { code: inputCode });
       if (data.coupleId) onPaired(data.coupleId);
       trackEvent('pairing_code_redeemed', { coupleId: data.coupleId || null });
-    } catch (err) {
+    } catch {
       setError(t('errors.redeemCode'));
     } finally {
       setWorkingId('');
@@ -235,7 +235,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       if (result?.status === 'registered') setNotice(t('notifications.enabled'));
       else if (result?.status === 'denied') setNotice(t('notifications.denied'));
       else setNotice(t('notifications.unavailable'));
-    } catch (err) {
+    } catch {
       setError(t('errors.notifications'));
     } finally {
       setWorkingId('');

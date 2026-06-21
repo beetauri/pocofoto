@@ -49,3 +49,10 @@ test('History self badge is removed', () => {
   assert.doesNotMatch(historyScreenSource, />You<\/span>/);
   assert.doesNotMatch(stylesheetSource, /\.history-badge/);
 });
+
+test('History sources customer copy from its translation namespace', () => {
+  assert.match(historyScreenSource, /useTranslation\('history'\)/);
+  assert.match(historyScreenSource, /t\('title'\)/);
+  assert.match(historyScreenSource, /t\('empty\.title'\)/);
+  assert.match(historyScreenSource, /t\('openPhoto'\)/);
+});

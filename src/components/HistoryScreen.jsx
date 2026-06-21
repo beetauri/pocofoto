@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { trackEvent } from '../analytics';
 
 export default function HistoryScreen({
@@ -11,6 +12,7 @@ export default function HistoryScreen({
   onLoadMore,
   onSelectPhoto
 }) {
+  const { t } = useTranslation('history');
   const sentinelRef = useRef(null);
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function HistoryScreen({
     >
       <header className="history-header">
         <div />
-        <h2>History</h2>
+        <h2>{t('title')}</h2>
         <div />
       </header>
 
@@ -47,8 +49,8 @@ export default function HistoryScreen({
       ) : photos.length === 0 ? (
         <div className="camera-frame empty" style={{ flex: 1 }}>
           <div className="empty-state">
-            <strong>No photos yet</strong>
-            <span>Shared photos will appear here.</span>
+            <strong>{t('empty.title')}</strong>
+            <span>{t('empty.body')}</span>
           </div>
         </div>
       ) : (
@@ -68,7 +70,7 @@ export default function HistoryScreen({
                     trackEvent('history_photo_opened', { photoId: photo.id });
                     onSelectPhoto?.(photo.id);
                   }}
-                  aria-label="Open photo"
+                  aria-label={t('openPhoto')}
                 >
                   <img
                     src={historyImageUrl}
@@ -84,7 +86,7 @@ export default function HistoryScreen({
           <div className="photo-load-more" ref={sentinelRef}>
             {loadingMore && <div className="spinner" />}
             {loadError && (
-              <button type="button" onClick={onLoadMore}>Try again</button>
+              <button type="button" onClick={onLoadMore}>{t('tryAgain')}</button>
             )}
           </div>
         </>

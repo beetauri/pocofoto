@@ -24,7 +24,7 @@ test('MainScreen persists offline review drafts', () => {
 });
 
 test('MainScreen blocks queueing a review photo while offline', () => {
-  assert.match(mainScreenSource, /Reconnect to send/);
+  assert.match(mainScreenSource, /t\('errors\.offlineSend'\)/);
   assert.match(mainScreenSource, /if \(!isOnline\) \{/);
 });
 

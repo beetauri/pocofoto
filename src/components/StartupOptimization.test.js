@@ -6,7 +6,7 @@ const appSource = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('./MainScreen.jsx', import.meta.url), 'utf8');
 
 test('feed photos are lazy and dynamic background runtime is removed', () => {
-  assert.match(mainSource, /alt="Shared moment" loading="lazy" decoding="async"/);
+  assert.match(mainSource, /alt=\{t\('sharedMoment'\)\} loading="lazy" decoding="async"/);
   assert.doesNotMatch(mainSource, /loading="eager"/);
   assert.doesNotMatch(mainSource, /extractPalette|normalizePalette|paletteV2FromLegacy|onBackgroundSourceChange/);
   assert.doesNotMatch(appSource, /backgroundSource|onBackgroundSourceChange/);

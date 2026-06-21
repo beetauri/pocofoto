@@ -37,14 +37,14 @@ test('capture is not blocked by background queue uploads', () => {
 
 test('pending local photos replace metadata with centered sending state', () => {
   assert.match(source, /photo-local-status/);
-  assert.match(source, /Sending…/);
+  assert.match(source, /t\('queue\.sending'\)/);
   assert.match(source, /photo\.localOnly && photo\.status !== LOCAL_PHOTO_STATUS\.FAILED/);
 });
 
 test('failed local photos show retry and icon-only delete actions', () => {
   assert.match(source, /photo-local-actions failed/);
-  assert.match(source, /Retry/);
-  assert.match(source, /aria-label="Delete failed photo"/);
+  assert.match(source, /t\('queue\.retry'\)/);
+  assert.match(source, /aria-label=\{t\('queue\.delete'\)\}/);
   assert.match(source, /handleRetryLocalPhoto\(photo\.id\)/);
   assert.match(source, /handleDeleteLocalPhoto\(photo\.id\)/);
 });

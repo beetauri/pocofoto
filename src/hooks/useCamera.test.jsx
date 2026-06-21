@@ -95,7 +95,7 @@ describe('useCamera', () => {
     expect(result.current.facingMode).toBe('environment');
     expect(videoRef.current.srcObject).toBe(firstStream);
     expect(firstStream.track.stop).not.toHaveBeenCalled();
-    expect(onError).toHaveBeenCalledWith('Could not switch cameras.');
+    expect(onError).toHaveBeenCalledWith('We couldn’t switch cameras.');
     unmount();
   });
 

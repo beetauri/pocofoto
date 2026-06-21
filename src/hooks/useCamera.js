@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   buildCameraConstraints,
   captureVideoFrame,
@@ -11,15 +12,15 @@ import {
 
 const CAMERA_REQUEST_TIMEOUT_MS = 10000;
 
-function cameraErrorState(error) {
+function cameraErrorState(error, t) {
   const denied = error?.name === 'NotAllowedError' || error?.name === 'PermissionDeniedError';
   return {
     status: denied ? 'denied' : 'error',
     message: denied
-      ? 'Camera access was blocked.'
+      ? t('errors.denied')
       : error?.message === 'Camera request timed out.'
-        ? 'Check the browser camera prompt, or try again.'
-        : 'Camera could not start.'
+        ? t('errors.timeout')
+        : t('errors.start')
   };
 }
 
@@ -39,6 +40,7 @@ async function getCameraStream(mode) {
 }
 
 export function useCamera({ videoRef, onError, onTiming }) {
+  const { t } = useTranslation('camera');
   const [status, setStatus] = useState('requesting');
   const [error, setError] = useState('');
   const [facingMode, setFacingMode] = useState(() => getStoredFacingMode());
@@ -64,7 +66,7 @@ export function useCamera({ videoRef, onError, onTiming }) {
     if (busyRef.current) return false;
     if (!navigator.mediaDevices?.getUserMedia) {
       setStatus('unavailable');
-      setError('Camera is not available in this browser.');
+      setError(t('errors.unavailable'));
       return false;
     }
     busyRef.current = true;
@@ -106,14 +108,14 @@ export function useCamera({ videoRef, onError, onTiming }) {
       lastFailureRef.current = cameraError;
       stopMediaStream(candidateStreamRef.current);
       candidateStreamRef.current = null;
-      const nextError = cameraErrorState(cameraError);
+      const nextError = cameraErrorState(cameraError, t);
       setStatus(nextError.status);
       setError(nextError.message);
       return false;
     } finally {
       busyRef.current = false;
     }
-  }, [videoRef]);
+  }, [t, videoRef]);
 
   const startCamera = useCallback(() => acquire(facingModeRef.current, 'requesting'), [acquire]);
 
@@ -145,7 +147,7 @@ export function useCamera({ videoRef, onError, onTiming }) {
         setStatus('ready');
         setError('');
         setFrozenFrame('');
-        onErrorRef.current?.('Could not switch cameras.');
+        onErrorRef.current?.(t('errors.switch'));
         return false;
       } catch {
         stopMediaStream(previousStream);
@@ -154,12 +156,12 @@ export function useCamera({ videoRef, onError, onTiming }) {
 
     const restored = await acquire(previousMode, 'resuming', { replaceCurrent: true });
     if (!restored) {
-      onErrorRef.current?.('Camera could not be restored.');
+      onErrorRef.current?.(t('errors.restore'));
     } else {
-      onErrorRef.current?.('Could not switch cameras.');
+      onErrorRef.current?.(t('errors.switch'));
     }
     return false;
-  }, [acquire, status, videoRef]);
+  }, [acquire, status, t, videoRef]);
 
   useEffect(() => {
     startCamera();
