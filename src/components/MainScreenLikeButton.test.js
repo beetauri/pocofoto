@@ -20,3 +20,10 @@ test('like button rolls back optimistic local state when Firestore write fails',
     /catch \(err\) \{\s*updatePhotoLocal\(photo\.id, \{ liked: isLiked \}\);[\s\S]*console\.error\(err\);/
   );
 });
+
+test('photo status transition is protected from Chrome translation DOM rewrites', () => {
+  assert.match(
+    source,
+    /<div\s+className="status-chip notranslate"\s+translate="no"\s+aria-label=\{photo\.liked \? 'Liked' : 'Sent'\}\s*>/
+  );
+});

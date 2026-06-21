@@ -121,7 +121,8 @@ export default function AuthScreen() {
             variant="outline"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full h-[54px] gap-2.5 rounded-full border-[var(--glass-border)] bg-[var(--bg-control)] text-foreground text-base font-extrabold [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--bg-control-hover)]"
+            translate="no"
+            className="notranslate w-full h-[54px] gap-2.5 rounded-full border-[var(--glass-border)] bg-[var(--bg-control)] text-foreground text-base font-extrabold [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--bg-control-hover)]"
           >
             <GoogleIcon />
             {loading ? <Spinner className="size-5" /> : 'Continue with Google'}

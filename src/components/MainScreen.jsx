@@ -1341,7 +1341,11 @@ export default function MainScreen({
                               <span>{timeAgo(photoTimestamp)}</span>
                             </div>
                             {isPhotoMine ? (
-                              <div className="status-chip" aria-label={photo.liked ? 'Liked' : 'Sent'}>
+                              <div
+                                className="status-chip notranslate"
+                                translate="no"
+                                aria-label={photo.liked ? 'Liked' : 'Sent'}
+                              >
                                 {photo.liked ? <HeartIcon filled /> : <SendIcon />}
                                 {photo.liked ? 'Liked' : 'Sent'}
                               </div>
