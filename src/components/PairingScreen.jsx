@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Copy as LucideCopyIcon, Link as LucideLinkIcon, LogOut as LucideLogoutIcon } from 'lucide-react';
 import {
   auth,
@@ -54,12 +55,8 @@ function CopyIcon() {
   return <LucideCopyIcon {...lucideIconProps} />;
 }
 
-function parseError(err, fallback = 'Something went wrong. Please try again.') {
-  const raw = err?.message || err?.code || fallback;
-  return raw.replace(/^Firebase: /, '').replace(/\.$/, '.');
-}
-
 export default function PairingScreen({ user, isOnline = true, onPaired, initialNotice = '', onNoticeConsumed, notificationControls = null }) {
+  const { t } = useTranslation(['pairing', 'common']);
   const [workingId, setWorkingId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -100,8 +97,8 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       const notification = snap.docs[0];
       if (!notification) return;
       const data = notification.data();
-      const initiatorName = data.initiator?.displayName || 'Your previous partner';
-      setNotice(`${initiatorName} removed the pairing. You can pair again whenever you are ready.`);
+      const initiatorName = data.initiator?.displayName || t('yourContact');
+      setNotice(t('removedByPerson', { name: initiatorName }));
       updateDoc(doc(db, 'users', user.uid, 'notifications', notification.id), {
         status: 'resolved',
         resolvedAt: new Date().toISOString()
@@ -109,7 +106,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
         console.warn('Could not resolve pairing removed notification.', err);
       });
     });
-  }, [user.uid]);
+  }, [t, user.uid]);
 
   useEffect(() => {
     const q = query(
@@ -150,7 +147,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       if (data.coupleId) onPaired(data.coupleId);
       trackEvent('pairing_request_accepted', { requestId: request.id, coupleId: data.coupleId || null });
     } catch (err) {
-      setError(parseError(err, 'Could not accept invite.'));
+      setError(t('errors.accept'));
     } finally {
       setWorkingId('');
     }
@@ -162,9 +159,9 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
     try {
       await callFunction('declinePairingRequest', { requestId: request.id });
       trackEvent('pairing_request_declined', { requestId: request.id });
-      setNotice('Invite declined');
+      setNotice(t('invites.declined'));
     } catch (err) {
-      setError(parseError(err, 'Could not decline invite.'));
+      setError(t('errors.decline'));
     } finally {
       setWorkingId('');
     }
@@ -177,9 +174,9 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
     try {
       await callFunction('cancelPairingRequest', { requestId: outgoing.id });
       trackEvent('pairing_request_canceled', { requestId: outgoing.id });
-      setNotice('Invite canceled');
+      setNotice(t('invites.canceled'));
     } catch (err) {
-      setError(parseError(err, 'Could not cancel invite.'));
+      setError(t('errors.cancel'));
     } finally {
       setWorkingId('');
     }
@@ -194,7 +191,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       setPairingCode(data.code);
       trackEvent('pairing_code_created');
     } catch (err) {
-      setError(parseError(err, 'Could not create pairing code.'));
+      setError(t('errors.createCode'));
     } finally {
       setWorkingId('');
     }
@@ -209,7 +206,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       if (data.coupleId) onPaired(data.coupleId);
       trackEvent('pairing_code_redeemed', { coupleId: data.coupleId || null });
     } catch (err) {
-      setError(parseError(err, 'Could not redeem pairing code.'));
+      setError(t('errors.redeemCode'));
     } finally {
       setWorkingId('');
     }
@@ -217,7 +214,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
 
   const handleCopyCode = async () => {
     await navigator.clipboard?.writeText(pairingCode);
-    setNotice('Code copied');
+    setNotice(t('code.copied'));
   };
 
   const handleLogout = async () => {
@@ -235,11 +232,11 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
     setError('');
     try {
       const result = await notificationControls?.enable?.();
-      if (result?.status === 'registered') setNotice('Notifications enabled on this device.');
-      else if (result?.status === 'denied') setNotice('Enable notifications in your browser or device settings.');
-      else setNotice('Notifications are not available on this device.');
+      if (result?.status === 'registered') setNotice(t('notifications.enabled'));
+      else if (result?.status === 'denied') setNotice(t('notifications.denied'));
+      else setNotice(t('notifications.unavailable'));
     } catch (err) {
-      setError(parseError(err, 'Could not enable notifications.'));
+      setError(t('errors.notifications'));
     } finally {
       setWorkingId('');
     }
@@ -249,10 +246,10 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
     <div className="pairing-discovery screen">
       <header className="pairing-topbar">
         <div>
-          <span className="pairing-eyebrow">Signed in as</span>
+          <span className="pairing-eyebrow">{t('signedInAs')}</span>
           <strong>{displayName}</strong>
         </div>
-        <button className="icon-btn small" type="button" aria-label="Log out" onClick={() => setConfirmLogout(true)}>
+        <button className="icon-btn small" type="button" aria-label={t('accessibility.logout')} onClick={() => setConfirmLogout(true)}>
           <LogoutIcon />
         </button>
       </header>
@@ -261,8 +258,8 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
         <section className="pairing-hero">
           <div className="brand-mark"><LinkIcon /></div>
           <div>
-            <h1>Pair with your person</h1>
-            <p>Create a one-time code or enter the code they shared with you.</p>
+            <h1>{t('title')}</h1>
+            <p>{t('intro')}</p>
           </div>
         </section>
 
@@ -281,18 +278,18 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
 
         {!isOnline && (
           <div className="pairing-offline-note" role="status">
-            Pairing needs connection. You can continue when you're back online.
+            {t('errors.offline')}
           </div>
         )}
 
         {notificationControls && (
-          <section className="pairing-notification-action" aria-label="Notifications">
+          <section className="pairing-notification-action" aria-label={t('accessibility.notifications')}>
             <div>
-              <strong>Pairing notifications</strong>
+              <strong>{t('notifications.title')}</strong>
               <span>
                 {notificationControls.status?.permission === 'denied'
-                  ? 'Enable notifications in your browser or device settings.'
-                  : 'Enable this device so pairing invites can reach you.'}
+                  ? t('notifications.denied')
+                  : t('notifications.body')}
               </span>
             </div>
             <button
@@ -301,27 +298,27 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
               onClick={handleEnableNotifications}
               disabled={!isOnline || notificationControls.busy || workingId === 'enable-notifications'}
             >
-              {workingId === 'enable-notifications' ? 'Enabling...' : 'Enable notifications'}
+              {workingId === 'enable-notifications' ? t('notifications.enabling') : t('notifications.enable')}
             </button>
           </section>
         )}
 
         {sortedIncoming.length > 0 && (
-          <section className="request-stack" aria-label="Incoming pairing requests">
-            <h2>Pairing invites</h2>
+          <section className="request-stack" aria-label={t('accessibility.incomingRequests')}>
+            <h2>{t('invites.title')}</h2>
             {sortedIncoming.map((request) => (
               <article className="request-card" key={request.id}>
                 <Avatar src={request.sender?.profilePic} name={request.sender?.displayName} email={request.sender?.email} />
                 <div>
-                  <strong>{request.sender?.displayName || 'Someone'}</strong>
-                  <span>wants to pair with you</span>
+                  <strong>{request.sender?.displayName || t('someone')}</strong>
+                  <span>{t('invites.wantsToPair')}</span>
                 </div>
                 <div className="request-actions">
                   <button className="mini-btn ghost" type="button" onClick={() => handleDecline(request)} disabled={!isOnline || workingId === request.id}>
-                    Decline
+                    {t('invites.decline')}
                   </button>
                   <button className="mini-btn" type="button" onClick={() => handleAccept(request)} disabled={!isOnline || workingId === request.id}>
-                    Accept
+                    {t('invites.accept')}
                   </button>
                 </div>
               </article>
@@ -330,13 +327,13 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
         )}
 
         {outgoing && (
-          <section className="pending-card" aria-label="Outgoing pairing request">
+          <section className="pending-card" aria-label={t('accessibility.outgoingRequest')}>
             <div>
-              <strong>Invite pending</strong>
-              <span>{outgoing.recipient?.displayName || 'Your contact'} has 24 hours to respond.</span>
+              <strong>{t('invites.pending')}</strong>
+              <span>{t('invites.pendingBody', { name: outgoing.recipient?.displayName || t('yourContact') })}</span>
             </div>
             <button className="mini-btn ghost" type="button" onClick={handleCancelOutgoing} disabled={!isOnline || workingId === 'cancel'}>
-              Cancel
+              {t('invites.cancel')}
             </button>
           </section>
         )}
@@ -344,34 +341,34 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
         <section className="code-fallback">
           <div className="code-fallback-intro">
             <div>
-              <h2>Pair with a code</h2>
-              <p>Share your code with your person, or enter the code they gave you.</p>
+              <h2>{t('code.title')}</h2>
+              <p>{t('code.intro')}</p>
             </div>
           </div>
           <div className="code-panel">
             <div className="code-option-card">
               <div className="code-option-copy">
-                <strong>Share your code</strong>
-                <span>Create a one-time code and send it to your person.</span>
+                <strong>{t('code.shareTitle')}</strong>
+                <span>{t('code.shareBody')}</span>
               </div>
               <button id="pairing-create" className="btn-primary" type="button" onClick={handleCreateCode} disabled={!isOnline || workingId === 'create-code'}>
-                {workingId === 'create-code' ? <div className="spinner" /> : 'Create code'}
+                {workingId === 'create-code' ? <div className="spinner" /> : t('code.create')}
               </button>
               {pairingCode && (
                 <div className="invite-code-card">
-                  <p>Give them this code</p>
+                  <p>{t('code.createdLabel')}</p>
                   <strong>{pairingCode}</strong>
                   <button className="btn-ghost" type="button" onClick={handleCopyCode}>
                     <CopyIcon />
-                    Copy code
+                    {t('code.copy')}
                   </button>
                 </div>
               )}
             </div>
             <form className="code-option-card code-entry-form" onSubmit={handleRedeemCode}>
               <div className="code-option-copy">
-                <label htmlFor="pairing-code-input">Enter their code</label>
-                <span>Type the six characters they shared with you.</span>
+                <label htmlFor="pairing-code-input">{t('code.enterLabel')}</label>
+                <span>{t('code.enterHelp')}</span>
               </div>
               <input
                 id="pairing-code-input"
@@ -385,7 +382,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
                 style={{ textAlign: 'center', letterSpacing: 6, fontSize: 22, fontWeight: 900 }}
               />
               <button id="pairing-join-submit" className="btn-primary" type="submit" disabled={!isOnline || workingId === 'redeem-code' || inputCode.length < 6}>
-                {workingId === 'redeem-code' ? <div className="spinner" /> : 'Connect'}
+                {workingId === 'redeem-code' ? <div className="spinner" /> : t('code.submit')}
               </button>
             </form>
           </div>
@@ -393,7 +390,7 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
       </motion.main>
 
       <div className="screen-version">
-        <span>Version</span>
+        <span>{t('common:version')}</span>
         <strong>v{buildVersion} ({buildCommit})</strong>
       </div>
 
@@ -401,11 +398,11 @@ export default function PairingScreen({ user, isOnline = true, onPaired, initial
         {confirmLogout && (
           <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-title" initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}>
-              <h2 id="logout-title">Log out?</h2>
-              <p>You will need to sign in again to pair or share photos.</p>
+              <h2 id="logout-title">{t('logout.title')}</h2>
+              <p>{t('logout.body')}</p>
               <div className="dialog-actions">
-                <button className="btn-ghost" type="button" onClick={() => setConfirmLogout(false)}>Cancel</button>
-                <button className="btn-primary" type="button" onClick={handleLogout}>Log out</button>
+                <button className="btn-ghost" type="button" onClick={() => setConfirmLogout(false)}>{t('common:actions.cancel')}</button>
+                <button className="btn-primary" type="button" onClick={handleLogout}>{t('logout.confirm')}</button>
               </div>
             </motion.div>
           </motion.div>

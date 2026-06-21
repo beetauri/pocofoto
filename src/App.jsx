@@ -65,6 +65,7 @@ function OfflineHoldScreen() {
 }
 
 export default function App() {
+  const { t } = useTranslation('pairing');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [coupleId, setCoupleId] = useState(null);
@@ -214,8 +215,8 @@ export default function App() {
     trackEvent('pairing_completed', { coupleId: newCoupleId });
   };
 
-  const handlePairingRemoved = (message = 'Pairing removed. You can pair again whenever you are ready.') => {
-    setPairingNotice(message);
+  const handlePairingRemoved = (message) => {
+    setPairingNotice(message || t('removedDefault'));
     setCoupleId(null);
     if (user) {
       setPairStateKnown(true);

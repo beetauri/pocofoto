@@ -18,7 +18,14 @@ test('PairingScreen accepts online state with a safe default', () => {
 });
 
 test('PairingScreen shows offline pairing copy', () => {
-  assert.match(pairingScreenSource, /Pairing needs connection/);
+  assert.match(pairingScreenSource, /t\('errors\.offline'\)/);
+});
+
+test('PairingScreen sources its primary copy from the pairing namespace', () => {
+  assert.match(pairingScreenSource, /useTranslation\(\['pairing', 'common'\]\)/);
+  assert.match(pairingScreenSource, /t\('title'\)/);
+  assert.match(pairingScreenSource, /t\('code\.enterLabel'\)/);
+  assert.match(pairingScreenSource, /t\('logout\.title'\)/);
 });
 
 test('PairingScreen disables online-only pairing actions while offline', () => {

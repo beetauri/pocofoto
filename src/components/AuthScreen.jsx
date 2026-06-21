@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
   auth,
   db,
@@ -33,6 +34,7 @@ function GoogleIcon() {
 }
 
 export default function AuthScreen() {
+  const { t } = useTranslation(['auth', 'common']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
@@ -75,8 +77,9 @@ export default function AuthScreen() {
           provider: 'google',
           errorCode: err.code || 'unknown'
         });
-        const msg = err.code?.replace('auth/', '').replace(/-/g, ' ') || err.message || 'Google sign-in failed';
-        setError(msg.charAt(0).toUpperCase() + msg.slice(1));
+        if (err.code === 'auth/popup-blocked') setError(t('errors.popupBlocked'));
+        else if (['auth/network-request-failed', 'auth/web-storage-unsupported'].includes(err.code)) setError(t('errors.network'));
+        else setError(t('errors.generic'));
       }
     } finally {
       setLoading(false);
@@ -96,7 +99,7 @@ export default function AuthScreen() {
           </motion.div>
           <img className="logo-lockup-image mb-3" src="/pocofoto-logotype.svg" alt="Pocofoto" />
           <p className="text-muted-foreground text-[15px] font-semibold leading-relaxed mt-1">
-            Share photos with your person.
+            {t('tagline')}
           </p>
         </div>
 
@@ -125,13 +128,13 @@ export default function AuthScreen() {
             className="notranslate w-full h-[54px] gap-2.5 rounded-full border-[var(--glass-border)] bg-[var(--bg-control)] text-foreground text-base font-extrabold [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[var(--bg-control-hover)]"
           >
             <GoogleIcon />
-            {loading ? <Spinner className="size-5" /> : 'Continue with Google'}
+            {loading ? <Spinner className="size-5" /> : t('continueWithGoogle')}
           </Button>
         </motion.div>
       </motion.div>
       <div className="screen-version absolute bottom-0 left-0 right-0 pb-[max(env(safe-area-inset-bottom),16px)]">
         <img className="easter-egg-mark" src="/senavebilal.svg" alt="" aria-hidden="true" />
-        <span>Version</span>
+        <span>{t('common:version')}</span>
         <strong>v{buildVersion} ({buildCommit})</strong>
       </div>
     </div>

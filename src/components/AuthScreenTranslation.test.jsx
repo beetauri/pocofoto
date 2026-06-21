@@ -37,6 +37,7 @@ function simulateChromeTranslation(root) {
 
 test('sign-in loading state survives Chrome translation DOM wrappers', async () => {
   render(<AuthScreen />);
+  expect(screen.getByText('A little window into your person’s day.')).toBeInTheDocument();
   const signInButton = screen.getByRole('button', { name: 'Continue with Google' });
 
   simulateChromeTranslation(signInButton);
