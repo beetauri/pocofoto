@@ -9,6 +9,7 @@ import {
   stopMediaStream,
   waitForVideoFrame
 } from '../lib/camera.js';
+import { trackEvent } from '../analytics.js';
 
 const CAMERA_REQUEST_TIMEOUT_MS = 10000;
 
@@ -111,6 +112,9 @@ export function useCamera({ videoRef, onError, onTiming }) {
       const nextError = cameraErrorState(cameraError, t);
       setStatus(nextError.status);
       setError(nextError.message);
+      if (nextError.status === 'denied') {
+        trackEvent('Camera Access Denied', { facing_mode: mode, error_name: cameraError?.name || 'unknown' });
+      }
       return false;
     } finally {
       busyRef.current = false;

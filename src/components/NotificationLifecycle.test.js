@@ -16,7 +16,7 @@ test('App owns paired-user notification onboarding', () => {
 });
 
 test('App synchronizes complete Firebase identity with Sentry', () => {
-  assert.match(appSource, /import \{ syncSentryUser \} from '\.\/sentry';/);
+  assert.match(appSource, /import \{[^}]*syncSentryUser[^}]*\} from '\.\/sentry';/);
   assert.match(
     appSource,
     /onAuthStateChanged\(auth, \(firebaseUser\) => \{[\s\S]*syncSentryUser\(firebaseUser\);[\s\S]*setUser\(firebaseUser\);/

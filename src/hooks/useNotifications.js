@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { notificationClient } from '../notifications/notificationClient';
 import { notificationDeviceStore } from '../lib/notificationDevice';
+import { trackEvent } from '../analytics';
 
 function messageFromPayload(payload, t) {
   const data = payload?.data || {};
@@ -72,7 +73,11 @@ export function useNotifications({
     setBusy(true);
     try {
       const result = await client.enable();
-      setStatus(client.getStatus());
+      const nextStatus = client.getStatus();
+      setStatus(nextStatus);
+      if (result?.status === 'registered') {
+        trackEvent('Notification Permission Enabled', { permission: nextStatus.permission });
+      }
       await refreshDiagnostics().catch(() => null);
       return result;
     } finally {
@@ -108,7 +113,8 @@ export function useNotifications({
     if (!user) return;
     store.dismissPrompt(user.uid);
     setPromptDismissed(true);
-  }, [store, user]);
+    trackEvent('Notification Prompt Dismissed', { permission: status.permission });
+  }, [status.permission, store, user]);
 
   const cleanupBeforeLogout = useCallback(async () => {
     return client.cleanupBeforeLogout();

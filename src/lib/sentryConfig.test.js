@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  captureHandledException,
   createSentryOptions,
   replayPrivacyOptions,
   syncSentryUser
@@ -92,4 +93,34 @@ test('sets and clears complete Firebase user context', () => {
     },
     null
   ])
+})
+
+test('captures handled exceptions with scoped diagnostic context', () => {
+  const calls = []
+  const sentry = {
+    captureException: (error, context) => calls.push({ error, context })
+  }
+  const error = Object.assign(new Error('Listener failed'), {
+    code: 'permission-denied'
+  })
+
+  captureHandledException(error, {
+    operation: 'user-route-listener',
+    online: true,
+    hasCachedCoupleId: false
+  }, sentry)
+
+  assert.deepEqual(calls, [{
+    error,
+    context: {
+      tags: {
+        operation: 'user-route-listener',
+        errorCode: 'permission-denied'
+      },
+      extra: {
+        online: true,
+        hasCachedCoupleId: false
+      }
+    }
+  }])
 })

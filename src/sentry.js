@@ -71,6 +71,21 @@ export function syncSentryUser(firebaseUser, sentry = Sentry) {
   } : null)
 }
 
+export function captureHandledException(error, context = {}, sentry = Sentry) {
+  const {
+    operation = 'unknown',
+    ...extra
+  } = context
+
+  sentry.captureException(error, {
+    tags: {
+      operation,
+      errorCode: error?.code || 'unknown'
+    },
+    extra
+  })
+}
+
 export function showSentryReport(eventId) {
   Sentry.showReportDialog({
     eventId,

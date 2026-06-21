@@ -20,7 +20,7 @@ import {
   setCachedUserRoute
 } from './lib/userRouteCache';
 import { triggerHaptic } from './lib/haptics';
-import { syncSentryUser } from './sentry';
+import { captureHandledException, syncSentryUser } from './sentry';
 
 const Retune = import.meta.env.DEV
   ? lazy(() => import('retune').then((module) => ({ default: module.Retune })))
@@ -155,7 +155,13 @@ export default function App() {
       setCachedUserRoute(user.uid, { coupleId: nextCoupleId });
       setCheckingPair(false);
       setLoading(false);
-    }, () => {
+    }, (error) => {
+      captureHandledException(error, {
+        operation: 'user-route-listener',
+        online: connectionStatus.isOnline,
+        hasCachedCoupleId: Boolean(cachedRoute?.coupleId),
+        authUserMatches: auth.currentUser?.uid === user.uid
+      });
       if (cachedRoute?.coupleId) {
         setCoupleId(cachedRoute.coupleId);
         setPairStateKnown(true);

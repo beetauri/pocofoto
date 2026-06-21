@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Notification Permission Enabled",
+    "description": "Fires when the user successfully enables push notifications for the first time.",
+    "file": "src/hooks/useNotifications.js"
+  },
+  {
+    "name": "Notification Prompt Dismissed",
+    "description": "Fires when the user dismisses the notification permission prompt without enabling.",
+    "file": "src/hooks/useNotifications.js"
+  },
+  {
+    "name": "Camera Access Denied",
+    "description": "Fires when the browser denies camera access, blocking photo capture.",
+    "file": "src/hooks/useCamera.js"
+  }
+]

@@ -1,9 +1,11 @@
 import posthog from 'posthog-js';
 import { logEvent } from 'firebase/analytics';
 import { analytics } from './firebase';
+import * as amplitude from '@amplitude/unified';
 
 const posthogKey = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN || import.meta.env.VITE_POSTHOG_KEY || 'phc_qw8P4JmxPeFvWd7ev5w8nY32JsqXCJpvsH4oVJg5i9TF';
 const posthogHost = import.meta.env.VITE_POSTHOG_HOST || 'https://p.pocofoto.com.tr';
+const amplitudeKey = import.meta.env.VITE_AMPLITUDE_API_KEY;
 const scrollDepthThresholds = [25, 50, 75, 90];
 
 let initialized = false;
@@ -62,6 +64,28 @@ function getTrackedScrollRoot(target) {
 
 export function initAnalytics() {
   if (initialized || !canUseBrowserAnalytics()) return;
+
+  if (amplitudeKey) {
+    amplitude.initAll(amplitudeKey, {
+      analytics: {
+        remoteConfig: { fetchRemoteConfig: true }, // remote SDK config from Amplitude
+        autocapture: {
+          attribution: true,           // UTM / referrer attribution events
+          pageViews: true,             // SPA route changes + initial load
+          sessions: true,              // Session start / end events
+          formInteractions: true,      // Form starts + submits
+          fileDownloads: true,         // Downloads of common file types
+          elementInteractions: true,   // Click + change on instrumented els
+          frustrationInteractions: true, // Rage clicks, dead clicks
+          pageUrlEnrichment: true,     // Adds path / search to event props
+          networkTracking: true,       // XHR + fetch request events
+          webVitals: true,             // CWV (LCP, INP, CLS) on page hide
+        },
+      },
+      sessionReplay: { sampleRate: 1 }, // Record user sessions; comment out to disable
+      engagement: {},                   // In-product Guides & Surveys; comment out to disable
+    });
+  }
 
   if (posthogKey) {
     posthog.init(posthogKey, {
@@ -130,16 +154,34 @@ export function trackEvent(eventName, properties = {}) {
   if (analytics) {
     logEvent(analytics, toGoogleAnalyticsEventName(eventName), properties);
   }
+  if (amplitudeKey) {
+    amplitude.track(eventName, properties);
+  }
 }
 
 export function identifyUser(userId, properties = {}) {
-  if (!canUseBrowserAnalytics() || !posthogKey || !userId) return;
-  posthog.identify(userId, properties);
+  if (!canUseBrowserAnalytics() || !userId) return;
+  if (posthogKey) {
+    posthog.identify(userId, properties);
+  }
+  if (amplitudeKey) {
+    amplitude.setUserId(userId);
+    const identifyObj = new amplitude.Identify();
+    Object.entries(properties).forEach(([key, value]) => {
+      identifyObj.set(key, value);
+    });
+    amplitude.identify(identifyObj);
+  }
 }
 
 export function resetAnalytics() {
-  if (!canUseBrowserAnalytics() || !posthogKey) return;
-  posthog.reset();
+  if (!canUseBrowserAnalytics()) return;
+  if (posthogKey) {
+    posthog.reset();
+  }
+  if (amplitudeKey) {
+    amplitude.reset();
+  }
 }
 
 export function capturePageView(properties = {}) {

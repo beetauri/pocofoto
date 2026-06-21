@@ -25,3 +25,9 @@ test('App does not route to Pairing unless pair state is known and online', () =
   );
   assert.doesNotMatch(appSource, /if \(user && !coupleId && !checkingPair\) screen = 'pairing';/);
 });
+
+test('App reports user route listener failures with routing context', () => {
+  assert.match(appSource, /captureHandledException\(error, \{/);
+  assert.match(appSource, /operation: 'user-route-listener'/);
+  assert.match(appSource, /hasCachedCoupleId: Boolean\(cachedRoute\?\.coupleId\)/);
+});
