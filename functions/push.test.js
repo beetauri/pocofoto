@@ -62,8 +62,8 @@ test('photo and like events use deterministic event ids and approved copy', () =
   assert.deepEqual(createPhotoReceivedEvent({ photoId: 'p1', coupleId: 'c1', senderName: 'Bilal' }), {
     eventId: 'photo_received:c1:p1',
     type: 'photo_received',
-    title: "You've got a new photo!",
-    body: 'Bilal sent you a photo.',
+    title: 'A little photo from your person 📸',
+    body: 'Bilal sent you a moment.',
     data: { coupleId: 'c1', photoId: 'p1' },
     link: '/',
     ttlSeconds: 86400

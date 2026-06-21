@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { pushCopy } from './pushCopy.js';
 
 const STALE_TOKEN_CODES = new Set([
   'messaging/registration-token-not-registered',
@@ -47,16 +48,11 @@ export function enforceTestCooldown({ lastTestAtMs = 0, nowMs = Date.now(), cool
   }
 }
 
-function senderName(name) {
-  return name || 'Your person';
-}
-
 export function createPhotoReceivedEvent({ photoId, coupleId, senderName: name }) {
   return {
     eventId: `photo_received:${coupleId}:${photoId}`,
     type: 'photo_received',
-    title: "You've got a new photo!",
-    body: `${senderName(name)} sent you a photo.`,
+    ...pushCopy.photoReceived(name),
     data: { coupleId, photoId },
     link: '/',
     ttlSeconds: 86400
@@ -67,8 +63,7 @@ export function createLikeReceivedEvent({ photoId, coupleId, likerId, likeTimest
   return {
     eventId: `like_received:${coupleId}:${photoId}:${likerId}:${likeTimestamp}`,
     type: 'like_received',
-    title: 'Your photo got a like!',
-    body: `${senderName(name)} liked your photo.`,
+    ...pushCopy.photoLiked(name),
     data: { coupleId, photoId, likerId },
     link: '/',
     ttlSeconds: 86400
@@ -79,8 +74,7 @@ export function createPairingRequestEvent({ requestId, senderName: name }) {
   return {
     eventId: `pairing_request:${requestId}`,
     type: 'pairing_request',
-    title: 'New pairing request',
-    body: `${senderName(name)} wants to pair with you.`,
+    ...pushCopy.pairingRequest(name),
     data: { requestId },
     link: '/?pairing=requests',
     ttlSeconds: 86400
@@ -91,8 +85,7 @@ export function createPairingAcceptedEvent({ requestId, senderName: name }) {
   return {
     eventId: `pairing_accepted:${requestId}`,
     type: 'pairing_accepted',
-    title: 'Pairing accepted',
-    body: `${senderName(name)} accepted your pairing request.`,
+    ...pushCopy.pairingAccepted(name),
     data: { requestId },
     link: '/',
     ttlSeconds: 86400
@@ -103,8 +96,7 @@ export function createPairingRemovedEvent({ coupleId, removalId, senderName: nam
   return {
     eventId: `pairing_removed:${coupleId}:${removalId}`,
     type: 'pairing_removed',
-    title: 'Pairing removed',
-    body: `${senderName(name)} removed your pairing.`,
+    ...pushCopy.pairingRemoved(name),
     data: { coupleId, removalId },
     link: '/?pairing=requests',
     ttlSeconds: 86400

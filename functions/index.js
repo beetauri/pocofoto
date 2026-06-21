@@ -1,4 +1,5 @@
 import admin from 'firebase-admin';
+import { pushCopy } from './pushCopy.js';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -437,8 +438,7 @@ export const sendTestPushToPartnerDevices = onCall(async (request) => {
     const event = {
       eventId: `debug_partner:${senderId}:${Date.now()}`,
       type: 'debug_test',
-      title: 'Debug push from Pocofoto',
-      body: `${senderName} sent a test notification.`,
+      ...pushCopy.debugPartner(senderName),
       data: { coupleId, senderId },
       link: '/',
       ttlSeconds: 300
@@ -465,8 +465,7 @@ export const sendTestPushToThisDevice = onCall(async (request) => {
     const event = {
       eventId: `debug_device:${uid}:${deviceId}:${Date.now()}`,
       type: 'debug_test',
-      title: 'Debug push from Pocofoto',
-      body: 'This device is registered for Pocofoto notifications.',
+      ...pushCopy.debugDevice(),
       data: { deviceId },
       link: '/',
       ttlSeconds: 300
