@@ -33,9 +33,9 @@ test('ConnectionBanner uses the shadcn Alert primitive', () => {
 test('ConnectionBanner renders offline and restored states with status semantics', () => {
   assert.match(bannerSource, /status === ['"]offline['"]/);
   assert.match(bannerSource, /status === ['"]restored['"]/);
-  assert.match(bannerSource, /You're offline/);
-  assert.match(bannerSource, /Capture still works\. Reconnect to send or pair\./);
-  assert.match(bannerSource, /Back online/);
+  assert.match(bannerSource, /t\('offline\.title'\)/);
+  assert.match(bannerSource, /t\('offline\.body'\)/);
+  assert.match(bannerSource, /t\('offline\.restored'\)/);
   assert.match(bannerSource, /connection-banner--offline/);
   assert.match(bannerSource, /connection-banner--restored/);
   assert.match(bannerSource, /role="status"/);

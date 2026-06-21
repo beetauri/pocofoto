@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { auth, db, onAuthStateChanged, doc, onSnapshot, onForegroundMessage } from './firebase';
 import { initAnalytics, trackEvent, identifyUser, resetAnalytics, startScrollDepthTracking } from './analytics';
 import AuthScreen from './components/AuthScreen';
@@ -51,13 +52,14 @@ function LoadingScreen() {
 }
 
 function OfflineHoldScreen() {
+  const { t } = useTranslation('errors');
   return (
     <div className="offline-hold-screen">
       <div className="loading-logo-mark">
         <img src="/pocoface-icon-1024.png" alt="" />
       </div>
       <img className="logo-lockup-image loading-logotype" src="/pocofoto-logotype.svg" alt="Pocofoto" />
-      <p>Reconnect to finish loading Pocofoto.</p>
+      <p>{t('offlineHold')}</p>
     </div>
   );
 }

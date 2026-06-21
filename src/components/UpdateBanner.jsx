@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { RefreshCw, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   applyPwaUpdate,
   consumePwaUpdatedVersion,
@@ -17,6 +18,7 @@ const bannerMotion = {
 };
 
 export default function UpdateBanner({ offsetForConnectionBanner = false }) {
+  const { t } = useTranslation('errors');
   const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
   const [updateState, setUpdateState] = useState(() => getPwaUpdateState());
   const [dismissed, setDismissed] = useState(false);
@@ -61,13 +63,13 @@ export default function UpdateBanner({ offsetForConnectionBanner = false }) {
             type="button"
             className="update-banner-icon-btn"
             onClick={handleDismiss}
-            aria-label="Dismiss update"
+            aria-label={t('update.dismiss')}
           >
             <X aria-hidden="true" />
           </button>
           <div className="update-banner-copy">
-            <strong>New update ready</strong>
-            <span>Get the newest Pocofoto version.</span>
+            <strong>{t('update.title')}</strong>
+            <span>{t('update.body')}</span>
           </div>
           <button
             type="button"
@@ -76,7 +78,7 @@ export default function UpdateBanner({ offsetForConnectionBanner = false }) {
             disabled={updateState.applying}
           >
             <RefreshCw aria-hidden="true" />
-            {updateState.applying ? 'Updating' : 'Update now'}
+            {updateState.applying ? t('update.applying') : t('update.action')}
           </button>
         </motion.div>
       )}
@@ -89,7 +91,7 @@ export default function UpdateBanner({ offsetForConnectionBanner = false }) {
           {...bannerMotion}
         >
           <div className="update-banner-copy centered">
-            <strong>Updated to v{updatedVersion}</strong>
+            <strong>{t('update.complete')}</strong>
           </div>
         </motion.div>
       )}

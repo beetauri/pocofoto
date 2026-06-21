@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { WifiOff, Wifi } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
@@ -11,6 +12,7 @@ const bannerMotion = {
 };
 
 export default function ConnectionBanner({ status }) {
+  const { t } = useTranslation('errors');
   const isOffline = status === 'offline';
   const isRestored = status === 'restored';
   const shouldShow = isOffline || isRestored;
@@ -25,10 +27,10 @@ export default function ConnectionBanner({ status }) {
         >
           <Alert role="status" aria-live="polite">
             {isOffline ? <WifiOff aria-hidden="true" /> : <Wifi aria-hidden="true" />}
-            <AlertTitle>{isOffline ? "You're offline" : 'Back online'}</AlertTitle>
+            <AlertTitle>{isOffline ? t('offline.title') : t('offline.restored')}</AlertTitle>
             {isOffline && (
               <AlertDescription>
-                Capture still works. Reconnect to send or pair.
+                {t('offline.body')}
               </AlertDescription>
             )}
           </Alert>

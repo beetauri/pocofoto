@@ -14,7 +14,7 @@ test('App seeds signed-in routing from the user route cache', () => {
 test('App tracks pairStateKnown and renders OfflineHoldScreen while offline routing is unknown', () => {
   assert.match(appSource, /const \[pairStateKnown, setPairStateKnown\] = useState\(false\)/);
   assert.match(appSource, /function OfflineHoldScreen\(\)/);
-  assert.match(appSource, /Reconnect to finish loading Pocofoto\./);
+  assert.match(appSource, /t\('offlineHold'\)/);
   assert.match(appSource, /screen = 'offline-hold'/);
 });
 

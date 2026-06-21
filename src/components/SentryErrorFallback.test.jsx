@@ -17,7 +17,7 @@ describe('SentryErrorFallback', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: 'Report this problem' }))
+    await user.click(screen.getByRole('button', { name: 'Tell us what happened' }))
     expect(onReport).toHaveBeenCalledWith('event-123')
   })
 
@@ -33,7 +33,7 @@ describe('SentryErrorFallback', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: 'Reload Pocofoto' }))
+    await user.click(screen.getByRole('button', { name: 'Restart Pocofoto' }))
     expect(onReload).toHaveBeenCalledOnce()
   })
 })
