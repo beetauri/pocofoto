@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { notificationClient } from '../notifications/notificationClient';
 import { notificationDeviceStore } from '../lib/notificationDevice';
 
-function messageFromPayload(payload) {
+function messageFromPayload(payload, t) {
   const data = payload?.data || {};
   if (data.body) return data.body;
-  if (data.type === 'photo_received') return 'New photo from your person';
-  if (data.type === 'like_received') return 'Your photo was liked';
-  if (data.type === 'pairing_request') return 'New pairing request';
-  if (data.type === 'pairing_accepted') return 'Pairing accepted';
-  if (data.type === 'pairing_removed') return 'Pairing removed';
-  return payload?.notification?.body || 'New Pocofoto update';
+  if (data.type === 'photo_received') return t('foreground.photo');
+  if (data.type === 'like_received') return t('foreground.loved');
+  if (data.type === 'pairing_request') return t('foreground.pairingRequest');
+  if (data.type === 'pairing_accepted') return t('foreground.pairingAccepted');
+  if (data.type === 'pairing_removed') return t('foreground.pairingRemoved');
+  return payload?.notification?.body || t('foreground.generic');
 }
 
 export function useNotifications({
@@ -21,6 +22,7 @@ export function useNotifications({
   client = notificationClient,
   store = notificationDeviceStore
 }) {
+  const { t } = useTranslation('notifications');
   const [status, setStatus] = useState(() => client.getStatus());
   const [promptDismissed, setPromptDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -141,8 +143,8 @@ export function useNotifications({
   const handleForegroundMessage = useCallback((payload) => {
     const eventId = payload?.data?.eventId || payload?.data?.photoId || payload?.data?.type || '';
     if (eventId && !store.rememberEvent(eventId)) return;
-    setForegroundMessage(messageFromPayload(payload));
-  }, [store]);
+    setForegroundMessage(messageFromPayload(payload, t));
+  }, [store, t]);
 
   const clearForegroundMessage = useCallback(() => setForegroundMessage(''), []);
 

@@ -10,7 +10,8 @@ it('offers enable and permanent not-now actions', async () => {
 
   render(<NotificationPrompt open onEnable={onEnable} onDismiss={onDismiss} busy={false} />);
 
-  await userEvent.click(screen.getByRole('button', { name: 'Enable notifications' }));
+  expect(screen.getByText('Want a little heads-up?')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Turn on notifications' }));
   await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
 
   expect(onEnable).toHaveBeenCalledOnce();
@@ -20,5 +21,5 @@ it('offers enable and permanent not-now actions', async () => {
 it('does not render while closed', () => {
   render(<NotificationPrompt open={false} onEnable={() => {}} onDismiss={() => {}} busy={false} />);
 
-  expect(screen.queryByText('Turn on notifications?')).not.toBeInTheDocument();
+  expect(screen.queryByText('Want a little heads-up?')).not.toBeInTheDocument();
 });

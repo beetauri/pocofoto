@@ -52,15 +52,15 @@ describe('ProfileView', () => {
   it('cancels display-name edits from the button and Escape key', async () => {
     const { user, props } = renderProfile();
 
-    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.click(screen.getByRole('button', { name: 'Edit your name' }));
     await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
     await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Changed');
-    await user.click(screen.getByRole('button', { name: 'Cancel display name edit' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel name edit' }));
 
     expect(screen.queryByRole('textbox', { name: 'Display name' })).not.toBeInTheDocument();
     expect(props.onSaveDisplayName).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.click(screen.getByRole('button', { name: 'Edit your name' }));
     await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
     await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Changed{Escape}');
 
@@ -71,7 +71,7 @@ describe('ProfileView', () => {
   it('saves a trimmed display name with Enter', async () => {
     const { user, props } = renderProfile();
 
-    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.click(screen.getByRole('button', { name: 'Edit your name' }));
     await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
     await user.type(screen.getByRole('textbox', { name: 'Display name' }), '  New Name  {Enter}');
 
@@ -82,21 +82,21 @@ describe('ProfileView', () => {
   it('shows validation and rejected-save errors for display names', async () => {
     const { user, props, rerender } = renderProfile();
 
-    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.click(screen.getByRole('button', { name: 'Edit your name' }));
     await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
     await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'A');
-    await user.click(screen.getByRole('button', { name: 'Save display name' }));
+    await user.click(screen.getByRole('button', { name: 'Save your name' }));
 
-    expect(screen.getByText('Display name must be 2-30 characters.')).toBeInTheDocument();
+    expect(screen.getByText('Your name needs to be between 2 and 30 characters.')).toBeInTheDocument();
     expect(props.onSaveDisplayName).not.toHaveBeenCalled();
 
     const rejectedSave = vi.fn().mockRejectedValue(new Error('nope'));
     rerender(<ProfileView {...props} onSaveDisplayName={rejectedSave} />);
     await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
     await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Valid Name');
-    await user.click(screen.getByRole('button', { name: 'Save display name' }));
+    await user.click(screen.getByRole('button', { name: 'Save your name' }));
 
-    expect(await screen.findByText('Could not update display name.')).toBeInTheDocument();
+    expect(await screen.findByText('We couldn’t save your name. Try again.')).toBeInTheDocument();
   });
 
   it('shows a loading status while display-name save is pending', async () => {
@@ -106,10 +106,10 @@ describe('ProfileView', () => {
     }));
     const { user } = renderProfile({ onSaveDisplayName: pendingSave });
 
-    await user.click(screen.getByRole('button', { name: 'Edit display name' }));
+    await user.click(screen.getByRole('button', { name: 'Edit your name' }));
     await user.clear(screen.getByRole('textbox', { name: 'Display name' }));
     await user.type(screen.getByRole('textbox', { name: 'Display name' }), 'Pending Name');
-    await user.click(screen.getByRole('button', { name: 'Save display name' }));
+    await user.click(screen.getByRole('button', { name: 'Save your name' }));
 
     expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
 
@@ -154,7 +154,7 @@ describe('ProfileView', () => {
     await user.click(screen.getByRole('button', { name: 'Notification diagnostics' }));
     await user.click(screen.getByRole('button', { name: 'Register this device' }));
     await user.click(screen.getByRole('button', { name: 'Test this device' }));
-    await user.click(screen.getByRole('button', { name: "Test partner's devices" }));
+    await user.click(screen.getByRole('button', { name: 'Test your person’s devices' }));
 
     expect(notificationControls.registerDevice).toHaveBeenCalledTimes(1);
     expect(notificationControls.enable).not.toHaveBeenCalled();
@@ -165,21 +165,21 @@ describe('ProfileView', () => {
   it('uses distinct dialogs for log out and remove pairing actions', async () => {
     const { user, props } = renderProfile();
 
-    await user.click(screen.getByRole('button', { name: 'Remove pairing' }));
+    await user.click(screen.getByRole('button', { name: 'Stop pairing' }));
     let dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByRole('heading', { name: 'Remove pairing?' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Stop pairing with your person?' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(props.onRemovePairing).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Remove pairing' }));
+    await user.click(screen.getByRole('button', { name: 'Stop pairing' }));
     dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Remove pairing' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Stop pairing' }));
     expect(props.onRemovePairing).toHaveBeenCalledTimes(1);
     expect(props.onLogout).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Log out' }));
     dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByRole('heading', { name: 'Log out?' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Log out for now?' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(props.onLogout).not.toHaveBeenCalled();
 
@@ -192,10 +192,10 @@ describe('ProfileView', () => {
   it('disables the remove pairing confirmation while removal is pending', async () => {
     const { user } = renderProfile({ removingPairing: true });
 
-    await user.click(screen.getByRole('button', { name: 'Remove pairing' }));
+    await user.click(screen.getByRole('button', { name: 'Stop pairing' }));
     const dialog = await screen.findByRole('alertdialog');
 
-    expect(within(dialog).getByRole('button', { name: 'Removing...' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Stopping…' })).toBeDisabled();
   });
 
   it('uses the balanced glass Profile structure without legacy selectors', () => {

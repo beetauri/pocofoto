@@ -8,7 +8,7 @@ it('keeps denied notifications visible with generic settings guidance', () => {
   render(<NotificationSettings status={{ permission: 'denied', enabled: false }} diagnostics={{}} />);
 
   expect(screen.getByRole('switch', { name: 'Notifications' })).not.toBeChecked();
-  expect(screen.getByText('Enable notifications in your browser or device settings.')).toBeVisible();
+  expect(screen.getByText('Allow notifications in your browser or device settings.')).toBeVisible();
 });
 
 it('keeps diagnostics collapsed and reports zero registered devices as non-success', async () => {
@@ -60,5 +60,5 @@ it('offers registration, current-device, and partner-device tests', async () => 
   await userEvent.click(screen.getByRole('button', { name: 'Register this device' }));
   expect(registerDevice).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Test this device' })).toBeVisible();
-  expect(screen.getByRole('button', { name: "Test partner's devices" })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Test your person’s devices' })).toBeVisible();
 });

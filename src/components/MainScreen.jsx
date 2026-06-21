@@ -863,11 +863,11 @@ export default function MainScreen({
       await uploadBytes(storageRef, compressed);
       const url = await getDownloadURL(storageRef);
       await updateDoc(doc(db, 'users', user.uid), { profilePic: url });
-      showToast('Profile photo updated');
+      showToast(t('profile:toasts.photoUpdated'));
       trackEvent('profile_photo_updated');
     } catch (err) {
       console.error(err);
-      showToast('Failed to update profile photo', 3000);
+      showToast(t('profile:toasts.photoUpdateError'), 3000);
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -876,7 +876,7 @@ export default function MainScreen({
 
   const handleRemoveProfilePhoto = async () => {
     await updateDoc(doc(db, 'users', user.uid), { profilePic: '' });
-    showToast('Profile photo removed');
+    showToast(t('profile:toasts.photoRemoved'));
     trackEvent('profile_photo_removed');
   };
 
@@ -967,12 +967,11 @@ export default function MainScreen({
     setRemovingPairing(true);
     try {
       await httpsCallable(functions, 'removePairing')();
-      onPairingRemoved?.('Pairing removed. You can pair again whenever you are ready.');
+      onPairingRemoved?.(t('pairing:removedDefault'));
       trackEvent('pairing_remove_confirmed');
     } catch (err) {
       console.error('Failed to remove pairing:', err);
-      const message = err?.message?.replace(/^Firebase: /, '') || 'Failed to remove pairing.';
-      showToast(message, 3200);
+      showToast(t('profile:toasts.pairingRemoveError'), 3200);
     } finally {
       setRemovingPairing(false);
     }

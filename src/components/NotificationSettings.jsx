@@ -1,21 +1,21 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-function permissionCopy(status = {}) {
-  if (status.registrationError?.message) return status.registrationError.message;
-  if (status.permission === 'denied') return 'Enable notifications in your browser or device settings.';
-  if (status.permission === 'unsupported') return 'Notifications are unavailable in this browser.';
-  if (status.enabled) return 'This device is enabled for Pocofoto notifications.';
-  if (status.permission === 'granted') return 'Permission is granted, but this device still needs a registered push token.';
-  return 'Enable this device to receive Pocofoto notifications.';
+function permissionCopy(status, t) {
+  if (status.permission === 'denied') return t('setting.denied');
+  if (status.permission === 'unsupported') return t('setting.unsupported');
+  if (status.enabled) return t('setting.enabled');
+  if (status.permission === 'granted') return t('setting.permissionOnly');
+  return t('setting.disabled');
 }
 
-function formatLastTest(lastTest) {
-  if (!lastTest) return 'No test sent yet.';
-  if (lastTest.outcome === 'no_registered_devices' || lastTest.tokenCount === 0) return 'No registered devices';
+function formatLastTest(lastTest, t) {
+  if (!lastTest) return t('diagnostics.noTest');
+  if (lastTest.outcome === 'no_registered_devices' || lastTest.tokenCount === 0) return t('diagnostics.noDevices');
   const tokenCount = lastTest.tokenCount ?? 0;
   const successCount = lastTest.successCount ?? 0;
   const failureCount = lastTest.failureCount ?? 0;
-  return `Accepted by FCM: ${successCount}/${tokenCount}, failed: ${failureCount}`;
+  return t('diagnostics.accepted', { successCount, tokenCount, failureCount });
 }
 
 export default function NotificationSettings({
@@ -30,6 +30,7 @@ export default function NotificationSettings({
   onTestThisDevice,
   onTestPartnerDevices
 }) {
+  const { t } = useTranslation('notifications');
   const [expanded, setExpanded] = useState(false);
   const enabled = Boolean(status.enabled);
   const disabled = busy || status.permission === 'unsupported';
@@ -52,69 +53,69 @@ export default function NotificationSettings({
     <div className="notification-setting">
       <div className="notification-setting-row">
         <div>
-          <span className="profile-card-label">Notifications</span>
-          <p>{permissionCopy({ ...status, enabled })}</p>
+          <span className="profile-card-label">{t('setting.title')}</span>
+          <p>{permissionCopy({ ...status, enabled }, t)}</p>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={enabled}
-          aria-label="Notifications"
+          aria-label={t('setting.title')}
           className={`notification-switch${enabled ? ' enabled' : ''}`}
           disabled={disabled}
           onClick={handleToggle}
         >
-          <span>{enabled ? 'On' : 'Off'}</span>
+          <span>{enabled ? t('setting.on') : t('setting.off')}</span>
         </button>
       </div>
 
       <button className="notification-diagnostics-toggle" type="button" onClick={handleExpand} aria-expanded={expanded}>
-        Notification diagnostics
+        {t('diagnostics.toggle')}
       </button>
 
       {expanded && (
         <div className="notification-diagnostics">
           <dl>
             <div>
-              <dt>Permission</dt>
+              <dt>{t('diagnostics.permission')}</dt>
               <dd>{status.permission || diagnostics.permission || 'unknown'}</dd>
             </div>
             <div>
-              <dt>Service worker</dt>
+              <dt>{t('diagnostics.serviceWorker')}</dt>
               <dd>{diagnostics.workerState || 'unknown'}</dd>
             </div>
             <div>
-              <dt>Device</dt>
+              <dt>{t('diagnostics.device')}</dt>
               <dd>{diagnostics.deviceId || 'unknown'}</dd>
             </div>
             <div>
-              <dt>Token</dt>
+              <dt>{t('diagnostics.token')}</dt>
               <dd>{diagnostics.tokenFingerprint || 'not registered'}</dd>
             </div>
             {status.registrationError && (
               <div>
-                <dt>Registration</dt>
+                <dt>{t('diagnostics.registration')}</dt>
                 <dd>{status.registrationError.reason || status.registrationError.message}</dd>
               </div>
             )}
             <div>
-              <dt>Partner devices</dt>
+              <dt>{t('diagnostics.partnerDevices')}</dt>
               <dd>{diagnostics.partnerTokenCount ?? 'unknown'}</dd>
             </div>
           </dl>
-          <p className="notification-status">{formatLastTest(diagnostics.lastTest)}</p>
+          <p className="notification-status">{formatLastTest(diagnostics.lastTest, t)}</p>
           <div className="notification-diagnostics-actions">
             <button className="btn-ghost" type="button" onClick={onRegisterDevice || onEnable} disabled={disabled || busy}>
-              Register this device
+              {t('diagnostics.register')}
             </button>
             <button className="btn-ghost" type="button" onClick={onTestThisDevice} disabled={testDisabled}>
-              Test this device
+              {t('diagnostics.testThis')}
             </button>
             <button className="btn-ghost" type="button" onClick={onTestPartnerDevices} disabled={testDisabled}>
-              Test partner's devices
+              {t('diagnostics.testPartner')}
             </button>
           </div>
-          {inCooldown && <p className="notification-status">Test cooldown is active.</p>}
+          {inCooldown && <p className="notification-status">{t('diagnostics.cooldown')}</p>}
         </div>
       )}
     </div>
