@@ -13,6 +13,7 @@ import {
 import {
   getFirestore,
   initializeFirestore,
+  clearIndexedDbPersistence,
   persistentLocalCache,
   persistentMultipleTabManager,
   doc as realDoc,
@@ -51,6 +52,7 @@ import {
   onMessage as realOnMessage
 } from 'firebase/messaging';
 import { getAnalytics, isSupported as analyticsIsSupported } from 'firebase/analytics';
+import { runFirestoreRecovery } from './lib/firestoreRecovery';
 
 const USE_FIREBASE_EMULATORS = import.meta.env.DEV
   && import.meta.env.VITE_USE_REAL_FIREBASE !== 'true'
@@ -71,8 +73,24 @@ const firebaseConfig = {
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const analytics = typeof window !== 'undefined' && await analyticsIsSupported() ? getAnalytics(app) : null;
 const auth = getAuth(app);
+const emulatorState = USE_FIREBASE_EMULATORS
+  ? (globalThis.__LOCKET_FIREBASE_EMULATORS__ || {
+      auth: false,
+      firestore: false,
+      storage: false,
+      functions: false
+    })
+  : null;
+
+if (USE_FIREBASE_EMULATORS && !emulatorState.auth) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  emulatorState.auth = true;
+  globalThis.__LOCKET_FIREBASE_EMULATORS__ = emulatorState;
+}
+
+await auth.authStateReady();
+const analytics = typeof window !== 'undefined' && await analyticsIsSupported() ? getAnalytics(app) : null;
 let db;
 try {
   db = initializeFirestore(app, {
@@ -83,22 +101,23 @@ try {
 } catch {
   db = getFirestore(app);
 }
+const firestoreRecovery = USE_FIREBASE_EMULATORS
+  ? { status: 'not-targeted' }
+  : await runFirestoreRecovery({
+      db,
+      userId: auth.currentUser?.uid || null,
+      clearPersistence: clearIndexedDbPersistence
+    });
+
+if (firestoreRecovery.status === 'failed') {
+  console.warn('Firestore persistence recovery deferred.', {
+    code: firestoreRecovery.error?.code || 'unknown'
+  });
+}
 const storage = getStorage(app);
 const functions = getFunctions(app);
 
 if (USE_FIREBASE_EMULATORS) {
-  const emulatorState = globalThis.__LOCKET_FIREBASE_EMULATORS__ || {
-    auth: false,
-    firestore: false,
-    storage: false,
-    functions: false
-  };
-
-  if (!emulatorState.auth) {
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-    emulatorState.auth = true;
-  }
-
   if (!emulatorState.firestore) {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
     emulatorState.firestore = true;
@@ -163,6 +182,7 @@ const onForegroundMessage = async (handler) => {
 
 export {
   app, analytics, auth, db, storage, functions,
+  firestoreRecovery,
   USE_FIREBASE_EMULATORS,
   onAuthStateChanged,
   createUserWithEmailAndPassword,

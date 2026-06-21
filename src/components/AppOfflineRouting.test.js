@@ -31,3 +31,16 @@ test('App reports user route listener failures with routing context', () => {
   assert.match(appSource, /operation: 'user-route-listener'/);
   assert.match(appSource, /hasCachedCoupleId: Boolean\(cachedRoute\?\.coupleId\)/);
 });
+
+test('App requests metadata changes and delegates pair snapshot decisions', () => {
+  assert.match(appSource, /includeMetadataChanges: true/);
+  assert.match(appSource, /decidePairSnapshot\(\{/);
+  assert.match(appSource, /fromCache: snap\.metadata\.fromCache/);
+  assert.match(appSource, /decidePairListenerError\(\{/);
+});
+
+test('App clears route storage only for authoritative unpaired decisions', () => {
+  assert.match(appSource, /decision\.state === 'unpaired'/);
+  assert.match(appSource, /if \(!decision\.persist\) return;/);
+  assert.doesNotMatch(appSource, /else if \(connectionStatus\.isOnline\)[\s\S]*clearCachedUserRoute/);
+});

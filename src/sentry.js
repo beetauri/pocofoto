@@ -86,6 +86,16 @@ export function captureHandledException(error, context = {}, sentry = Sentry) {
   })
 }
 
+export function recordPairRouteDecision(decision, sentry = Sentry) {
+  const { reason, ...data } = decision
+  sentry.addBreadcrumb({
+    category: 'pair-route',
+    level: 'info',
+    message: reason,
+    data
+  })
+}
+
 export function showSentryReport(eventId) {
   Sentry.showReportDialog({
     eventId,

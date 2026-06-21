@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { auth, db, onAuthStateChanged, doc, onSnapshot, onForegroundMessage } from './firebase';
+import { auth, db, firestoreRecovery, onAuthStateChanged, doc, onSnapshot, onForegroundMessage } from './firebase';
 import { initAnalytics, trackEvent, identifyUser, resetAnalytics, startScrollDepthTracking } from './analytics';
 import AuthScreen from './components/AuthScreen';
 import AppBackground from './components/AppBackground';
@@ -20,7 +20,15 @@ import {
   setCachedUserRoute
 } from './lib/userRouteCache';
 import { triggerHaptic } from './lib/haptics';
-import { captureHandledException, syncSentryUser } from './sentry';
+import {
+  captureHandledException,
+  recordPairRouteDecision,
+  syncSentryUser
+} from './sentry';
+import {
+  decidePairListenerError,
+  decidePairSnapshot
+} from './lib/pairRouteState';
 
 const Retune = import.meta.env.DEV
   ? lazy(() => import('retune').then((module) => ({ default: module.Retune })))
@@ -75,6 +83,7 @@ export default function App() {
   const [connectionStatus, setConnectionStatus] = useState(() => connectionStatusStore.getSnapshot());
   const [notificationIntent, setNotificationIntent] = useState(() => readNotificationIntent());
   const trackedAppOpen = useRef(false);
+  const coupleIdRef = useRef(coupleId);
   const notifications = useNotifications({
     user,
     paired: Boolean(coupleId),
@@ -87,6 +96,13 @@ export default function App() {
 
   useEffect(() => {
     initAnalytics();
+    recordPairRouteDecision({
+      reason: `firestore-recovery-${firestoreRecovery.status}`,
+      fromCache: null,
+      hasSnapshotCoupleId: false,
+      hadKnownCoupleId: false,
+      state: 'startup'
+    });
     const stopScrollTracking = startScrollDepthTracking();
     if (!trackedAppOpen.current) {
       trackEvent('app_open');
@@ -94,6 +110,10 @@ export default function App() {
     }
     return () => stopScrollTracking();
   }, []);
+
+  useEffect(() => {
+    coupleIdRef.current = coupleId;
+  }, [coupleId]);
 
   useEffect(() => connectionStatusStore.subscribe((nextStatus) => {
     setConnectionStatus(nextStatus);
@@ -107,6 +127,7 @@ export default function App() {
       if (!firebaseUser) {
         trackEvent('auth_signed_out');
         resetAnalytics();
+        coupleIdRef.current = null;
         setCoupleId(null);
         setPairStateKnown(false);
         setCheckingPair(false);
@@ -136,25 +157,50 @@ export default function App() {
     const cachedRoute = getCachedUserRoute(user.uid);
     setPairStateKnown(false);
     if (cachedRoute?.coupleId) {
+      coupleIdRef.current = cachedRoute.coupleId;
       setCoupleId(cachedRoute.coupleId);
       setLoading(false);
     } else {
+      coupleIdRef.current = null;
       setCoupleId(null);
       setLoading(true);
     }
     setCheckingPair(true);
 
-    const unsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
-      const nextCoupleId = snap.exists() ? (snap.data().coupleId || null) : null;
-      if (snap.exists()) {
-        setCoupleId(nextCoupleId);
-      } else {
-        setCoupleId(null);
-      }
-      setPairStateKnown(true);
-      setCachedUserRoute(user.uid, { coupleId: nextCoupleId });
+    const applyPairDecision = (decision) => {
+      coupleIdRef.current = decision.coupleId;
+      setCoupleId(decision.coupleId);
+      setPairStateKnown(decision.state !== 'unknown');
       setCheckingPair(false);
       setLoading(false);
+
+      if (!decision.persist) return;
+      if (decision.state === 'unpaired') {
+        clearCachedUserRoute(user.uid);
+      } else {
+        setCachedUserRoute(user.uid, { coupleId: decision.coupleId });
+      }
+    };
+
+    const userRef = doc(db, 'users', user.uid);
+    const unsub = onSnapshot(userRef, { includeMetadataChanges: true }, (snap) => {
+      const snapshotCoupleId = snap.exists() ? (snap.data().coupleId || null) : null;
+      const hadKnownCoupleId = Boolean(coupleIdRef.current || cachedRoute?.coupleId);
+      const decision = decidePairSnapshot({
+        snapshotExists: snap.exists(),
+        snapshotCoupleId,
+        fromCache: snap.metadata.fromCache,
+        currentCoupleId: coupleIdRef.current,
+        cachedCoupleId: cachedRoute?.coupleId || null
+      });
+      recordPairRouteDecision({
+        reason: decision.reason,
+        fromCache: snap.metadata.fromCache,
+        hasSnapshotCoupleId: Boolean(snapshotCoupleId),
+        hadKnownCoupleId,
+        state: decision.state
+      });
+      applyPairDecision(decision);
     }, (error) => {
       captureHandledException(error, {
         operation: 'user-route-listener',
@@ -162,18 +208,19 @@ export default function App() {
         hasCachedCoupleId: Boolean(cachedRoute?.coupleId),
         authUserMatches: auth.currentUser?.uid === user.uid
       });
-      if (cachedRoute?.coupleId) {
-        setCoupleId(cachedRoute.coupleId);
-        setPairStateKnown(true);
-      } else if (connectionStatus.isOnline) {
-        setCoupleId(null);
-        setPairStateKnown(true);
-        clearCachedUserRoute(user.uid);
-      } else {
-        setPairStateKnown(false);
-      }
-      setCheckingPair(false);
-      setLoading(false);
+      const hadKnownCoupleId = Boolean(coupleIdRef.current || cachedRoute?.coupleId);
+      const decision = decidePairListenerError({
+        currentCoupleId: coupleIdRef.current,
+        cachedCoupleId: cachedRoute?.coupleId || null
+      });
+      recordPairRouteDecision({
+        reason: decision.reason,
+        fromCache: null,
+        hasSnapshotCoupleId: false,
+        hadKnownCoupleId,
+        state: decision.state
+      });
+      applyPairDecision(decision);
     });
 
     return () => unsub();
@@ -212,6 +259,7 @@ export default function App() {
 
   const handlePaired = (newCoupleId) => {
     setPairingNotice('');
+    coupleIdRef.current = newCoupleId;
     setCoupleId(newCoupleId);
     if (user) {
       setPairStateKnown(true);
@@ -223,6 +271,7 @@ export default function App() {
 
   const handlePairingRemoved = (message) => {
     setPairingNotice(message || t('removedDefault'));
+    coupleIdRef.current = null;
     setCoupleId(null);
     if (user) {
       setPairStateKnown(true);

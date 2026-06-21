@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   captureHandledException,
   createSentryOptions,
+  recordPairRouteDecision,
   replayPrivacyOptions,
   syncSentryUser
 } from '../sentry.js'
@@ -121,6 +122,31 @@ test('captures handled exceptions with scoped diagnostic context', () => {
         online: true,
         hasCachedCoupleId: false
       }
+    }
+  }])
+})
+
+test('records non-sensitive pair route breadcrumbs', () => {
+  const calls = []
+  const sentry = { addBreadcrumb: (breadcrumb) => calls.push(breadcrumb) }
+
+  recordPairRouteDecision({
+    reason: 'ignored-cache-unpaired',
+    fromCache: true,
+    hasSnapshotCoupleId: false,
+    hadKnownCoupleId: true,
+    state: 'paired'
+  }, sentry)
+
+  assert.deepEqual(calls, [{
+    category: 'pair-route',
+    level: 'info',
+    message: 'ignored-cache-unpaired',
+    data: {
+      fromCache: true,
+      hasSnapshotCoupleId: false,
+      hadKnownCoupleId: true,
+      state: 'paired'
     }
   }])
 })
