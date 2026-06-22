@@ -61,6 +61,13 @@ const shutterInnerVariants = {
   tap: { scale: 0.75 }
 };
 
+function revokeLocalPhotoObjectUrls(photo) {
+  if (photo?.photoUrl?.startsWith('blob:')) URL.revokeObjectURL(photo.photoUrl);
+  if (photo?.thumbnailUrl?.startsWith('blob:') && photo.thumbnailUrl !== photo.photoUrl) {
+    URL.revokeObjectURL(photo.thumbnailUrl);
+  }
+}
+
 function UserIcon() {
   return <LucideUserIcon {...lucideIconProps} />;
 }
@@ -395,19 +402,37 @@ export default function MainScreen({
     }
 
     loadLocalPhotoQueue(localPhotoQueueKey)
-      .then((savedPhotos) => {
+      .then(async (savedPhotos) => {
         if (!active) return;
         if (!Array.isArray(savedPhotos)) {
           setLocalPhotos([]);
           return;
         }
-        const restoredPhotos = savedPhotos.map((photo) => ({
-          ...photo,
-          photoUrl: URL.createObjectURL(photo.blob),
-          status: photo.status === LOCAL_PHOTO_STATUS.FAILED
-            ? LOCAL_PHOTO_STATUS.FAILED
-            : LOCAL_PHOTO_STATUS.PENDING
+        const restoredPhotos = await Promise.all(savedPhotos.map(async (photo) => {
+          let thumbnailBlob = photo.thumbnailBlob || null;
+          let thumbnailUrl = null;
+
+          try {
+            thumbnailBlob ||= await createHistoryThumbnailBlob(photo.blob);
+            thumbnailUrl = URL.createObjectURL(thumbnailBlob);
+          } catch (err) {
+            console.warn('Unable to restore local photo thumbnail.', err);
+          }
+
+          return {
+            ...photo,
+            photoUrl: URL.createObjectURL(photo.blob),
+            status: photo.status === LOCAL_PHOTO_STATUS.FAILED
+              ? LOCAL_PHOTO_STATUS.FAILED
+              : LOCAL_PHOTO_STATUS.PENDING,
+            thumbnailBlob,
+            thumbnailUrl
+          };
         }));
+        if (!active) {
+          restoredPhotos.forEach(revokeLocalPhotoObjectUrls);
+          return;
+        }
         setLocalPhotos(restoredPhotos);
       })
       .catch((err) => {
@@ -424,7 +449,11 @@ export default function MainScreen({
 
   useEffect(() => {
     if (!localPhotoQueueKey || !localPhotoQueueReady) return;
-    const persistablePhotos = localPhotos.map(({ photoUrl: _photoUrl, ...photo }) => photo);
+    const persistablePhotos = localPhotos.map(({
+      photoUrl: _photoUrl,
+      thumbnailUrl: _thumbnailUrl,
+      ...photo
+    }) => photo);
     if (persistablePhotos.length === 0) {
       clearLocalPhotoQueue(localPhotoQueueKey).catch((err) => {
         console.warn('Unable to clear local photo queue.', err);
@@ -438,7 +467,7 @@ export default function MainScreen({
 
   useEffect(() => () => {
     localPhotosRef.current.forEach((photo) => {
-      if (photo.photoUrl?.startsWith('blob:')) URL.revokeObjectURL(photo.photoUrl);
+      revokeLocalPhotoObjectUrls(photo);
     });
   }, []);
 
@@ -719,7 +748,7 @@ export default function MainScreen({
     try {
       const serverPhoto = await uploadPhotoBlob(nextPhoto.blob, nextPhoto.caption);
       const result = replaceLocalPhotoWithServerPhoto(localPhotosRef.current, nextPhoto.id, serverPhoto);
-      if (nextPhoto.photoUrl?.startsWith('blob:')) URL.revokeObjectURL(nextPhoto.photoUrl);
+      revokeLocalPhotoObjectUrls(nextPhoto);
       setLocalPhotos(result.localPhotos);
       insertServerPhotoLocal(result.serverPhoto);
       showToast(t('photo.sentToast'));
@@ -823,7 +852,7 @@ export default function MainScreen({
     trackEvent('photo_review_dismissed', { coupleId });
   };
 
-  const handleSendReviewPhoto = () => {
+  const handleSendReviewPhoto = async () => {
     if (!reviewPhoto || sendingReviewPhoto) return;
     if (!isOnline) {
       showToast(t('errors.offlineSend'), 3000);
@@ -832,13 +861,25 @@ export default function MainScreen({
     triggerHaptic('tap');
     setSendingReviewPhoto(true);
 
+    let thumbnailBlob = null;
+    let thumbnailUrl = null;
+
+    try {
+      thumbnailBlob = await createHistoryThumbnailBlob(reviewPhoto.blob);
+      thumbnailUrl = URL.createObjectURL(thumbnailBlob);
+    } catch (err) {
+      console.warn('Unable to create local photo thumbnail.', err);
+    }
+
     const caption = buildCaptionPayload(captionText);
     const localPhoto = createLocalPhoto({
       blob: reviewPhoto.blob,
       caption,
       coupleId,
       objectUrl: reviewPhoto.url,
-      senderId: user.uid
+      senderId: user.uid,
+      thumbnailBlob,
+      thumbnailUrl
     });
 
     setLocalPhotos((current) => appendLocalPhoto(current, localPhoto));
@@ -854,7 +895,7 @@ export default function MainScreen({
 
   const handleDeleteLocalPhoto = useCallback((photoId) => {
     const photo = localPhotosRef.current.find((item) => item.id === photoId);
-    if (photo?.photoUrl?.startsWith('blob:')) URL.revokeObjectURL(photo.photoUrl);
+    revokeLocalPhotoObjectUrls(photo);
     setLocalPhotos((current) => deleteLocalPhoto(current, photoId));
   }, []);
 

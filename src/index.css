@@ -1276,7 +1276,7 @@ button:not(:disabled),
 
 .camera-tool-btn:disabled {
   cursor: wait;
-  opacity: 0.56;
+  color: var(--text-muted);
 }
 
 .camera-tool-btn svg {
@@ -2338,7 +2338,7 @@ button:not(:disabled),
   cursor: pointer;
   font-size: 13px;
   font-weight: 900;
-  transition: transform 160ms ease, background 160ms ease, opacity 160ms ease;
+  transition: transform 160ms ease, background 160ms ease, color 160ms ease;
 }
 
 .mini-btn {
@@ -2356,7 +2356,7 @@ button:not(:disabled),
 
 .mini-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  color: var(--text-muted);
 }
 
 .contact-list,

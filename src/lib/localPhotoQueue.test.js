@@ -20,7 +20,9 @@ const baseInput = {
   coupleId: 'couple-a',
   objectUrl: 'blob:local-a',
   senderId: 'user-a',
-  sentAt: '2026-06-17T10:00:00.000Z'
+  sentAt: '2026-06-17T10:00:00.000Z',
+  thumbnailBlob: new Blob(['thumbnail'], { type: 'image/webp' }),
+  thumbnailUrl: 'blob:thumbnail-a'
 };
 
 test('creates local pending photos with feed-safe fields', () => {
@@ -30,6 +32,8 @@ test('creates local pending photos with feed-safe fields', () => {
   assert.equal(photo.localOnly, true);
   assert.equal(photo.status, LOCAL_PHOTO_STATUS.PENDING);
   assert.equal(photo.photoUrl, 'blob:local-a');
+  assert.equal(photo.thumbnailUrl, 'blob:thumbnail-a');
+  assert.equal(photo.thumbnailBlob.type, 'image/webp');
   assert.equal(photo.senderId, 'user-a');
   assert.equal(photo.timestamp, '2026-06-17T10:00:00.000Z');
   assert.deepEqual(photo.caption, { type: 'text', text: 'hello' });

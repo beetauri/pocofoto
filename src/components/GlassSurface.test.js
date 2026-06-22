@@ -46,6 +46,16 @@ test('Retune icon details are scoped to the grid and mini shutter icons', () => 
   assert.match(miniShutterRule, /height:\s*44px/);
 });
 
+test('disabled icon controls use color instead of opacity', () => {
+  const cameraToolDisabledRule = cssRule('.camera-tool-btn:disabled');
+  const miniButtonDisabledRule = cssRule('.mini-btn:disabled');
+
+  assert.doesNotMatch(cameraToolDisabledRule, /opacity:/);
+  assert.match(cameraToolDisabledRule, /color:\s*var\(--text-muted\)/);
+  assert.doesNotMatch(miniButtonDisabledRule, /opacity:/);
+  assert.match(miniButtonDisabledRule, /color:\s*var\(--text-muted\)/);
+});
+
 test('prefixed backdrop filters precede standard declarations for production CSS transforms', () => {
   assert.doesNotMatch(stylesheetSource, /(?<!-webkit-)backdrop-filter:\s*([^;]+);\s*-webkit-backdrop-filter:\s*\1;/);
   assert.match(stylesheetSource, /-webkit-backdrop-filter:\s*blur\(16px\);\s*backdrop-filter:\s*blur\(16px\);/);

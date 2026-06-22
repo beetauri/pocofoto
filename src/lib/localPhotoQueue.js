@@ -17,6 +17,8 @@ export function createLocalPhoto({
   senderId,
   sentAt = new Date().toISOString(),
   status = LOCAL_PHOTO_STATUS.PENDING,
+  thumbnailBlob = null,
+  thumbnailUrl = null,
   errorMessage = ''
 }) {
   return {
@@ -31,6 +33,8 @@ export function createLocalPhoto({
     senderId,
     sentAt,
     status,
+    thumbnailBlob,
+    thumbnailUrl,
     timestamp: sentAt
   };
 }

@@ -10,8 +10,11 @@ test('MainScreen wires local queued photos into the shared feed hook', () => {
 });
 
 test('review send enqueues immediately instead of awaiting upload', () => {
-  assert.match(source, /const handleSendReviewPhoto = \(\) => \{/);
+  assert.match(source, /const handleSendReviewPhoto = async \(\) => \{/);
+  assert.match(source, /thumbnailBlob = await createHistoryThumbnailBlob\(reviewPhoto\.blob\)/);
+  assert.match(source, /thumbnailUrl = URL\.createObjectURL\(thumbnailBlob\)/);
   assert.match(source, /const localPhoto = createLocalPhoto/);
+  assert.match(source, /thumbnailBlob,\s*\n\s*thumbnailUrl/);
   assert.match(source, /preserveObjectUrl: true/);
   assert.doesNotMatch(source, /await uploadPhotoBlob\(reviewPhoto\.blob, caption\);[\s\S]*setSendAnimationState\('sent'\)/);
 });
