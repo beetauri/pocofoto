@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import HistoryScreen from './HistoryScreen';
 import ProfileView from './ProfileView';
+import ResilientPhotoImage from './ResilientPhotoImage';
+import { PHOTO_IMAGE_STATUS } from './photoImageStatus';
+import { Button } from '@/components/ui/button';
 import { db, storage, auth, functions, doc, onSnapshot, updateDoc, updateProfile, ref, uploadBytes, uploadBytesResumable, getDownloadURL, signOut, collection, addDoc, httpsCallable } from '../firebase';
 import { trackEvent } from '../analytics';
 import {
@@ -233,6 +236,8 @@ export default function MainScreen({
   const [sendAnimationState, setSendAnimationState] = useState('idle');
   const [shutterPressed, setShutterPressed] = useState(false);
   const [removingPairing, setRemovingPairing] = useState(false);
+  const [photoImageStatuses, setPhotoImageStatuses] = useState({});
+  const [photoImageRetryKeys, setPhotoImageRetryKeys] = useState({});
   const profileFileRef = useRef(null);
   const videoRef = useRef(null);
   const captionInputRef = useRef(null);
@@ -853,6 +858,21 @@ export default function MainScreen({
     setLocalPhotos((current) => deleteLocalPhoto(current, photoId));
   }, []);
 
+  const handlePhotoImageStatus = useCallback((photoId, status) => {
+    setPhotoImageStatuses((current) => (
+      current[photoId] === status
+        ? current
+        : { ...current, [photoId]: status }
+    ));
+  }, []);
+
+  const handleRetryPhotoImage = useCallback((photoId) => {
+    setPhotoImageRetryKeys((current) => ({
+      ...current,
+      [photoId]: (current[photoId] || 0) + 1
+    }));
+  }, []);
+
   const handleProfilePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1290,6 +1310,9 @@ export default function MainScreen({
                   const senderProfile = photo.senderId === user.uid ? myProfile : profiles[photo.senderId];
                   const senderName = isPhotoMine ? displayName : senderProfile?.displayName || partnerName;
                   const photoCaption = getTextCaption(photo);
+                  const photoImageStatus = photoImageStatuses[photo.id] || PHOTO_IMAGE_STATUS.LOADING;
+                  const isPhotoImageLoaded = photoImageStatus === PHOTO_IMAGE_STATUS.LOADED;
+                  const isPhotoImageFailed = photoImageStatus === PHOTO_IMAGE_STATUS.FAILED;
                   return (
                     <div
                       key={photo.id}
@@ -1302,8 +1325,16 @@ export default function MainScreen({
                         animate={{ opacity: 1, scale: 1 }}
                       >
                         <div className="camera-frame">
-                          <img src={photo.photoUrl} alt={t('sharedMoment')} loading="lazy" decoding="async" draggable={false} />
-                          {photoCaption.length > 0 && (
+                          <ResilientPhotoImage
+                            src={photo.photoUrl}
+                            alt={t('sharedMoment')}
+                            retryKey={photoImageRetryKeys[photo.id] || 0}
+                            onStatusChange={(status) => handlePhotoImageStatus(photo.id, status)}
+                            loading="lazy"
+                            decoding="async"
+                            draggable={false}
+                          />
+                          {isPhotoImageLoaded && photoCaption.length > 0 && (
                             <div className="caption-pill photo-caption-pill">{photoCaption}</div>
                           )}
                         </div>
@@ -1335,6 +1366,16 @@ export default function MainScreen({
                             >
                               <TrashIcon />
                             </button>
+                          </div>
+                        ) : isPhotoImageFailed ? (
+                          <div className="photo-meta-row photo-local-actions failed photo-image-failed-actions">
+                            <Button
+                              className="photo-retry-btn"
+                              type="button"
+                              onClick={() => handleRetryPhotoImage(photo.id)}
+                            >
+                              {t('photo.loadRetry')}
+                            </Button>
                           </div>
                         ) : (
                           <div className="photo-meta-row">

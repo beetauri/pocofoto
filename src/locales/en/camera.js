@@ -35,6 +35,7 @@ export default {
     delete: 'Delete failed photo'
   },
   photo: {
+    loadRetry: 'Try loading again',
     sent: 'Sent',
     liked: 'Loved',
     like: 'Love this photo',

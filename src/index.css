@@ -948,6 +948,10 @@ button:not(:disabled),
   gap: 12px;
 }
 
+.photo-image-failed-actions .photo-retry-btn {
+  width: 100%;
+}
+
 .photo-retry-btn {
   display: inline-flex;
   align-items: center;
