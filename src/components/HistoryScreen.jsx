@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { trackEvent } from '../analytics';
+import ResilientPhotoImage from './ResilientPhotoImage';
 
 export default function HistoryScreen({
   photos,
@@ -56,32 +57,29 @@ export default function HistoryScreen({
       ) : (
         <>
           <div className="history-grid">
-            {photos.map((photo, i) => {
-              const historyImageUrl = photo.thumbnailUrl || photo.photoUrl;
-              return (
-                <motion.button
-                  className="history-tile"
-                  type="button"
-                  initial={{ opacity: 0, scale: 0.92 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.025 }}
-                  key={photo.id}
-                  onClick={() => {
-                    trackEvent('history_photo_opened', { photoId: photo.id });
-                    onSelectPhoto?.(photo.id);
-                  }}
-                  aria-label={t('openPhoto')}
-                >
-                  <img
-                    src={historyImageUrl}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
-                </motion.button>
-              );
-            })}
+            {photos.map((photo, i) => (
+              <motion.button
+                className="history-tile"
+                type="button"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.025 }}
+                key={photo.id}
+                onClick={() => {
+                  trackEvent('history_photo_opened', { photoId: photo.id });
+                  onSelectPhoto?.(photo.id);
+                }}
+                aria-label={t('openPhoto')}
+              >
+                <ResilientPhotoImage
+                  src={photo.thumbnailUrl}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  draggable={false}
+                />
+              </motion.button>
+            ))}
           </div>
           <div className="photo-load-more" ref={sentinelRef}>
             {loadingMore && <div className="spinner" />}

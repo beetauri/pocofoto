@@ -11,14 +11,15 @@ function cssRule(selector) {
   return match?.[1] || '';
 }
 
-test('History grid images use native loading hints', () => {
-  assert.match(historyScreenSource, /<img[^>]*\sloading="lazy"/);
-  assert.match(historyScreenSource, /<img[^>]*\sdecoding="async"/);
+test('History grid passes native loading hints to resilient photos', () => {
+  assert.match(historyScreenSource, /<ResilientPhotoImage/);
+  assert.match(historyScreenSource, /loading="lazy"/);
+  assert.match(historyScreenSource, /decoding="async"/);
 });
 
-test('History grid prefers thumbnails and falls back to full photo URLs', () => {
-  assert.match(historyScreenSource, /const historyImageUrl = photo\.thumbnailUrl \|\| photo\.photoUrl;/);
-  assert.match(historyScreenSource, /src=\{historyImageUrl\}/);
+test('History grid uses thumbnails without falling back to full photo URLs', () => {
+  assert.match(historyScreenSource, /src=\{photo\.thumbnailUrl\}/);
+  assert.doesNotMatch(historyScreenSource, /photo\.thumbnailUrl \|\| photo\.photoUrl/);
 });
 
 test('History consumes shared photos without a duplicate Firestore listener', () => {
