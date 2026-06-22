@@ -13,7 +13,9 @@ export default function ResilientPhotoImage({
   onStatusChange,
   ...imageProps
 }) {
-  const [status, setStatus] = useState(PHOTO_IMAGE_STATUS.LOADING);
+  const [status, setStatus] = useState(
+    src ? PHOTO_IMAGE_STATUS.LOADING : PHOTO_IMAGE_STATUS.FAILED
+  );
   const [attempt, setAttempt] = useState(0);
   const activeImageRef = useRef(null);
   const onStatusChangeRef = useRef(onStatusChange);
@@ -23,9 +25,10 @@ export default function ResilientPhotoImage({
   }, [onStatusChange]);
 
   useEffect(() => {
-    setStatus(PHOTO_IMAGE_STATUS.LOADING);
+    const nextStatus = src ? PHOTO_IMAGE_STATUS.LOADING : PHOTO_IMAGE_STATUS.FAILED;
+    setStatus(nextStatus);
     setAttempt(0);
-    onStatusChangeRef.current?.(PHOTO_IMAGE_STATUS.LOADING);
+    onStatusChangeRef.current?.(nextStatus);
   }, [src, retryKey]);
 
   function handleLoad(event) {
@@ -49,7 +52,7 @@ export default function ResilientPhotoImage({
       {status === PHOTO_IMAGE_STATUS.LOADING && (
         <Skeleton className="resilient-photo-skeleton" data-testid="photo-skeleton" />
       )}
-      {status !== PHOTO_IMAGE_STATUS.FAILED && (
+      {src && status !== PHOTO_IMAGE_STATUS.FAILED && (
         <img
           ref={activeImageRef}
           key={`${src}:${retryKey}:${attempt}`}

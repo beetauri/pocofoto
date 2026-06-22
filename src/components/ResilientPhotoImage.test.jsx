@@ -62,3 +62,14 @@ it('ignores an event from a superseded load attempt', () => {
   expect(screen.getByRole('img', { name: 'Shared moment' })).toHaveAttribute('src', 'second.jpg');
   expect(onStatusChange).not.toHaveBeenCalledWith('failed');
 });
+
+it('shows the fallback immediately when the photo source is empty', () => {
+  const onStatusChange = vi.fn();
+  const { container } = render(
+    <ResilientPhotoImage src={undefined} alt="Shared moment" onStatusChange={onStatusChange} />
+  );
+
+  expect(screen.getByTestId('photo-fallback')).toBeInTheDocument();
+  expect(container.querySelector('img')).not.toBeInTheDocument();
+  expect(onStatusChange).toHaveBeenLastCalledWith('failed');
+});
