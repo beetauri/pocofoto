@@ -47,13 +47,47 @@ test('Retune icon details are scoped to the grid and mini shutter icons', () => 
 });
 
 test('disabled icon controls use color instead of opacity', () => {
+  const iconButtonRule = cssRule('.icon-btn');
+  const updateBannerIconButtonRule = cssRule('.update-banner-icon-btn');
+  const updateBannerActionDisabledRule = cssRule('.update-banner-action:disabled');
+  const primaryButtonDisabledRule = cssRule('.btn-primary:disabled,\n.btn-ghost:disabled');
+  const emptyStateIconRule = cssRule('.empty-state svg');
+  const navItemRule = cssRule('.nav-item');
+  const navItemActiveRule = cssRule('.nav-item.active');
+  const navItemHoverRule = cssRule('.nav-item:hover');
   const cameraToolDisabledRule = cssRule('.camera-tool-btn:disabled');
+  const cameraToolRule = cssRule('.camera-tool-btn');
   const miniButtonDisabledRule = cssRule('.mini-btn:disabled');
 
+  for (const rule of [
+    iconButtonRule,
+    updateBannerIconButtonRule,
+    updateBannerActionDisabledRule,
+    primaryButtonDisabledRule,
+    emptyStateIconRule,
+    navItemRule,
+    navItemActiveRule,
+    navItemHoverRule,
+    cameraToolRule,
+    cameraToolDisabledRule,
+    miniButtonDisabledRule
+  ]) {
+    assert.doesNotMatch(rule, /opacity:/);
+    assert.doesNotMatch(rule, /color:\s*rgba\(/);
+  }
+
+  assert.match(iconButtonRule, /color:\s*var\(--icon-secondary\)/);
+  assert.match(updateBannerIconButtonRule, /color:\s*var\(--icon-secondary\)/);
+  assert.match(updateBannerActionDisabledRule, /color:\s*var\(--icon-muted\)/);
+  assert.match(primaryButtonDisabledRule, /color:\s*var\(--icon-muted\)/);
+  assert.match(emptyStateIconRule, /color:\s*var\(--icon-secondary\)/);
+  assert.match(navItemRule, /color:\s*var\(--icon-muted\)/);
+  assert.match(navItemActiveRule, /color:\s*var\(--icon-primary\)/);
+  assert.match(navItemHoverRule, /color:\s*var\(--icon-primary\)/);
+  assert.match(cameraToolRule, /color:\s*var\(--icon-secondary\)/);
   assert.doesNotMatch(cameraToolDisabledRule, /opacity:/);
-  assert.match(cameraToolDisabledRule, /color:\s*var\(--text-muted\)/);
-  assert.doesNotMatch(miniButtonDisabledRule, /opacity:/);
-  assert.match(miniButtonDisabledRule, /color:\s*var\(--text-muted\)/);
+  assert.match(cameraToolDisabledRule, /color:\s*var\(--icon-muted\)/);
+  assert.match(miniButtonDisabledRule, /color:\s*var\(--icon-muted\)/);
 });
 
 test('prefixed backdrop filters precede standard declarations for production CSS transforms', () => {

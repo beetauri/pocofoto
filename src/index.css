@@ -65,6 +65,9 @@
   --text-primary: #f8f8f8;
   --text-secondary: rgba(255, 255, 255, 0.72);
   --text-muted: rgba(255, 255, 255, 0.44);
+  --icon-primary: #f8f8f8;
+  --icon-secondary: #d8d8dc;
+  --icon-muted: #8f8f96;
   --border: rgba(255, 255, 255, 0.08);
   --glass-bg: rgba(34, 34, 36, 0.86);
   --glass-border: rgba(255, 255, 255, 0.1);
@@ -379,7 +382,7 @@ button:not(:disabled),
   height: 52px;
   border-radius: var(--radius-full);
   background: var(--bg-control);
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--icon-secondary);
   cursor: pointer;
   transition: transform 160ms ease, background 160ms ease, color 160ms ease;
 }
@@ -454,7 +457,8 @@ button:not(:disabled),
 .btn-primary:disabled,
 .btn-ghost:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  background: var(--bg-control);
+  color: var(--icon-muted);
   transform: none;
 }
 
@@ -685,7 +689,7 @@ button:not(:disabled),
   width: 38px;
   height: 38px;
   background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--icon-secondary);
 }
 
 .update-banner-icon-btn svg {
@@ -711,7 +715,8 @@ button:not(:disabled),
 
 .update-banner-action:disabled {
   cursor: wait;
-  opacity: 0.68;
+  background: var(--bg-control);
+  color: var(--icon-muted);
 }
 
 .update-banner-icon-btn:active,
@@ -1145,7 +1150,7 @@ button:not(:disabled),
 .empty-state svg {
   width: 44px;
   height: 44px;
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--icon-secondary);
 }
 
 .empty-state strong {
@@ -1256,7 +1261,7 @@ button:not(:disabled),
   height: 54px;
   border-radius: var(--radius-full);
   background: var(--bg-control);
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--icon-secondary);
   cursor: pointer;
   transition: transform 160ms ease, background 160ms ease, color 160ms ease;
 }
@@ -1276,7 +1281,7 @@ button:not(:disabled),
 
 .camera-tool-btn:disabled {
   cursor: wait;
-  color: var(--text-muted);
+  color: var(--icon-muted);
 }
 
 .camera-tool-btn svg {
@@ -1323,14 +1328,14 @@ button:not(:disabled),
   justify-self: center;
   border-radius: var(--radius-full);
   background: transparent;
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--icon-muted);
   cursor: pointer;
   transition: transform 160ms ease, background 160ms ease, color 160ms ease;
 }
 
 .nav-item.active {
   background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.96);
+  color: var(--icon-primary);
 }
 
 .nav-item:active {
@@ -1381,7 +1386,7 @@ button:not(:disabled),
 
 .shutter-btn:disabled {
   cursor: wait;
-  opacity: 0.64;
+  color: var(--icon-muted);
 }
 
 .shutter-btn .shutter-icon {
@@ -2356,7 +2361,8 @@ button:not(:disabled),
 
 .mini-btn:disabled {
   cursor: not-allowed;
-  color: var(--text-muted);
+  background: var(--bg-control);
+  color: var(--icon-muted);
 }
 
 .contact-list,
@@ -2778,7 +2784,7 @@ button:not(:disabled),
 
   .nav-item:hover {
     background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.96);
+    color: var(--icon-primary);
   }
 
   .menu-action:hover {
