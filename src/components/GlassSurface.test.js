@@ -4,11 +4,18 @@ import test from 'node:test';
 
 const stylesheetSource = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 const mainScreenSource = readFileSync(new URL('./MainScreen.jsx', import.meta.url), 'utf8');
+const buttonSource = readFileSync(new URL('./ui/button.jsx', import.meta.url), 'utf8');
 
 function cssRule(selector) {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = stylesheetSource.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`));
   return match?.[1] || '';
+}
+
+function cssRules(selector) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return [...stylesheetSource.matchAll(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`, 'g'))]
+    .map((match) => match[1]);
 }
 
 test('centered glass surfaces do not transform the backdrop-filter element', () => {
@@ -88,6 +95,17 @@ test('disabled icon controls use color instead of opacity', () => {
   assert.doesNotMatch(cameraToolDisabledRule, /opacity:/);
   assert.match(cameraToolDisabledRule, /color:\s*var\(--icon-muted\)/);
   assert.match(miniButtonDisabledRule, /color:\s*var\(--icon-muted\)/);
+});
+
+test('all shared Lucide icon states use opaque color instead of opacity', () => {
+  const photoFallbackRule = cssRules('.resilient-photo-fallback')
+    .find((rule) => /place-items:\s*center/.test(rule));
+
+  assert.ok(photoFallbackRule);
+  assert.match(photoFallbackRule, /color:\s*var\(--icon-muted\)/);
+  assert.doesNotMatch(photoFallbackRule, /color:\s*(?:rgba\(|rgb\([^)]*\/|hsla\()/);
+  assert.doesNotMatch(photoFallbackRule, /opacity:/);
+  assert.doesNotMatch(buttonSource, /disabled:opacity-/);
 });
 
 test('prefixed backdrop filters precede standard declarations for production CSS transforms', () => {

@@ -810,7 +810,7 @@ button:not(:disabled),
   display: grid;
   place-items: center;
   background: var(--muted);
-  color: var(--muted-foreground);
+  color: var(--icon-muted);
 }
 
 .resilient-photo-fallback svg {
