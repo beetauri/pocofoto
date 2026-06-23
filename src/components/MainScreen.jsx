@@ -51,10 +51,12 @@ import {
   HISTORY_THUMBNAIL_EXTENSION,
   HISTORY_THUMBNAIL_TYPE
 } from '../lib/photoThumbnails';
+import { getNearestFeedSnapTop } from '../lib/feedSnap';
 
 const views = ['history', 'home', 'profile'];
 const lucideIconProps = { strokeWidth: 2.4, 'aria-hidden': true };
 const MAX_CAPTION_LENGTH = 36;
+const FEED_SCROLL_SETTLE_MS = 140;
 const SEND_REVIEW_TIMEOUT_MS = 25000;
 const shutterInnerVariants = {
   rest: { scale: 1 },
@@ -256,6 +258,7 @@ export default function MainScreen({
   const cameraSlideRef = useRef(null);
   const lastPhotoTimestampRef = useRef(null);
   const lastLikeTimestampRef = useRef(null);
+  const feedScrollSettleTimeoutRef = useRef(null);
   const shutterReleaseTimeoutRef = useRef(null);
   const swipeRef = useRef({
     axis: null,
@@ -591,6 +594,32 @@ export default function MainScreen({
     observer.observe(cameraSlide);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const feed = feedRef.current;
+    if (!feed) return undefined;
+
+    const settleFeedScroll = () => {
+      const slideTops = Array.from(
+        feed.querySelectorAll('.reels-slide'),
+        (slide) => slide.offsetTop
+      );
+      const nearestTop = getNearestFeedSnapTop(feed.scrollTop, slideTops);
+      if (Math.abs(nearestTop - feed.scrollTop) < 1) return;
+      feed.scrollTo({ top: nearestTop, behavior: 'smooth' });
+    };
+
+    const handleFeedScroll = () => {
+      window.clearTimeout(feedScrollSettleTimeoutRef.current);
+      feedScrollSettleTimeoutRef.current = window.setTimeout(settleFeedScroll, FEED_SCROLL_SETTLE_MS);
+    };
+
+    feed.addEventListener('scroll', handleFeedScroll, { passive: true });
+    return () => {
+      window.clearTimeout(feedScrollSettleTimeoutRef.current);
+      feed.removeEventListener('scroll', handleFeedScroll);
+    };
+  }, [photos.length, loadingPhotos]);
 
   useEffect(() => {
     if (!coupleData?.users) return;

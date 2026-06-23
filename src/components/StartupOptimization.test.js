@@ -34,3 +34,9 @@ test('Home feed keeps snap paging without hard-stopping every slide', () => {
   assert.match(indexCssSource, /\.reels-slide\s*\{[\s\S]*scroll-snap-align:\s*start/);
   assert.doesNotMatch(indexCssSource, /\.reels-slide\s*\{[\s\S]*scroll-snap-stop:\s*always/);
 });
+
+test('Home feed settles native scroll to the nearest snap slide', () => {
+  assert.match(mainSource, /getNearestFeedSnapTop/);
+  assert.match(mainSource, /querySelectorAll\('\.reels-slide'\)/);
+  assert.match(mainSource, /setTimeout\(settleFeedScroll/);
+});
