@@ -1194,6 +1194,7 @@ button:not(:disabled),
   overflow: hidden;
   padding: calc(var(--safe-top) + 22px) 0 var(--feed-nav-reserve);
   scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 .reels-slide[data-photo-id] .camera-frame {

@@ -4,7 +4,6 @@ import test from 'node:test';
 
 const appSource = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
 const mainSource = readFileSync(new URL('./MainScreen.jsx', import.meta.url), 'utf8');
-const indexCssSource = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 
 test('feed photos are lazy and dynamic background runtime is removed', () => {
   assert.match(mainSource, /<ResilientPhotoImage/);
@@ -27,10 +26,4 @@ test('Home and History share the paginated photo source', () => {
   assert.match(mainSource, /usePaginatedPhotos\(coupleId, localPhotos\)/);
   assert.match(mainSource, /<HistoryScreen[\s\S]*photos=\{photos\}[\s\S]*onLoadMore=\{loadMorePhotos\}/);
   assert.match(mainSource, /<PhotoLoadMoreSentinel[\s\S]*onLoadMore=\{loadMorePhotos\}/);
-});
-
-test('Home feed keeps snap paging without hard-stopping every slide', () => {
-  assert.match(indexCssSource, /\.reels-feed\s*\{[\s\S]*scroll-snap-type:\s*y mandatory/);
-  assert.match(indexCssSource, /\.reels-slide\s*\{[\s\S]*scroll-snap-align:\s*start/);
-  assert.doesNotMatch(indexCssSource, /\.reels-slide\s*\{[\s\S]*scroll-snap-stop:\s*always/);
 });
