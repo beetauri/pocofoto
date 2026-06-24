@@ -36,9 +36,9 @@ test('Retune glass values are applied to the nav and photo overlays', () => {
   const captionRule = cssRule('.caption-pill');
 
   assert.match(navRule, /background:\s*rgba\(31, 28, 27, 0\.33\)/);
-  assert.match(navRule, /box-shadow:\s*none/);
+  assert.match(navRule, /box-shadow:\s*0 0 0 1px rgba\(255, 255, 255, 0\.08\)/);
   assert.match(navRule, /backdrop-filter:\s*blur\(16px\)/);
-  assert.match(navRule, /border:\s*1px solid rgba\(255, 255, 255, 0\.03\)/);
+  assert.match(navRule, /border:\s*0/);
   assert.match(statusRule, /background:\s*rgba\(31, 28, 27, 0\.33\)/);
   assert.match(captionRule, /background:\s*rgba\(31, 28, 27, 0\.33\)/);
 });

@@ -215,10 +215,12 @@ describe('ProfileView', () => {
     expect(source).toContain('profile-danger-ghost');
     expect(css).toContain(`.profile-glass-card {
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 0;
   border-radius: 24px;
   background: rgba(23, 23, 23, 0.68);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 18px 48px rgba(0, 0, 0, 0.2);
   -webkit-backdrop-filter: blur(24px) saturate(130%);
   backdrop-filter: blur(24px) saturate(130%);
 }`);
@@ -238,7 +240,9 @@ describe('ProfileView', () => {
   font-size: 13px;
 }`);
     expect(css).toContain(`.profile-danger-card {
-  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 18px 48px rgba(0, 0, 0, 0.2);
 }`);
     expect(css).toContain(`.profile-danger-ghost {
   border-color: transparent;
