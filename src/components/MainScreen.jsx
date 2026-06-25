@@ -279,6 +279,7 @@ export default function MainScreen({
   const partnerEmail = partnerProfile?.email || partnerProfile?.normalizedEmail || '';
   const partnerPhoto = partnerProfile?.profilePic || partnerProfile?.photoURL || '';
   const profilePic = myProfile?.profilePic || user.photoURL || '';
+  const fallbackProfilePic = user.photoURL || '';
   const buildVersion = import.meta.env.VITE_APP_VERSION || '0.0.0';
   const buildCommit = import.meta.env.VITE_APP_COMMIT || 'dev';
   const isReviewingPhoto = Boolean(reviewPhoto);
@@ -611,6 +612,17 @@ export default function MainScreen({
     };
   }, [coupleData?.users]);
 
+  useEffect(() => {
+    if (!myProfile || myProfile.profilePic || !user.photoURL) return;
+
+    updateDoc(doc(db, 'users', user.uid), {
+      profilePic: user.photoURL,
+      updatedAt: new Date().toISOString()
+    }).catch((err) => {
+      console.warn('Could not restore Google profile photo.', err);
+    });
+  }, [myProfile, user.photoURL, user.uid]);
+
   useLayoutEffect(() => {
     if (!pendingScrollPhotoId || photos.length === 0) return;
 
@@ -936,7 +948,10 @@ export default function MainScreen({
   };
 
   const handleRemoveProfilePhoto = async () => {
-    await updateDoc(doc(db, 'users', user.uid), { profilePic: '' });
+    await updateDoc(doc(db, 'users', user.uid), {
+      profilePic: fallbackProfilePic,
+      updatedAt: new Date().toISOString()
+    });
     showToast(t('profile:toasts.photoRemoved'));
     trackEvent('profile_photo_removed');
   };
