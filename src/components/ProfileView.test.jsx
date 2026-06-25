@@ -238,6 +238,9 @@ describe('ProfileView', () => {
   padding: 0 12px;
   border-radius: 14px;
   font-size: 13px;
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
 }`);
     expect(css).toContain(`.profile-danger-card {
   box-shadow:

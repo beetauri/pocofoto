@@ -77,6 +77,7 @@
   --radius-lg: 34px;
   --radius-xl: 44px;
   --radius-full: 9999px;
+  --photo-radius: 44px;
   --font: 'Nunito', ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -264,7 +265,6 @@ button:not(:disabled),
   min-width: 0;
   min-height: 0;
   touch-action: pan-y;
-  will-change: transform;
   overscroll-behavior: none;
 }
 
@@ -767,9 +767,9 @@ button:not(:disabled),
   min-height: 320px;
   flex: 0 0 auto;
   overflow: hidden;
-  border-radius: 65px;
+  border-radius: var(--photo-radius);
   background: #171717;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 .camera-frame.empty {
@@ -786,6 +786,15 @@ button:not(:disabled),
   height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
+}
+
+.camera-frame img,
+.camera-switch-overlay img,
+.review-photo-layer img,
+.history-tile img,
+.profile-avatar {
+  outline: 1px solid rgba(255, 255, 255, 0.1);
+  outline-offset: -1px;
 }
 
 .resilient-photo-image,
@@ -901,6 +910,13 @@ button:not(:disabled),
   cursor: pointer;
   font-size: 14px;
   font-weight: 850;
+  transition-property: transform, background-color;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+.camera-retry-btn:active {
+  transform: scale(0.96);
 }
 
 .photo-gradient {
@@ -981,6 +997,22 @@ button:not(:disabled),
   color: #ff6b6b;
 }
 
+.photo-retry-btn,
+.photo-delete-btn,
+.like-btn {
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+.photo-retry-btn:active {
+  transform: scale(0.96);
+}
+
+.photo-delete-btn:active {
+  transform: scale(0.96);
+}
+
 .photo-meta {
   display: flex;
   align-items: baseline;
@@ -1005,6 +1037,7 @@ button:not(:disabled),
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 750;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -1021,6 +1054,7 @@ button:not(:disabled),
   font-size: 27px;
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .like-btn svg {
@@ -1157,6 +1191,7 @@ button:not(:disabled),
   color: var(--text-primary);
   font-size: 18px;
   font-weight: 850;
+  text-wrap: balance;
 }
 
 .empty-state span {
@@ -1165,6 +1200,7 @@ button:not(:disabled),
   font-size: 14px;
   font-weight: 650;
   line-height: 1.35;
+  text-wrap: pretty;
 }
 
 .reels-feed {
@@ -1263,7 +1299,10 @@ button:not(:disabled),
   background: var(--bg-control);
   color: var(--icon-secondary);
   cursor: pointer;
-  transition: transform 160ms ease, background 160ms ease, color 160ms ease;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
 }
 
 .camera-tool-btn.active {
@@ -1308,10 +1347,10 @@ button:not(:disabled),
   width: max-content;
   gap: 8px;
   padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 0;
   border-radius: var(--radius-full);
   background: rgba(31, 28, 27, 0.33);
-  box-shadow: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
   margin-inline: auto;
   flex-shrink: 0;
   align-self: flex-start;
@@ -1330,11 +1369,13 @@ button:not(:disabled),
   background: transparent;
   color: var(--icon-muted);
   cursor: pointer;
-  transition: transform 160ms ease, background 160ms ease, color 160ms ease;
+  transition-property: transform, background-color, color;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
 }
 
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.11);
   color: var(--icon-primary);
 }
 
@@ -1535,6 +1576,7 @@ button:not(:disabled),
   font-size: 19px;
   font-weight: 850;
   text-align: center;
+  text-wrap: balance;
 }
 
 .history-grid {
@@ -1567,6 +1609,13 @@ button:not(:disabled),
   color: var(--text-primary);
   cursor: pointer;
   font-weight: 750;
+  transition-property: transform, background-color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+.photo-load-more button:active {
+  transform: scale(0.96);
 }
 
 .profile-screen {
@@ -1636,6 +1685,7 @@ button:not(:disabled),
   font-size: 28px;
   font-weight: 900;
   line-height: 1.08;
+  text-wrap: balance;
 }
 
 .profile-identity p {
@@ -1644,6 +1694,7 @@ button:not(:disabled),
   color: var(--text-muted);
   font-size: 14px;
   font-weight: 700;
+  text-wrap: pretty;
 }
 
 .profile-photo-actions {
@@ -1659,14 +1710,25 @@ button:not(:disabled),
   min-height: 44px;
   border-radius: 18px;
   font-weight: 850;
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+.profile-action-button:active,
+.profile-danger-action:active,
+.profile-about-trigger:active {
+  transform: scale(0.96);
 }
 
 .profile-glass-card {
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 0;
   border-radius: 24px;
   background: rgba(23, 23, 23, 0.68);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 18px 48px rgba(0, 0, 0, 0.2);
   -webkit-backdrop-filter: blur(24px) saturate(130%);
   backdrop-filter: blur(24px) saturate(130%);
 }
@@ -1788,6 +1850,7 @@ button:not(:disabled),
   font-size: 12px;
   font-weight: 750;
   line-height: 1.3;
+  text-wrap: pretty;
 }
 
 .profile-about-card {
@@ -1799,7 +1862,7 @@ button:not(:disabled),
   width: 100%;
   justify-content: space-between;
   padding-inline: 12px;
-  border-radius: 20px;
+  border-radius: 18px;
   color: var(--text-primary);
   font-weight: 850;
 }
@@ -1826,6 +1889,10 @@ button:not(:disabled),
 }
 
 .profile-legal-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 6px;
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 800;
@@ -1876,6 +1943,7 @@ button:not(:disabled),
   font-size: 12px;
   font-weight: 750;
   line-height: 1.4;
+  text-wrap: pretty;
 }
 
 .notification-switch {
@@ -1887,6 +1955,9 @@ button:not(:disabled),
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 900;
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
 }
 
 .notification-switch.enabled {
@@ -1903,6 +1974,9 @@ button:not(:disabled),
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 850;
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
 }
 
 .notification-diagnostics {
@@ -1948,6 +2022,15 @@ button:not(:disabled),
   padding: 0 12px;
   border-radius: 14px;
   font-size: 13px;
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+.notification-switch:active,
+.notification-diagnostics-toggle:active,
+.notification-diagnostics-actions .btn-ghost:active {
+  transform: scale(0.96);
 }
 
 .profile-danger-zone {
@@ -1957,7 +2040,9 @@ button:not(:disabled),
 }
 
 .profile-danger-card {
-  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 18px 48px rgba(0, 0, 0, 0.2);
 }
 
 .profile-danger-action {
@@ -2011,6 +2096,7 @@ button:not(:disabled),
   font-size: 20px;
   font-weight: 900;
   line-height: 1.1;
+  text-wrap: balance;
 }
 
 .profile-alert-description {
@@ -2040,6 +2126,13 @@ button:not(:disabled),
   font-size: 16px;
   font-weight: 850;
   white-space: normal;
+  transition-property: transform, background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+.profile-alert-dialog .profile-alert-button:active {
+  transform: scale(0.96);
 }
 
 .profile-alert-destructive {
@@ -2065,6 +2158,14 @@ button:not(:disabled),
   border-radius: 16px;
   background: var(--bg-card);
   cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transition-property: transform, background-color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+.history-tile:active {
+  transform: scale(0.96);
 }
 
 .history-tile img {

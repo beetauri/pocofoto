@@ -1439,7 +1439,7 @@ export default function MainScreen({
                                 type="button"
                                 aria-label={photo.liked ? t('photo.unlike') : t('photo.like')}
                                 onClick={() => handleLikePhoto(photo)}
-                                whileTap={{ scale: 0.86 }}
+                                whileTap={{ scale: 0.96 }}
                                 style={{ color: photo.liked ? 'var(--accent)' : '#fff' }}
                               >
                                 <HeartIcon filled={photo.liked} />
@@ -1524,11 +1524,24 @@ export default function MainScreen({
         >
           <AnimatePresence mode="wait" initial={false}>
             {isCameraInView ? (
-              <motion.span key="home" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
+              <motion.span
+                key="home"
+                initial={{ opacity: 0, scale: 0.25, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, scale: 0.25, filter: 'blur(4px)' }}
+                transition={{ type: 'spring', duration: 0.3, bounce: 0 }}
+              >
                 <HomeIcon />
               </motion.span>
             ) : (
-              <motion.span key="shutter" className="mini-shutter-nav-icon" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
+              <motion.span
+                key="shutter"
+                className="mini-shutter-nav-icon"
+                initial={{ opacity: 0, scale: 0.25, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, scale: 0.25, filter: 'blur(4px)' }}
+                transition={{ type: 'spring', duration: 0.3, bounce: 0 }}
+              >
                 <ShutterIcon />
               </motion.span>
             )}
