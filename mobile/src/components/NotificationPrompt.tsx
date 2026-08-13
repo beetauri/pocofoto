@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../styles/global';
 
 export default function NotificationPrompt({ open, busy, onEnable, onDismiss }: { open: boolean; busy: boolean; onEnable: () => Promise<unknown>; onDismiss: () => void }) {
   const { t } = useTranslation(['notifications', 'common']);
+  const insets = useSafeAreaInsets();
   const handleEnable = async () => {
     try {
       await onEnable();
@@ -11,19 +13,21 @@ export default function NotificationPrompt({ open, busy, onEnable, onDismiss }: 
       Alert.alert(t('notifications:errors.enable'));
     }
   };
-  return <Modal visible={open} transparent animationType="fade" onRequestClose={onDismiss}>
-    <View style={styles.backdrop}><View style={styles.card}>
+  if (!open) return null;
+
+  return <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 18) + 88 }]}>
+    <View pointerEvents="auto" style={styles.card}>
       <Text style={styles.title}>{t('prompt.title')}</Text>
       <Text style={styles.body}>{t('prompt.body')}</Text>
       <Pressable disabled={busy} onPress={() => void handleEnable()} style={[styles.primary, busy && styles.disabled]}><Text style={styles.primaryText}>{busy ? t('prompt.enabling') : t('prompt.enable')}</Text></Pressable>
       <Pressable disabled={busy} onPress={onDismiss} style={styles.secondary}><Text style={styles.secondaryText}>{t('common:actions.notNow')}</Text></Pressable>
-    </View></View>
-  </Modal>;
+    </View>
+  </View>;
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-  card: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: 22, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border },
+  host: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingHorizontal: spacing.md, zIndex: 50 },
+  card: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: 22, padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOpacity: 0.32, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
   title: { color: colors.text, fontSize: 22, fontWeight: '800' },
   body: { color: colors.muted, fontSize: 15, lineHeight: 22 },
   primary: { minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent },
