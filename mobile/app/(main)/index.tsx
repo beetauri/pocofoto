@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { BlurView } from 'expo-blur';
+import { BlurTargetView, BlurView } from 'expo-blur';
 import { CameraView, useCameraPermissions, type CameraType, type FlashMode } from 'expo-camera';
 import {
   ActivityIndicator,
@@ -28,10 +28,11 @@ import ShutterIcon from '../../src/components/ShutterIcon';
 import { saveReviewDraft, clearReviewDraft, loadReviewDraft } from '../../src/services/localStore';
 import { preparePhoto } from '../../src/services/photoService';
 import { triggerHaptic } from '../../src/services/haptics';
+import { canApplyReviewResult } from '../../src/domain/reviewSession';
 import { colors, globalStyles, spacing } from '../../src/styles/global';
 import type { NativePhoto } from '../../src/types';
 
-type ReviewPhoto = { uri: string; thumbnailUri: string | null; width: number; height: number; previewNeedsUnmirror: boolean };
+type ReviewPhoto = { uri: string; thumbnailUri: string | null; width: number; height: number };
 type FeedItem =
   | { id: 'camera'; kind: 'camera' }
   | { id: 'loading' | 'empty'; kind: 'loading' | 'empty' }
@@ -73,20 +74,21 @@ const PhotoCard = memo(function PhotoCard({
   partnerName: string;
 }) {
   const { t } = useTranslation('camera');
+  const photoFrameRef = useRef<View>(null);
   const failed = photo.localOnly && photo.localStatus === 'failed';
 
   return (
     <View style={[styles.photoCard, { width: imageSize }]}>
-      <View style={[styles.photoFrame, { width: imageSize, height: imageSize }]}>
+      <BlurTargetView ref={photoFrameRef} style={[styles.photoFrame, { width: imageSize, height: imageSize }]}>
         <NativePhotoImage photo={photo} style={styles.photoImage} />
         {photo.caption?.text ? (
           <View pointerEvents="none" style={styles.photoCaptionPosition}>
-            <BlurView intensity={34} tint="dark" style={styles.photoCaptionPill}>
+            <BlurView blurMethod="dimezisBlurView" blurTarget={photoFrameRef} intensity={34} tint="dark" style={styles.photoCaptionPill}>
               <Text numberOfLines={1} style={styles.photoCaptionText}>{photo.caption.text}</Text>
             </BlurView>
           </View>
         ) : null}
-      </View>
+      </BlurTargetView>
       {photo.localOnly ? (
         <View style={[styles.photoMetaRow, styles.localStatusRow, { width: imageSize }]}> 
           {failed ? (
@@ -136,6 +138,8 @@ export default function HomeRoute() {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const { cameraInView, setCameraInView } = useMainUi();
   const cameraRef = useRef<CameraView>(null);
+  const cameraFrameRef = useRef<View>(null);
+  const reviewSessionRef = useRef(0);
   const captionRef = useRef<TextInput>(null);
   const feedRef = useRef<FlatList<FeedItem>>(null);
   const targetPhotoRef = useRef<string | null>(null);
@@ -148,7 +152,7 @@ export default function HomeRoute() {
   const insets = useSafeAreaInsets();
   const draftKey = user && coupleId ? `${user.uid}::${coupleId}` : null;
   const imageSize = Math.min(width, Math.max(220, height - insets.top - insets.bottom - 270));
-  const captionPillWidth = Math.min(Math.max(140, imageSize - 52), 280);
+  const captionPillWidth = Math.min(280, Math.max(92, caption.length * 9 + 36));
 
   const { photoId: rawPhotoId } = useLocalSearchParams<{ photoId?: string | string[] }>();
   const photoId = Array.isArray(rawPhotoId) ? rawPhotoId[0] : rawPhotoId;
@@ -161,9 +165,10 @@ export default function HomeRoute() {
   useEffect(() => {
     if (!draftKey) return;
     let active = true;
+    const session = reviewSessionRef.current;
     void loadReviewDraft(draftKey).then((draft) => {
-      if (!active || !draft) return;
-      setReview({ uri: draft.uri, thumbnailUri: draft.thumbnailUri || null, width: 1, height: 1, previewNeedsUnmirror: false });
+      if (!active || !draft || !canApplyReviewResult(session, reviewSessionRef.current)) return;
+      setReview({ uri: draft.uri, thumbnailUri: draft.thumbnailUri || null, width: 1, height: 1 });
       setCaption(draft.captionText || '');
     });
     return () => { active = false; };
@@ -171,8 +176,10 @@ export default function HomeRoute() {
 
   useEffect(() => {
     if (!draftKey || !review || preparingReview) return;
+    const session = reviewSessionRef.current;
     const reviewUri = review.uri;
     void saveReviewDraft(draftKey, reviewUri, review.thumbnailUri, caption).then(({ uri: durableUri, thumbnailUri }) => {
+      if (!canApplyReviewResult(session, reviewSessionRef.current)) return;
       setReview((current) => current?.uri === reviewUri && (current.uri !== durableUri || current.thumbnailUri !== thumbnailUri) ? { ...current, uri: durableUri, thumbnailUri } : current);
     }).catch(() => undefined);
   }, [draftKey, preparingReview, review, caption]);
@@ -246,20 +253,22 @@ export default function HomeRoute() {
       const picture = await cameraRef.current.takePictureAsync({ quality: 0.9, skipProcessing: false, mirror: false });
       if (!picture?.uri) throw new Error('Capture returned no file.');
       const capturedUri = picture.uri;
-      const frontCamera = facing === 'front';
-      setReview({ uri: capturedUri, thumbnailUri: null, width: picture.width, height: picture.height, previewNeedsUnmirror: frontCamera });
-      setCaption('');
+      const session = ++reviewSessionRef.current;
       setPreparingReview(true);
-      setBusy(false);
 
       try {
-        const prepared = await preparePhoto(capturedUri, picture.width, picture.height, frontCamera);
-        setReview((current) => current?.uri === capturedUri ? { ...current, uri: prepared.fullUri, thumbnailUri: prepared.thumbnailUri, previewNeedsUnmirror: false } : current);
+        const prepared = await preparePhoto(capturedUri, picture.width, picture.height);
+        if (!canApplyReviewResult(session, reviewSessionRef.current)) return;
+        setReview({ uri: prepared.fullUri, thumbnailUri: prepared.thumbnailUri, width: picture.width, height: picture.height });
+        setCaption('');
       } catch {
-        setReview(null);
+        if (canApplyReviewResult(session, reviewSessionRef.current)) setReview(null);
         showFeedback(t('errors.capture'));
       } finally {
-        setPreparingReview(false);
+        if (canApplyReviewResult(session, reviewSessionRef.current)) {
+          setPreparingReview(false);
+          setBusy(false);
+        }
       }
     } catch {
       showFeedback(t('errors.capture'));
@@ -292,9 +301,15 @@ export default function HomeRoute() {
 
   const discard = async () => {
     if (busy) return;
+    reviewSessionRef.current += 1;
+    setBusy(true);
     setReview(null);
     setCaption('');
-    if (draftKey) await clearReviewDraft(draftKey);
+    try {
+      if (draftKey) await clearReviewDraft(draftKey);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const retryCamera = () => {
@@ -338,7 +353,7 @@ export default function HomeRoute() {
 
   const renderCamera = () => (
     <>
-      <View style={[styles.cameraFrame, keyboardVisible && styles.keyboardCameraFrame, { width: imageSize, height: imageSize }]}>
+      <BlurTargetView ref={cameraFrameRef} style={[styles.cameraFrame, keyboardVisible && styles.keyboardCameraFrame, { width: imageSize, height: imageSize }]}>
         {permission?.granted ? (
           <CameraView
             key={cameraAttempt}
@@ -361,9 +376,9 @@ export default function HomeRoute() {
         {cameraError && !review ? <View style={styles.cameraErrorOverlay}><Text style={styles.permissionTitle}>{t('startup.unavailable')}</Text><Text style={styles.permissionBody}>{cameraError}</Text><Pressable onPress={retryCamera} style={[globalStyles.button, globalStyles.buttonPrimary]}><Text style={styles.buttonText}>{t('startup.retry')}</Text></Pressable></View> : null}
         {review ? (
           <View style={[styles.reviewOverlay, keyboardVisible && styles.keyboardReviewOverlay]}>
-            <Image source={{ uri: review.uri }} resizeMode="cover" style={[styles.photoImage, review.previewNeedsUnmirror && styles.unmirroredPreview]} />
+            <Image fadeDuration={0} source={{ uri: review.uri }} resizeMode="cover" style={styles.photoImage} />
             <View style={styles.captionPosition}>
-              <BlurView intensity={38} tint="dark" style={[styles.captionBlur, { width: captionPillWidth }]}>
+              <BlurView blurMethod="dimezisBlurView" blurTarget={cameraFrameRef} intensity={38} tint="dark" style={[styles.captionBlur, { width: captionPillWidth }]}>
                 <TextInput
                   ref={captionRef}
                   accessibilityLabel={t('review.captionLabel')}
@@ -377,7 +392,7 @@ export default function HomeRoute() {
                   placeholderTextColor="rgba(255,255,255,0.58)"
                   returnKeyType="done"
                   selectionColor={colors.accent}
-                  style={[styles.captionInput, { width: captionPillWidth }]}
+                  style={styles.captionInput}
                   textAlign="center"
                   underlineColorAndroid="transparent"
                   value={caption}
@@ -386,7 +401,7 @@ export default function HomeRoute() {
             </View>
           </View>
         ) : null}
-      </View>
+      </BlurTargetView>
 
       <View style={styles.cameraControls}>
         <Pressable accessibilityLabel={review ? t('review.discard') : t('controls.flash')} onPress={review ? () => void discard() : toggleFlash} style={[styles.cameraToolButton, !review && flash === 'on' && styles.cameraToolButtonActive]}>
@@ -459,7 +474,6 @@ const styles = StyleSheet.create({
   keyboardReviewOverlay: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   photoFrame: { borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.surface },
   photoImage: { width: '100%' as const, height: '100%' as const },
-  unmirroredPreview: { transform: [{ scaleX: -1 }] },
   photoCaptionPosition: { position: 'absolute' as const, left: 0, right: 0, bottom: 8, alignItems: 'center' as const },
   photoCaptionPill: { maxWidth: '88%' as const, minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, justifyContent: 'center' as const, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: 'rgba(31,28,27,0.42)' },
   photoCaptionText: { color: colors.text, fontSize: 16, fontWeight: '500' as const, lineHeight: 22 },
@@ -483,7 +497,7 @@ const styles = StyleSheet.create({
   cameraErrorOverlay: { position: 'absolute' as const, top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center' as const, justifyContent: 'center' as const, gap: spacing.sm, padding: spacing.lg, backgroundColor: 'rgba(17,17,17,0.96)' },
   buttonText: { color: colors.text, fontWeight: '800' as const },
   captionPosition: { position: 'absolute' as const, left: 26, right: 26, bottom: 8, alignItems: 'center' as const },
-  captionBlur: { minHeight: 42, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: 'rgba(31,28,27,0.42)' },
+  captionBlur: { alignSelf: 'center' as const, minHeight: 42, maxWidth: '100%' as const, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: 'rgba(31,28,27,0.42)' },
   captionInput: { minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, color: colors.text, fontSize: 16, fontWeight: '500' as const, backgroundColor: 'transparent', textAlignVertical: 'center' as const },
   cameraControls: { width: '100%' as const, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: spacing.md, paddingTop: spacing.md },
   cameraToolButton: { width: 54, height: 54, borderRadius: 27, borderCurve: 'continuous' as const, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.surfaceRaised },

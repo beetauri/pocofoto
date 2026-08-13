@@ -40,8 +40,8 @@ export default function HistoryRoute() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.sm },
+  content: { paddingHorizontal: spacing.xs },
   title: { color: colors.text, fontSize: 26, fontWeight: '900', padding: spacing.sm },
-  tile: { flex: 1 / 3, aspectRatio: 1, padding: spacing.xs },
+  tile: { flex: 1 / 3, aspectRatio: 1, padding: 3 },
   image: { width: '100%', height: '100%', borderRadius: 14, borderCurve: 'continuous', backgroundColor: colors.surface }
 });

@@ -1,5 +1,6 @@
 import { BlurView } from 'expo-blur';
 import { House, Images, UserRound } from 'lucide-react-native';
+import { type RefObject } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { MaterialTopTabBarProps } from 'expo-router/js-top-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,13 +13,13 @@ const labels: Record<string, string> = {
   profile: 'Profile'
 };
 
-export default function LiquidGlassTabBar({ cameraInView, state, navigation }: MaterialTopTabBarProps & { cameraInView: boolean }) {
+export default function LiquidGlassTabBar({ blurTarget, cameraInView, state, navigation }: MaterialTopTabBarProps & { blurTarget: RefObject<View | null>; cameraInView: boolean }) {
   const insets = useSafeAreaInsets();
 
   return (
     <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom, 18) }]}>
       <View style={styles.tabBar}>
-        <BlurView intensity={52} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView blurMethod="dimezisBlurView" blurTarget={blurTarget} intensity={52} tint="dark" style={StyleSheet.absoluteFill} />
         <View pointerEvents="none" style={styles.tint} />
         {state.routes.map((route: { key: string; name: string; params?: object }, index: number) => {
           const focused = state.index === index;

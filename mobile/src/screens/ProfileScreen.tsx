@@ -111,6 +111,7 @@ export default function ProfileScreen() {
   const [draftName, setDraftName] = useState('');
   const [nameError, setNameError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [profilePhotoBusy, setProfilePhotoBusy] = useState(false);
   const [optimisticProfilePic, setOptimisticProfilePic] = useState('');
   const [removingPairing, setRemovingPairing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -158,8 +159,8 @@ export default function ProfileScreen() {
   };
 
   const pickPhoto = async () => {
-    if (!user || busy) return;
-    setBusy(true);
+    if (!user || profilePhotoBusy) return;
+    setProfilePhotoBusy(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 0.85 });
       if (result.canceled || !result.assets[0]) return;
@@ -172,15 +173,15 @@ export default function ProfileScreen() {
       setOptimisticProfilePic('');
       captureHandledException(error, { operation: 'profile-photo-update' });
       Alert.alert(t('toasts.photoUpdateError'));
-    } finally { setBusy(false); }
+    } finally { setProfilePhotoBusy(false); }
   };
 
   const removePhoto = async () => {
-    if (!user || busy || !profilePic) return;
-    setBusy(true);
+    if (!user || profilePhotoBusy || !profilePic) return;
+    setProfilePhotoBusy(true);
     try { await removeProfilePhoto(user.uid, fallbackProfilePic); setOptimisticProfilePic(''); trackEvent('profile_photo_removed'); }
     catch (error) { captureHandledException(error, { operation: 'profile-photo-remove' }); Alert.alert(t('toasts.photoUpdateError')); }
-    finally { setBusy(false); }
+    finally { setProfilePhotoBusy(false); }
   };
 
   const confirmRemovePairing = () => {
@@ -203,7 +204,7 @@ export default function ProfileScreen() {
 
   return <ScrollView directionalLockEnabled style={globalStyles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + 48 }]}>
     <View style={styles.identity}><Avatar uri={profilePic} name={displayName} email={user?.email} large /><View style={styles.identityCopy}><Text style={styles.title}>{displayName}</Text><Text style={styles.mutedText}>{user?.email}</Text></View></View>
-    <View style={styles.inlineActions}><ActionButton label={t('changePhoto')} onPress={() => void pickPhoto()} disabled={busy} /><ActionButton label={t('removePhoto')} onPress={() => void removePhoto()} disabled={busy || !profilePic} /></View>
+    <View style={styles.inlineActions}><ActionButton label={t('changePhoto')} onPress={() => void pickPhoto()} disabled={profilePhotoBusy} /><ActionButton label={t('removePhoto')} onPress={() => void removePhoto()} disabled={profilePhotoBusy || !profilePic} /></View>
 
     <Section title={t('pairedWith')}><View style={styles.partnerRow}><Avatar uri={partnerPic} name={partnerName} email={partnerProfile?.email} /><View><Text style={styles.bodyStrong}>{partnerName}</Text><Text style={styles.mutedText}>{partnerProfile?.email || t('hiddenEmail')}</Text></View></View></Section>
     <Section title={t('account')}>
@@ -214,7 +215,7 @@ export default function ProfileScreen() {
     <NotificationSettings />
     <View style={styles.section}><View style={styles.card}><Pressable accessibilityRole="button" accessibilityLabel={t('about')} onPress={() => setAboutOpen((current) => !current)} style={styles.aboutTrigger}><Text style={styles.sectionTitle}>{t('about')}</Text><ChevronDown color={colors.muted} size={20} style={aboutOpen ? styles.chevronOpen : undefined} /></Pressable>{aboutOpen ? <View style={styles.aboutContent}><View style={styles.legalLinks}><Text style={styles.linkText}>{t('privacy')}</Text><Text style={styles.linkText}>{t('terms')}</Text></View><View style={styles.buildBlock}><Text style={styles.mutedText}>{t('common:version')}</Text><Text style={styles.bodyStrong}>v{buildVersion} ({buildCommit})</Text></View></View> : null}</View></View>
     <View style={styles.dangerSection}><ActionButton label={removingPairing ? t('removePairing.removing') : t('removePairing.action')} onPress={confirmRemovePairing} disabled={removingPairing} danger /><ActionButton label={t('logout.action')} onPress={confirmLogout} danger /></View>
-    {busy && <ActivityIndicator color={colors.accent} style={styles.activity} />}
+    {busy || profilePhotoBusy ? <ActivityIndicator color={colors.accent} style={styles.activity} /> : null}
   </ScrollView>;
 }
 

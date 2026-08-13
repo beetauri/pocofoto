@@ -1,4 +1,4 @@
-import { FlipType, manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import {
   addDoc,
   collection,
@@ -9,7 +9,7 @@ import { getDownloadURL, putFile, ref } from '@react-native-firebase/storage';
 import { firestoreClient, storageClient } from './firebase';
 import { buildCaptionPayload } from '../domain/caption';
 
-export async function preparePhoto(uri: string, width: number, height: number, unmirror = false) {
+export async function preparePhoto(uri: string, width: number, height: number) {
   const side = Math.min(width, height);
   const crop = {
     originX: Math.max(0, Math.round((width - side) / 2)),
@@ -17,9 +17,8 @@ export async function preparePhoto(uri: string, width: number, height: number, u
     width: side,
     height: side
   };
-  const correction = unmirror ? [{ flip: FlipType.Horizontal }] : [];
-  const fullActions = [{ crop }, ...correction, { resize: { width: Math.min(1920, side), height: Math.min(1920, side) } }];
-  const thumbnailActions = [{ crop }, ...correction, { resize: { width: 256, height: 256 } }];
+  const fullActions = [{ crop }, { resize: { width: Math.min(1920, side), height: Math.min(1920, side) } }];
+  const thumbnailActions = [{ crop }, { resize: { width: 256, height: 256 } }];
   const [full, square] = await Promise.all([
     manipulateAsync(uri, fullActions, { compress: 0.9, format: SaveFormat.JPEG }),
     manipulateAsync(uri, thumbnailActions, { compress: 0.78, format: SaveFormat.WEBP })
