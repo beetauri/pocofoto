@@ -8,6 +8,7 @@ import {
   Animated,
   FlatList,
   Image,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -30,7 +31,7 @@ import { triggerHaptic } from '../../src/services/haptics';
 import { colors, globalStyles, spacing } from '../../src/styles/global';
 import type { NativePhoto } from '../../src/types';
 
-type ReviewPhoto = { uri: string; thumbnailUri: string | null; width: number; height: number };
+type ReviewPhoto = { uri: string; thumbnailUri: string | null; width: number; height: number; previewNeedsUnmirror: boolean };
 type FeedItem =
   | { id: 'camera'; kind: 'camera' }
   | { id: 'loading' | 'empty'; kind: 'loading' | 'empty' }
@@ -127,12 +128,12 @@ export default function HomeRoute() {
   const [flash, setFlash] = useState<FlashMode>('off');
   const [review, setReview] = useState<ReviewPhoto | null>(null);
   const [caption, setCaption] = useState('');
-  const [captionWidth, setCaptionWidth] = useState(0);
   const [busy, setBusy] = useState(false);
   const [preparingReview, setPreparingReview] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [cameraError, setCameraError] = useState('');
   const [cameraAttempt, setCameraAttempt] = useState(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const { cameraInView, setCameraInView } = useMainUi();
   const cameraRef = useRef<CameraView>(null);
   const captionRef = useRef<TextInput>(null);
@@ -147,7 +148,7 @@ export default function HomeRoute() {
   const insets = useSafeAreaInsets();
   const draftKey = user && coupleId ? `${user.uid}::${coupleId}` : null;
   const imageSize = Math.min(width, Math.max(220, height - insets.top - insets.bottom - 270));
-  const maxCaptionWidth = Math.max(140, imageSize - 52);
+  const captionPillWidth = Math.min(Math.max(140, imageSize - 52), 280);
 
   const { photoId: rawPhotoId } = useLocalSearchParams<{ photoId?: string | string[] }>();
   const photoId = Array.isArray(rawPhotoId) ? rawPhotoId[0] : rawPhotoId;
@@ -162,7 +163,7 @@ export default function HomeRoute() {
     let active = true;
     void loadReviewDraft(draftKey).then((draft) => {
       if (!active || !draft) return;
-      setReview({ uri: draft.uri, thumbnailUri: draft.thumbnailUri || null, width: 1, height: 1 });
+      setReview({ uri: draft.uri, thumbnailUri: draft.thumbnailUri || null, width: 1, height: 1, previewNeedsUnmirror: false });
       setCaption(draft.captionText || '');
     });
     return () => { active = false; };
@@ -184,6 +185,15 @@ export default function HomeRoute() {
 
   useEffect(() => () => {
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
   }, []);
 
   const scrollToCamera = useCallback(() => {
@@ -233,18 +243,18 @@ export default function HomeRoute() {
     await triggerHaptic('tap');
     setBusy(true);
     try {
-      const picture = await cameraRef.current.takePictureAsync({ quality: 0.9, skipProcessing: false });
+      const picture = await cameraRef.current.takePictureAsync({ quality: 0.9, skipProcessing: false, mirror: false });
       if (!picture?.uri) throw new Error('Capture returned no file.');
       const capturedUri = picture.uri;
-      setReview({ uri: capturedUri, thumbnailUri: null, width: picture.width, height: picture.height });
+      const frontCamera = facing === 'front';
+      setReview({ uri: capturedUri, thumbnailUri: null, width: picture.width, height: picture.height, previewNeedsUnmirror: frontCamera });
       setCaption('');
-      setCaptionWidth(0);
       setPreparingReview(true);
       setBusy(false);
 
       try {
-        const prepared = await preparePhoto(capturedUri, picture.width, picture.height);
-        setReview((current) => current?.uri === capturedUri ? { ...current, uri: prepared.fullUri, thumbnailUri: prepared.thumbnailUri } : current);
+        const prepared = await preparePhoto(capturedUri, picture.width, picture.height, frontCamera);
+        setReview((current) => current?.uri === capturedUri ? { ...current, uri: prepared.fullUri, thumbnailUri: prepared.thumbnailUri, previewNeedsUnmirror: false } : current);
       } catch {
         setReview(null);
         showFeedback(t('errors.capture'));
@@ -273,7 +283,6 @@ export default function HomeRoute() {
       if (draftKey) await clearReviewDraft(draftKey).catch(() => undefined);
       setReview(null);
       setCaption('');
-      setCaptionWidth(0);
     } catch {
       showFeedback(t('errors.upload'));
     } finally {
@@ -285,7 +294,6 @@ export default function HomeRoute() {
     if (busy) return;
     setReview(null);
     setCaption('');
-    setCaptionWidth(0);
     if (draftKey) await clearReviewDraft(draftKey);
   };
 
@@ -307,7 +315,6 @@ export default function HomeRoute() {
   const toggleFlash = () => {
     const nextFlash: FlashMode = flash === 'on' ? 'off' : 'on';
     setFlash(nextFlash);
-    showFeedback(nextFlash === 'on' ? 'Flash on' : 'Flash off');
   };
 
   const switchCamera = () => {
@@ -331,7 +338,7 @@ export default function HomeRoute() {
 
   const renderCamera = () => (
     <>
-      <View style={[styles.cameraFrame, { width: imageSize, height: imageSize }]}>
+      <View style={[styles.cameraFrame, keyboardVisible && styles.keyboardCameraFrame, { width: imageSize, height: imageSize }]}>
         {permission?.granted ? (
           <CameraView
             key={cameraAttempt}
@@ -353,13 +360,10 @@ export default function HomeRoute() {
         )}
         {cameraError && !review ? <View style={styles.cameraErrorOverlay}><Text style={styles.permissionTitle}>{t('startup.unavailable')}</Text><Text style={styles.permissionBody}>{cameraError}</Text><Pressable onPress={retryCamera} style={[globalStyles.button, globalStyles.buttonPrimary]}><Text style={styles.buttonText}>{t('startup.retry')}</Text></Pressable></View> : null}
         {review ? (
-          <View style={styles.reviewOverlay}>
-            <Image source={{ uri: review.uri }} resizeMode="cover" style={styles.photoImage} />
+          <View style={[styles.reviewOverlay, keyboardVisible && styles.keyboardReviewOverlay]}>
+            <Image source={{ uri: review.uri }} resizeMode="cover" style={[styles.photoImage, review.previewNeedsUnmirror && styles.unmirroredPreview]} />
             <View style={styles.captionPosition}>
-              <View pointerEvents="none" style={styles.captionSizer} onLayout={(event) => setCaptionWidth(Math.min(maxCaptionWidth, event.nativeEvent.layout.width))}>
-                <Text numberOfLines={1} style={styles.captionSizerText}>{caption || t('review.captionPlaceholder')}</Text>
-              </View>
-              <BlurView intensity={38} tint="dark" style={[styles.captionBlur, { width: captionWidth || Math.min(maxCaptionWidth, 230) }]}>
+              <BlurView intensity={38} tint="dark" style={[styles.captionBlur, { width: captionPillWidth }]}>
                 <TextInput
                   ref={captionRef}
                   accessibilityLabel={t('review.captionLabel')}
@@ -373,7 +377,7 @@ export default function HomeRoute() {
                   placeholderTextColor="rgba(255,255,255,0.58)"
                   returnKeyType="done"
                   selectionColor={colors.accent}
-                  style={styles.captionInput}
+                  style={[styles.captionInput, { width: captionPillWidth }]}
                   textAlign="center"
                   underlineColorAndroid="transparent"
                   value={caption}
@@ -449,12 +453,15 @@ export default function HomeRoute() {
 const styles = StyleSheet.create({
   page: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 0, overflow: 'hidden' as const },
   cameraFrame: { borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.surface },
+  keyboardCameraFrame: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   camera: { flex: 1 },
   reviewOverlay: { position: 'absolute' as const, top: 0, right: 0, bottom: 0, left: 0, borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.background },
+  keyboardReviewOverlay: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   photoFrame: { borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.surface },
   photoImage: { width: '100%' as const, height: '100%' as const },
+  unmirroredPreview: { transform: [{ scaleX: -1 }] },
   photoCaptionPosition: { position: 'absolute' as const, left: 0, right: 0, bottom: 8, alignItems: 'center' as const },
-  photoCaptionPill: { maxWidth: '88%' as const, minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, justifyContent: 'center' as const, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: 'rgba(31,28,27,0.33)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  photoCaptionPill: { maxWidth: '88%' as const, minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, justifyContent: 'center' as const, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: 'rgba(31,28,27,0.42)' },
   photoCaptionText: { color: colors.text, fontSize: 16, fontWeight: '500' as const, lineHeight: 22 },
   photoCard: { alignItems: 'center' as const },
   photoMetaRow: { minHeight: 58, paddingTop: 14, paddingHorizontal: 20, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, gap: spacing.sm },
@@ -476,10 +483,8 @@ const styles = StyleSheet.create({
   cameraErrorOverlay: { position: 'absolute' as const, top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center' as const, justifyContent: 'center' as const, gap: spacing.sm, padding: spacing.lg, backgroundColor: 'rgba(17,17,17,0.96)' },
   buttonText: { color: colors.text, fontWeight: '800' as const },
   captionPosition: { position: 'absolute' as const, left: 26, right: 26, bottom: 8, alignItems: 'center' as const },
-  captionSizer: { position: 'absolute' as const, alignSelf: 'center' as const, opacity: 0 },
-  captionSizerText: { minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, fontSize: 16, fontWeight: '500' as const },
-  captionBlur: { minHeight: 42, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(31,28,27,0.33)' },
-  captionInput: { minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, color: colors.text, fontSize: 16, fontWeight: '500' as const, backgroundColor: 'transparent' },
+  captionBlur: { minHeight: 42, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: 'rgba(31,28,27,0.42)' },
+  captionInput: { minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, color: colors.text, fontSize: 16, fontWeight: '500' as const, backgroundColor: 'transparent', textAlignVertical: 'center' as const },
   cameraControls: { width: '100%' as const, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: spacing.md, paddingTop: spacing.md },
   cameraToolButton: { width: 54, height: 54, borderRadius: 27, borderCurve: 'continuous' as const, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.surfaceRaised },
   cameraToolButtonActive: { backgroundColor: 'rgba(79,114,252,0.18)', borderWidth: 1, borderColor: 'rgba(79,114,252,0.42)' },

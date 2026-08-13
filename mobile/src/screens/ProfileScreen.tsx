@@ -34,7 +34,7 @@ function initialsFor(name: string, email?: string | null) {
 function Avatar({ uri, name, email, large = false }: { uri?: string; name: string; email?: string | null; large?: boolean }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [uri]);
-  if (uri && !failed) return <Image source={{ uri }} onError={() => setFailed(true)} style={[styles.avatar, large && styles.avatarLarge]} />;
+  if (uri && !failed) return <Image source={{ uri }} resizeMode="cover" onError={() => setFailed(true)} style={[styles.avatar, large && styles.avatarLarge]} />;
   return <View style={[styles.avatar, large && styles.avatarLarge, styles.avatarFallback]}><Text style={styles.avatarText}>{initialsFor(name, email)}</Text></View>;
 }
 
@@ -111,12 +111,13 @@ export default function ProfileScreen() {
   const [draftName, setDraftName] = useState('');
   const [nameError, setNameError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [optimisticProfilePic, setOptimisticProfilePic] = useState('');
   const [removingPairing, setRemovingPairing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const insets = useSafeAreaInsets();
 
   const displayName = profile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Pocofoto';
-  const profilePic = profile?.profilePic || user?.photoURL || '';
+  const profilePic = optimisticProfilePic || profile?.profilePic || user?.photoURL || '';
   const fallbackProfilePic = user?.photoURL || '';
   const partnerName = partnerProfile?.displayName || partnerProfile?.email?.split('@')[0] || t('pairedWith');
   const partnerPic = partnerProfile?.profilePic || partnerProfile?.photoURL || '';
@@ -158,14 +159,17 @@ export default function ProfileScreen() {
 
   const pickPhoto = async () => {
     if (!user || busy) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1 });
-    if (result.canceled || !result.assets[0]) return;
     setBusy(true);
     try {
-      await uploadProfilePhoto(user.uid, result.assets[0].uri);
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 0.85 });
+      if (result.canceled || !result.assets[0]) return;
+      setOptimisticProfilePic(result.assets[0].uri);
+      const nextProfilePic = await uploadProfilePhoto(user.uid, result.assets[0].uri);
+      setOptimisticProfilePic(nextProfilePic);
       void triggerHaptic('success');
       trackEvent('profile_photo_updated');
     } catch (error) {
+      setOptimisticProfilePic('');
       captureHandledException(error, { operation: 'profile-photo-update' });
       Alert.alert(t('toasts.photoUpdateError'));
     } finally { setBusy(false); }
@@ -174,7 +178,7 @@ export default function ProfileScreen() {
   const removePhoto = async () => {
     if (!user || busy || !profilePic) return;
     setBusy(true);
-    try { await removeProfilePhoto(user.uid, fallbackProfilePic); trackEvent('profile_photo_removed'); }
+    try { await removeProfilePhoto(user.uid, fallbackProfilePic); setOptimisticProfilePic(''); trackEvent('profile_photo_removed'); }
     catch (error) { captureHandledException(error, { operation: 'profile-photo-remove' }); Alert.alert(t('toasts.photoUpdateError')); }
     finally { setBusy(false); }
   };

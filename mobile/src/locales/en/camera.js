@@ -23,8 +23,7 @@ export default {
     label: 'Camera controls',
     capture: 'Take photo',
     flash: 'Toggle flash',
-    switchCamera: 'Switch camera',
-    flashUnavailable: 'Flash controls are coming soon.'
+    switchCamera: 'Switch camera'
   },
   queue: {
     sending: 'Sending to your person…',
