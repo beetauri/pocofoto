@@ -68,8 +68,14 @@ export function PhotosProvider({ children }: PropsWithChildren) {
     let durableFullUri: string | null = null;
     let durableThumbnailUri: string | null = null;
     try {
-      durableFullUri = await copyFileToDurableStorage(fullUri, id, 'jpg');
-      if (thumbnailUri) durableThumbnailUri = await copyFileToDurableStorage(thumbnailUri, `${id}-thumb`, 'webp');
+      const [fullResult, thumbnailResult] = await Promise.allSettled([
+        copyFileToDurableStorage(fullUri, id, 'jpg'),
+        thumbnailUri ? copyFileToDurableStorage(thumbnailUri, `${id}-thumb`, 'webp') : Promise.resolve(null)
+      ]);
+      durableFullUri = fullResult.status === 'fulfilled' ? fullResult.value : null;
+      durableThumbnailUri = thumbnailResult.status === 'fulfilled' ? thumbnailResult.value : null;
+      if (fullResult.status === 'rejected') throw fullResult.reason;
+      if (thumbnailResult.status === 'rejected') throw thumbnailResult.reason;
     } catch (error) {
       await deleteLocalPhotoFile(durableFullUri).catch(() => undefined);
       await deleteLocalPhotoFile(durableThumbnailUri).catch(() => undefined);

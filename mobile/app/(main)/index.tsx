@@ -1,9 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
+import { BlurView } from 'expo-blur';
+import { CameraView, useCameraPermissions, type CameraType, type FlashMode } from 'expo-camera';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Image,
   Pressable,
@@ -21,6 +23,7 @@ import { useApp } from '../../src/state/AppProvider';
 import { useMainUi } from '../../src/state/MainUiProvider';
 import { usePhotoContext } from '../../src/state/PhotosProvider';
 import NativePhotoImage from '../../src/components/NativePhotoImage';
+import ShutterIcon from '../../src/components/ShutterIcon';
 import { saveReviewDraft, clearReviewDraft, loadReviewDraft } from '../../src/services/localStore';
 import { preparePhoto } from '../../src/services/photoService';
 import { triggerHaptic } from '../../src/services/haptics';
@@ -77,9 +80,9 @@ const PhotoCard = memo(function PhotoCard({
         <NativePhotoImage photo={photo} style={styles.photoImage} />
         {photo.caption?.text ? (
           <View pointerEvents="none" style={styles.photoCaptionPosition}>
-            <View style={styles.photoCaptionPill}>
+            <BlurView intensity={34} tint="dark" style={styles.photoCaptionPill}>
               <Text numberOfLines={1} style={styles.photoCaptionText}>{photo.caption.text}</Text>
-            </View>
+            </BlurView>
           </View>
         ) : null}
       </View>
@@ -121,10 +124,12 @@ export default function HomeRoute() {
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraReady, setCameraReady] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
+  const [flash, setFlash] = useState<FlashMode>('off');
   const [review, setReview] = useState<ReviewPhoto | null>(null);
   const [caption, setCaption] = useState('');
   const [captionWidth, setCaptionWidth] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [preparingReview, setPreparingReview] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [cameraError, setCameraError] = useState('');
   const [cameraAttempt, setCameraAttempt] = useState(0);
@@ -135,6 +140,7 @@ export default function HomeRoute() {
   const targetPhotoRef = useRef<string | null>(null);
   const targetPhotoLoadRef = useRef<string | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shutterScale = useRef(new Animated.Value(1)).current;
   const navigation = useNavigation();
   const router = useRouter();
   const { height, width } = useWindowDimensions();
@@ -163,12 +169,12 @@ export default function HomeRoute() {
   }, [draftKey]);
 
   useEffect(() => {
-    if (!draftKey || !review) return;
+    if (!draftKey || !review || preparingReview) return;
     const reviewUri = review.uri;
     void saveReviewDraft(draftKey, reviewUri, review.thumbnailUri, caption).then(({ uri: durableUri, thumbnailUri }) => {
       setReview((current) => current?.uri === reviewUri && (current.uri !== durableUri || current.thumbnailUri !== thumbnailUri) ? { ...current, uri: durableUri, thumbnailUri } : current);
     }).catch(() => undefined);
-  }, [draftKey, review, caption]);
+  }, [draftKey, preparingReview, review, caption]);
 
   const showFeedback = useCallback((message: string) => {
     setFeedback(message);
@@ -227,21 +233,35 @@ export default function HomeRoute() {
     await triggerHaptic('tap');
     setBusy(true);
     try {
-      const picture = await cameraRef.current.takePictureAsync({ quality: 1, skipProcessing: false });
+      const picture = await cameraRef.current.takePictureAsync({ quality: 0.9, skipProcessing: false });
       if (!picture?.uri) throw new Error('Capture returned no file.');
-      const prepared = await preparePhoto(picture.uri, picture.width, picture.height);
-      setReview({ uri: prepared.fullUri, thumbnailUri: prepared.thumbnailUri, width: picture.width, height: picture.height });
+      const capturedUri = picture.uri;
+      setReview({ uri: capturedUri, thumbnailUri: null, width: picture.width, height: picture.height });
       setCaption('');
       setCaptionWidth(0);
+      setPreparingReview(true);
+      setBusy(false);
+
+      try {
+        const prepared = await preparePhoto(capturedUri, picture.width, picture.height);
+        setReview((current) => current?.uri === capturedUri ? { ...current, uri: prepared.fullUri, thumbnailUri: prepared.thumbnailUri } : current);
+      } catch {
+        setReview(null);
+        showFeedback(t('errors.capture'));
+      } finally {
+        setPreparingReview(false);
+      }
     } catch {
       showFeedback(t('errors.capture'));
-    } finally {
+      setPreparingReview(false);
       setBusy(false);
+    } finally {
+      shutterScale.setValue(1);
     }
   };
 
   const send = async () => {
-    if (!review || busy) return;
+    if (!review || busy || preparingReview) return;
     if (!isOnline) {
       showFeedback(t('errors.offlineSend'));
       return;
@@ -275,6 +295,29 @@ export default function HomeRoute() {
     setCameraAttempt((current) => current + 1);
   };
 
+  const animateShutter = (toValue: number) => {
+    Animated.spring(shutterScale, {
+      toValue,
+      useNativeDriver: true,
+      speed: 26,
+      bounciness: 5
+    }).start();
+  };
+
+  const toggleFlash = () => {
+    const nextFlash: FlashMode = flash === 'on' ? 'off' : 'on';
+    setFlash(nextFlash);
+    showFeedback(nextFlash === 'on' ? 'Flash on' : 'Flash off');
+  };
+
+  const switchCamera = () => {
+    setFacing((value) => {
+      const nextFacing = value === 'back' ? 'front' : 'back';
+      if (nextFacing === 'front') setFlash('off');
+      return nextFacing;
+    });
+  };
+
   const feedItems = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = [{ id: 'camera', kind: 'camera' }];
     if (loading) return [...items, { id: 'loading', kind: 'loading' }];
@@ -296,6 +339,8 @@ export default function HomeRoute() {
             style={styles.camera}
             active={!review}
             facing={facing}
+            flash={flash}
+            mirror={false}
             onCameraReady={() => { setCameraReady(true); setCameraError(''); }}
             onMountError={(event) => { setCameraReady(false); setCameraError(event.message || t('errors.start')); showFeedback(event.message || t('errors.start')); }}
           />
@@ -314,34 +359,43 @@ export default function HomeRoute() {
               <View pointerEvents="none" style={styles.captionSizer} onLayout={(event) => setCaptionWidth(Math.min(maxCaptionWidth, event.nativeEvent.layout.width))}>
                 <Text numberOfLines={1} style={styles.captionSizerText}>{caption || t('review.captionPlaceholder')}</Text>
               </View>
-              <TextInput
-                ref={captionRef}
-                accessibilityLabel={t('review.captionLabel')}
-                blurOnSubmit
-                maxLength={36}
-                multiline={false}
-                onChangeText={setCaption}
-                onSubmitEditing={() => captionRef.current?.blur()}
-                placeholder={t('review.captionPlaceholder')}
-                placeholderTextColor="rgba(255,255,255,0.58)"
-                returnKeyType="done"
-                style={[styles.captionInput, { width: captionWidth || Math.min(maxCaptionWidth, 230) }]}
-                textAlign="center"
-                value={caption}
-              />
+              <BlurView intensity={38} tint="dark" style={[styles.captionBlur, { width: captionWidth || Math.min(maxCaptionWidth, 230) }]}>
+                <TextInput
+                  ref={captionRef}
+                  accessibilityLabel={t('review.captionLabel')}
+                  blurOnSubmit
+                  keyboardAppearance="dark"
+                  maxLength={36}
+                  multiline={false}
+                  onChangeText={setCaption}
+                  onSubmitEditing={() => captionRef.current?.blur()}
+                  placeholder={t('review.captionPlaceholder')}
+                  placeholderTextColor="rgba(255,255,255,0.58)"
+                  returnKeyType="done"
+                  selectionColor={colors.accent}
+                  style={styles.captionInput}
+                  textAlign="center"
+                  underlineColorAndroid="transparent"
+                  value={caption}
+                />
+              </BlurView>
             </View>
           </View>
         ) : null}
       </View>
 
       <View style={styles.cameraControls}>
-        <Pressable accessibilityLabel={review ? t('review.discard') : t('controls.flash')} onPress={review ? () => void discard() : () => showFeedback(t('controls.flashUnavailable'))} style={styles.cameraToolButton}>
-          {review ? <X color={colors.text} size={24} /> : <Flashlight color={colors.text} size={24} />}
+        <Pressable accessibilityLabel={review ? t('review.discard') : t('controls.flash')} onPress={review ? () => void discard() : toggleFlash} style={[styles.cameraToolButton, !review && flash === 'on' && styles.cameraToolButtonActive]}>
+          {review ? <X color={colors.text} size={24} /> : <Flashlight color={flash === 'on' ? colors.accent : colors.text} size={24} />}
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={review ? t('review.send') : t('controls.capture')} disabled={busy || (!review && !cameraReady) || (Boolean(review) && !isOnline)} onPress={() => void (review ? send() : capture())} style={({ pressed }) => [styles.shutterButton, (busy || (!review && !cameraReady) || (Boolean(review) && !isOnline)) && styles.controlDisabled, pressed && styles.controlPressed]}>
-          <View style={styles.shutterInner}>{review ? busy ? <ActivityIndicator color="#111111" size="small" /> : <Send color="#111111" size={27} /> : null}</View>
-        </Pressable>
-        <Pressable accessibilityLabel={review ? t('review.addCaption') : t('controls.switchCamera')} onPress={review ? () => captionRef.current?.focus() : () => setFacing((value) => value === 'back' ? 'front' : 'back')} style={styles.cameraToolButton}>
+        <Animated.View style={[styles.shutterAnimated, { transform: [{ scale: shutterScale }] }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={review ? t('review.send') : t('controls.capture')} disabled={busy || preparingReview || (!review && !cameraReady) || (Boolean(review) && !isOnline)} onPress={() => void (review ? send() : capture())} onPressIn={() => animateShutter(0.92)} onPressOut={() => animateShutter(1)} style={({ pressed }) => [styles.shutterButton, (busy || preparingReview || (!review && !cameraReady) || (Boolean(review) && !isOnline)) && styles.controlDisabled, pressed && styles.controlPressed]}>
+            <ShutterIcon size={88} />
+            {review && !busy && !preparingReview ? <Send color="#111111" size={27} style={styles.shutterOverlayIcon} /> : null}
+            {busy || preparingReview ? <ActivityIndicator color="#111111" size="small" style={styles.shutterOverlayIcon} /> : null}
+          </Pressable>
+        </Animated.View>
+        <Pressable accessibilityLabel={review ? t('review.addCaption') : t('controls.switchCamera')} onPress={review ? () => captionRef.current?.focus() : switchCamera} style={styles.cameraToolButton}>
           {review ? <Text style={styles.captionTool}>Aa</Text> : <SwitchCamera color={colors.text} size={24} />}
         </Pressable>
       </View>
@@ -394,13 +448,13 @@ export default function HomeRoute() {
 
 const styles = StyleSheet.create({
   page: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 0, overflow: 'hidden' as const },
-  cameraFrame: { borderRadius: 44, overflow: 'hidden' as const, backgroundColor: colors.surface },
+  cameraFrame: { borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.surface },
   camera: { flex: 1 },
-  reviewOverlay: { position: 'absolute' as const, top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.background },
-  photoFrame: { borderRadius: 44, overflow: 'hidden' as const, backgroundColor: colors.surface },
+  reviewOverlay: { position: 'absolute' as const, top: 0, right: 0, bottom: 0, left: 0, borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.background },
+  photoFrame: { borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.surface },
   photoImage: { width: '100%' as const, height: '100%' as const },
   photoCaptionPosition: { position: 'absolute' as const, left: 0, right: 0, bottom: 8, alignItems: 'center' as const },
-  photoCaptionPill: { maxWidth: '88%' as const, minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, justifyContent: 'center' as const, borderRadius: 24, backgroundColor: 'rgba(31,28,27,0.33)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  photoCaptionPill: { maxWidth: '88%' as const, minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, justifyContent: 'center' as const, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: 'rgba(31,28,27,0.33)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   photoCaptionText: { color: colors.text, fontSize: 16, fontWeight: '500' as const, lineHeight: 22 },
   photoCard: { alignItems: 'center' as const },
   photoMetaRow: { minHeight: 58, paddingTop: 14, paddingHorizontal: 20, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, gap: spacing.sm },
@@ -424,12 +478,15 @@ const styles = StyleSheet.create({
   captionPosition: { position: 'absolute' as const, left: 26, right: 26, bottom: 8, alignItems: 'center' as const },
   captionSizer: { position: 'absolute' as const, alignSelf: 'center' as const, opacity: 0 },
   captionSizerText: { minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, fontSize: 16, fontWeight: '500' as const },
-  captionInput: { minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(31,28,27,0.33)', color: colors.text, fontSize: 16, fontWeight: '500' as const },
+  captionBlur: { minHeight: 42, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(31,28,27,0.33)' },
+  captionInput: { minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, color: colors.text, fontSize: 16, fontWeight: '500' as const, backgroundColor: 'transparent' },
   cameraControls: { width: '100%' as const, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: spacing.md, paddingTop: spacing.md },
-  cameraToolButton: { width: 54, height: 54, borderRadius: 27, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.surfaceRaised },
+  cameraToolButton: { width: 54, height: 54, borderRadius: 27, borderCurve: 'continuous' as const, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.surfaceRaised },
+  cameraToolButtonActive: { backgroundColor: 'rgba(79,114,252,0.18)', borderWidth: 1, borderColor: 'rgba(79,114,252,0.42)' },
   captionTool: { color: colors.text, fontSize: 19, fontWeight: '900' as const },
-  shutterButton: { width: 88, height: 88, borderRadius: 44, borderWidth: 5, borderColor: colors.accent, alignItems: 'center' as const, justifyContent: 'center' as const },
-  shutterInner: { width: 68, height: 68, borderRadius: 34, backgroundColor: colors.text },
+  shutterAnimated: { width: 88, height: 88 },
+  shutterButton: { width: 88, height: 88, borderRadius: 44, alignItems: 'center' as const, justifyContent: 'center' as const },
+  shutterOverlayIcon: { position: 'absolute' as const },
   controlDisabled: { opacity: 0.45 },
   controlPressed: { opacity: 0.72 },
   emptyState: { alignItems: 'center' as const, gap: spacing.sm, padding: spacing.xl },

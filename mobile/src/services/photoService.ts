@@ -17,10 +17,10 @@ export async function preparePhoto(uri: string, width: number, height: number) {
     width: side,
     height: side
   };
-  const full = await manipulateAsync(uri, [{ crop }, { resize: { width: Math.min(1920, side), height: Math.min(1920, side) } }], { compress: 0.9, format: SaveFormat.JPEG });
-  const square = await manipulateAsync(uri, [{
-    crop
-  }, { resize: { width: 256, height: 256 } }], { compress: 0.78, format: SaveFormat.WEBP });
+  const [full, square] = await Promise.all([
+    manipulateAsync(uri, [{ crop }, { resize: { width: Math.min(1920, side), height: Math.min(1920, side) } }], { compress: 0.9, format: SaveFormat.JPEG }),
+    manipulateAsync(uri, [{ crop }, { resize: { width: 256, height: 256 } }], { compress: 0.78, format: SaveFormat.WEBP })
+  ]);
   return { fullUri: full.uri, thumbnailUri: square.uri };
 }
 
@@ -42,19 +42,13 @@ export async function uploadPhoto({
   const timestamp = new Date().toISOString();
   const fileKey = `${Date.now()}`;
   const photoRef = ref(storageClient, `couples/${coupleId}/${fileKey}.jpg`);
-  await putFile(photoRef, fullUri, { contentType: 'image/jpeg' });
-  const photoUrl = await getDownloadURL(photoRef);
-
-  let thumbnailUrl: string | null = null;
-  if (thumbnailUri) {
-    try {
-      const thumbnailRef = ref(storageClient, `couples/${coupleId}/thumbnails/${timestamp}.webp`);
-      await putFile(thumbnailRef, thumbnailUri, { contentType: 'image/webp' });
-      thumbnailUrl = await getDownloadURL(thumbnailRef);
-    } catch {
-      thumbnailUrl = null;
-    }
-  }
+  const thumbnailRef = thumbnailUri ? ref(storageClient, `couples/${coupleId}/thumbnails/${timestamp}.webp`) : null;
+  const [photoUrl, thumbnailUrl] = await Promise.all([
+    putFile(photoRef, fullUri, { contentType: 'image/jpeg' }).then(() => getDownloadURL(photoRef)),
+    thumbnailRef && thumbnailUri
+      ? putFile(thumbnailRef, thumbnailUri, { contentType: 'image/webp' }).then(() => getDownloadURL(thumbnailRef)).catch(() => null)
+      : Promise.resolve(null)
+  ]);
 
   const photoPayload: Record<string, unknown> = {
     photoUrl,

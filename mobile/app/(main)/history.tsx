@@ -43,5 +43,5 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.sm },
   title: { color: colors.text, fontSize: 26, fontWeight: '900', padding: spacing.sm },
   tile: { flex: 1 / 3, aspectRatio: 1, padding: spacing.xs },
-  image: { width: '100%', height: '100%', borderRadius: 14, backgroundColor: colors.surface }
+  image: { width: '100%', height: '100%', borderRadius: 14, borderCurve: 'continuous', backgroundColor: colors.surface }
 });

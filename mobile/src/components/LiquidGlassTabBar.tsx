@@ -20,7 +20,6 @@ export default function LiquidGlassTabBar({ cameraInView, state, navigation }: M
       <View style={styles.tabBar}>
         <BlurView intensity={52} tint="dark" style={StyleSheet.absoluteFill} />
         <View pointerEvents="none" style={styles.tint} />
-        <View pointerEvents="none" style={styles.innerHighlight} />
         {state.routes.map((route: { key: string; name: string; params?: object }, index: number) => {
           const focused = state.index === index;
           const label = labels[route.name] || route.name;
@@ -61,6 +60,7 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 8,
     borderRadius: 38,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     backgroundColor: 'rgba(31,28,27,0.3)',
     borderWidth: 1,
@@ -72,8 +72,7 @@ const styles = StyleSheet.create({
     elevation: 12
   },
   tint: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(31,28,27,0.25)' },
-  innerHighlight: { position: 'absolute', top: 0, left: 22, right: 22, height: 1, backgroundColor: 'rgba(255,255,255,0.28)' },
-  item: { width: 58, height: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 29 },
-  itemActive: { backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  item: { width: 58, height: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 29, borderCurve: 'continuous' },
+  itemActive: { backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderCurve: 'continuous' },
   itemPressed: { transform: [{ scale: 0.96 }] }
 });
