@@ -1,5 +1,35 @@
 {
   "expo": {
-    "owner": "svart"
+    "owner": "svart",
+    "updates": {
+      "url": "https://u.expo.dev/646950e4-04d6-4dff-a815-b02e48451f27"
+    },
+    "android": {
+      "package": "com.pocofoto.app",
+      "versionCode": 3,
+      "adaptiveIcon": {
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/pocoface-icon-1024.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA"
+      ],
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.pocofoto.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Pocofoto uses your camera to share little moments with your person.",
+        "NSPhotoLibraryUsageDescription": "Pocofoto uses your photo library for your profile picture.",
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
+    }
   }
 }

@@ -7,7 +7,7 @@ export default ({ config }) => ({
   ...config,
   name: 'Pocofoto',
   slug: 'pocofoto',
-  version: '0.0.2',
+  version: '0.0.3',
   orientation: 'portrait',
   scheme: 'pocofoto',
   userInterfaceStyle: 'dark',
@@ -27,7 +27,7 @@ export default ({ config }) => ({
   android: {
     ...config.android,
     package: androidPackage,
-    versionCode: 2,
+    versionCode: 3,
     googleServicesFile: process.env.ANDROID_GOOGLE_SERVICES_FILE,
     adaptiveIcon: {
       backgroundColor: '#000000',
