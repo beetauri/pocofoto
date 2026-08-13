@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', '.agents']),
+  // The Expo app owns its own flat config and must not be parsed by the PWA rules.
+  globalIgnores(['dist', '.agents', 'mobile/**']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

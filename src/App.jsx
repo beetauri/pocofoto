@@ -3,10 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { auth, db, firestoreRecovery, onAuthStateChanged, doc, onSnapshot, onForegroundMessage } from './firebase';
 import { initAnalytics, trackEvent, identifyUser, resetAnalytics, startScrollDepthTracking } from './analytics';
-import AuthScreen from './components/AuthScreen';
 import AppBackground from './components/AppBackground';
-import PairingScreen from './components/PairingScreen';
-import MainScreen from './components/MainScreen';
 import UpdateBanner from './components/UpdateBanner';
 import ConnectionBanner from './components/ConnectionBanner';
 import NotificationPrompt from './components/NotificationPrompt';
@@ -33,6 +30,9 @@ import {
 const Retune = import.meta.env.DEV
   ? lazy(() => import('retune').then((module) => ({ default: module.Retune })))
   : null;
+const AuthScreen = lazy(() => import('./components/AuthScreen'));
+const PairingScreen = lazy(() => import('./components/PairingScreen'));
+const MainScreen = lazy(() => import('./components/MainScreen'));
 
 const pageTransition = {
   initial: { opacity: 0, scale: 0.96 },
@@ -316,43 +316,45 @@ export default function App() {
   return (
     <>
       <AppBackground />
-      <AnimatePresence mode="wait">
-        {screen === 'auth' && (
-          <motion.div key="auth" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
-            <AuthScreen />
-          </motion.div>
-        )}
-        {screen === 'pairing' && (
-          <motion.div key="pairing" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
-            <PairingScreen
-              user={user}
-              isOnline={connectionStatus.isOnline}
-              onPaired={handlePaired}
-              initialNotice={pairingNotice}
-              onNoticeConsumed={handleNoticeConsumed}
-              notificationControls={notifications}
-            />
-          </motion.div>
-        )}
-        {screen === 'offline-hold' && (
-          <motion.div key="offline-hold" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
-            <OfflineHoldScreen />
-          </motion.div>
-        )}
-        {screen === 'main' && (
-          <motion.div key="main" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
-            <MainScreen
-              user={user}
-              coupleId={coupleId}
-              isOnline={connectionStatus.isOnline}
-              onPairingRemoved={handlePairingRemoved}
-              notificationControls={notifications}
-              notificationIntent={notificationIntent}
-              onNotificationIntentConsumed={handleNotificationIntentConsumed}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Suspense fallback={<LoadingScreen />}>
+        <AnimatePresence mode="wait">
+          {screen === 'auth' && (
+            <motion.div key="auth" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
+              <AuthScreen />
+            </motion.div>
+          )}
+          {screen === 'pairing' && (
+            <motion.div key="pairing" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
+              <PairingScreen
+                user={user}
+                isOnline={connectionStatus.isOnline}
+                onPaired={handlePaired}
+                initialNotice={pairingNotice}
+                onNoticeConsumed={handleNoticeConsumed}
+                notificationControls={notifications}
+              />
+            </motion.div>
+          )}
+          {screen === 'offline-hold' && (
+            <motion.div key="offline-hold" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
+              <OfflineHoldScreen />
+            </motion.div>
+          )}
+          {screen === 'main' && (
+            <motion.div key="main" className="app-route-layer" {...pageTransition} style={{ height: '100%' }}>
+              <MainScreen
+                user={user}
+                coupleId={coupleId}
+                isOnline={connectionStatus.isOnline}
+                onPairingRemoved={handlePairingRemoved}
+                notificationControls={notifications}
+                notificationIntent={notificationIntent}
+                onNotificationIntentConsumed={handleNotificationIntentConsumed}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Suspense>
       {Retune && (
         <Suspense fallback={null}>
           <Retune />
