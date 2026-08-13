@@ -16,7 +16,7 @@ export default ({ config }) => ({
     ...config.ios,
     bundleIdentifier: iosBundleIdentifier,
     supportsTablet: false,
-    googleServicesFile: process.env.IOS_GOOGLE_SERVICES_FILE,
+    googleServicesFile: process.env.IOS_GOOGLE_SERVICES_FILE || './GoogleService-Info.plist',
     infoPlist: {
       ...config.ios?.infoPlist,
       NSCameraUsageDescription: 'Pocofoto uses your camera to share little moments with your person.',
