@@ -1,3 +1,5 @@
+import { isCaptionAllowed } from './captionSafety';
+
 export const MAX_CAPTION_LENGTH = 36;
 
 export function clampCaptionText(value: string | null | undefined): string {
@@ -6,5 +8,5 @@ export function clampCaptionText(value: string | null | undefined): string {
 
 export function buildCaptionPayload(value: string | null | undefined): { type: 'text'; text: string } | null {
   const text = clampCaptionText(value).trim();
-  return text ? { type: 'text', text } : null;
+  return text && isCaptionAllowed(text) ? { type: 'text', text } : null;
 }

@@ -7,7 +7,7 @@ export default ({ config }) => ({
   ...config,
   name: 'Pocofoto',
   slug: 'pocofoto',
-  version: '0.0.3',
+  version: '0.0.4',
   orientation: 'portrait',
   scheme: 'pocofoto',
   userInterfaceStyle: 'dark',
@@ -16,12 +16,28 @@ export default ({ config }) => ({
     ...config.ios,
     bundleIdentifier: iosBundleIdentifier,
     supportsTablet: false,
+    usesAppleSignIn: true,
+    appleTeamId: process.env.APPLE_TEAM_ID || '6S3HV7A5HH',
+    icon: './assets/Pocoface_v2.icon',
     googleServicesFile: process.env.IOS_GOOGLE_SERVICES_FILE || './GoogleService-Info.plist',
     infoPlist: {
       ...config.ios?.infoPlist,
       NSCameraUsageDescription: 'Pocofoto uses your camera to share little moments with your person.',
       NSPhotoLibraryUsageDescription: 'Pocofoto uses your photo library for your profile picture.',
       UIBackgroundModes: ['remote-notification']
+    },
+    privacyManifests: {
+      NSPrivacyTracking: false,
+      NSPrivacyCollectedDataTypes: [
+        { NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeEmailAddress', NSPrivacyCollectedDataTypeLinked: true, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'] },
+        { NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeName', NSPrivacyCollectedDataTypeLinked: true, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'] },
+        { NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeUserID', NSPrivacyCollectedDataTypeLinked: true, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'] },
+        { NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypePhotosorVideos', NSPrivacyCollectedDataTypeLinked: true, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'] },
+        { NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeOtherUserContent', NSPrivacyCollectedDataTypeLinked: true, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'] },
+        { NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeProductInteraction', NSPrivacyCollectedDataTypeLinked: true, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAnalytics'] },
+        { NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeCrashData', NSPrivacyCollectedDataTypeLinked: false, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'] },
+        { NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeOtherDiagnosticData', NSPrivacyCollectedDataTypeLinked: false, NSPrivacyCollectedDataTypeTracking: false, NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'] }
+      ]
     }
   },
   android: {
@@ -38,6 +54,7 @@ export default ({ config }) => ({
   },
   plugins: [
     'expo-router',
+    'expo-apple-authentication',
     'expo-camera',
     ['expo-image-picker', { photosPermission: 'Pocofoto uses your photo library for your profile picture.', cameraPermission: 'Pocofoto uses your camera to share little moments with your person.', microphonePermission: false }],
     ['expo-notifications', { icon: './assets/android-icon-monochrome.png', color: '#000000' }],

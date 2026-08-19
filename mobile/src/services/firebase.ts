@@ -1,6 +1,5 @@
 import { GoogleSignin, isSuccessResponse } from '@react-native-google-signin/google-signin';
 import { getApp } from '@react-native-firebase/app';
-import { getAnalytics } from '@react-native-firebase/analytics';
 import { connectAuthEmulator, GoogleAuthProvider, getAuth, signInWithCredential, signOut } from '@react-native-firebase/auth';
 import { connectFirestoreEmulator, getFirestore } from '@react-native-firebase/firestore';
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from '@react-native-firebase/functions';
@@ -20,7 +19,6 @@ export const firestoreClient = getFirestore(firebaseApp);
 export const storageClient = getStorage(firebaseApp);
 export const functionsClient = getFunctions(firebaseApp, FIREBASE_FUNCTIONS_REGION);
 export const messagingClient = getMessaging(firebaseApp);
-export const analyticsClient = getAnalytics(firebaseApp);
 
 let emulatorsConnected = false;
 

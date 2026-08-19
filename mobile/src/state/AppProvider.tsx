@@ -13,10 +13,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useConnectionState, type ConnectionState } from '../services/network';
 import {
   authClient,
+  callFunction,
   firestoreClient,
   signInWithGoogle,
   signOutNative
 } from '../services/firebase';
+import { signInWithApple } from '../services/appleAuth';
 import { captureHandledException, initAnalytics, syncSentryUser, trackEvent } from '../services/analytics';
 import { clearCachedUserRoute, getCachedUserRoute, setCachedUserRoute } from '../services/routeCache';
 import { disableNotifications } from '../services/notifications';
@@ -33,23 +35,27 @@ type AppContextValue = {
   connection: ConnectionState;
   isOnline: boolean;
   signIn: () => Promise<void>;
+  signInApple: () => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   setCoupleId: (coupleId: string | null) => void;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 function profileFromSnapshot(snapshot: DocumentSnapshot): UserProfile | null {
-  return snapshot.exists() ? (snapshot.data() as UserProfile) : null;
+  return snapshot.exists() ? { uid: snapshot.id, ...(snapshot.data() as UserProfile) } : null;
 }
 
 async function ensureUserDocument(user: User) {
   const userRef = doc(firestoreClient, 'users', user.uid);
+  const provider = user.providerData.some((item) => item.providerId === 'apple.com') ? 'apple' : 'google';
   await setDoc(userRef, {
     email: user.email || '',
     normalizedEmail: user.email?.trim().toLowerCase() || '',
     displayName: user.displayName || '',
     photoURL: user.photoURL || '',
+    provider,
     updatedAt: new Date().toISOString()
   }, { merge: true });
   if (!user.displayName && user.email) {
@@ -168,6 +174,11 @@ export function AppProvider({ children }: PropsWithChildren) {
     trackEvent('auth_signed_in', { method: 'google' });
   }, []);
 
+  const signInApple = useCallback(async () => {
+    await signInWithApple();
+    trackEvent('auth_signed_in', { method: 'apple' });
+  }, []);
+
   const signOut = useCallback(async () => {
     if (user) {
       await disableNotifications().catch(() => undefined);
@@ -175,6 +186,14 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
     await signOutNative();
     trackEvent('auth_signed_out');
+  }, [user]);
+
+  const deleteAccount = useCallback(async () => {
+    if (!user) return;
+    await disableNotifications().catch(() => undefined);
+    await callFunction('deleteAccount');
+    await clearCachedUserRoute(user.uid);
+    await signOutNative().catch(() => undefined);
   }, [user]);
 
   const setCoupleId = useCallback((nextCoupleId: string | null) => {
@@ -196,9 +215,11 @@ export function AppProvider({ children }: PropsWithChildren) {
     connection,
     isOnline: connection !== 'offline',
     signIn,
+    signInApple,
     signOut,
+    deleteAccount,
     setCoupleId
-  }), [user, profile, partnerProfile, coupleId, pairStateKnown, loading, connection, signIn, signOut, setCoupleId]);
+  }), [user, profile, partnerProfile, coupleId, pairStateKnown, loading, connection, signIn, signInApple, signOut, deleteAccount, setCoupleId]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

@@ -1,6 +1,7 @@
 export default {
   tagline: 'A little window into your person’s day.',
   continueWithGoogle: 'Continue with Google',
+  continueWithApple: 'Continue with Apple',
   signingIn: 'Signing in…',
   errors: {
     popupBlocked: 'Your sign-in window was blocked. Allow pop-ups and try again.',

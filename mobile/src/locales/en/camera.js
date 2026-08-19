@@ -42,6 +42,18 @@ export default {
     likedToast: 'Your photo got some love.',
     sentToast: 'Your photo is on its way.'
   },
+  report: {
+    action: 'Report photo',
+    title: 'Report this photo?',
+    body: 'Choose the reason so we can review it.',
+    abuse: 'Abuse',
+    harassment: 'Harassment',
+    sexualContent: 'Sexual content',
+    threats: 'Threats',
+    other: 'Something else',
+    sent: 'Thanks. We’ll review this report.',
+    error: 'We couldn’t send the report. Try again.'
+  },
   time: {
     justNow: 'Just now',
     minutesAgo: '{{count}}m ago',
@@ -61,6 +73,7 @@ export default {
     notReady: 'The camera is still waking up. Try again in a moment.',
     offlineSend: 'Reconnect to send this photo to your person.',
     capture: 'That photo didn’t work. Give it another try.',
-    upload: 'This photo couldn’t be sent. Try again when you’re ready.'
+    upload: 'This photo couldn’t be sent. Try again when you’re ready.',
+    captionUnsafe: 'That caption can’t be sent. Try a kinder note.'
   }
 };

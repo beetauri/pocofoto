@@ -6,6 +6,7 @@ import { CameraView, useCameraPermissions, type CameraType, type FlashMode } fro
 import {
   ActivityIndicator,
   Animated,
+  Alert,
   FlatList,
   Image,
   Keyboard,
@@ -19,7 +20,7 @@ import {
   type ViewToken
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Flashlight, Heart, RotateCcw, Send, SwitchCamera, Trash2, X } from 'lucide-react-native';
+import { Flag, Flashlight, Heart, RotateCcw, Send, SwitchCamera, Trash2, X } from 'lucide-react-native';
 import { useApp } from '../../src/state/AppProvider';
 import { useMainUi } from '../../src/state/MainUiProvider';
 import { usePhotoContext } from '../../src/state/PhotosProvider';
@@ -27,8 +28,10 @@ import NativePhotoImage from '../../src/components/NativePhotoImage';
 import ShutterIcon from '../../src/components/ShutterIcon';
 import { saveReviewDraft, clearReviewDraft, loadReviewDraft } from '../../src/services/localStore';
 import { preparePhoto } from '../../src/services/photoService';
+import { callFunction } from '../../src/services/firebase';
 import { triggerHaptic } from '../../src/services/haptics';
 import { canApplyReviewResult } from '../../src/domain/reviewSession';
+import { isCaptionAllowed } from '../../src/domain/captionSafety';
 import { colors, globalStyles, spacing } from '../../src/styles/global';
 import type { NativePhoto } from '../../src/types';
 
@@ -60,6 +63,9 @@ const PhotoCard = memo(function PhotoCard({
   onLike,
   onRetry,
   onDelete,
+  onReport,
+  reportBusy,
+  canReport,
   imageSize,
   isMine,
   partnerName
@@ -69,6 +75,9 @@ const PhotoCard = memo(function PhotoCard({
   onLike: () => void;
   onRetry: () => void;
   onDelete: () => void;
+  onReport: () => void;
+  reportBusy: boolean;
+  canReport: boolean;
   imageSize: number;
   isMine: boolean;
   partnerName: string;
@@ -114,6 +123,11 @@ const PhotoCard = memo(function PhotoCard({
               <Text style={styles.sentStatusText}>{photo.liked ? t('photo.liked') : t('photo.sent')}</Text>
             </View>
           )}
+          {canReport ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={t('report.action')} disabled={reportBusy} onPress={onReport} style={[styles.reportButton, reportBusy && styles.controlDisabled]}>
+              {reportBusy ? <ActivityIndicator color={colors.text} size="small" /> : <Flag color={colors.text} size={18} />}
+            </Pressable>
+          ) : null}
         </View>
       )}
     </View>
@@ -121,7 +135,7 @@ const PhotoCard = memo(function PhotoCard({
 });
 
 export default function HomeRoute() {
-  const { t } = useTranslation('camera');
+  const { t } = useTranslation(['camera', 'common']);
   const { user, coupleId, partnerProfile, isOnline } = useApp();
   const { photos, loadMore, hasMore, loading, loadingMore, loadError, enqueuePhoto, retryLocalPhoto, deleteLocalPhoto, likePhoto } = usePhotoContext();
   const [permission, requestPermission] = useCameraPermissions();
@@ -135,6 +149,7 @@ export default function HomeRoute() {
   const [feedback, setFeedback] = useState('');
   const [cameraError, setCameraError] = useState('');
   const [cameraAttempt, setCameraAttempt] = useState(0);
+  const [reportingPhotoId, setReportingPhotoId] = useState<string | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const { cameraInView, setCameraInView } = useMainUi();
   const cameraRef = useRef<CameraView>(null);
@@ -285,6 +300,10 @@ export default function HomeRoute() {
       showFeedback(t('errors.offlineSend'));
       return;
     }
+    if (!isCaptionAllowed(caption)) {
+      showFeedback(t('errors.captionUnsafe'));
+      return;
+    }
     await triggerHaptic('tap');
     setBusy(true);
     try {
@@ -297,6 +316,30 @@ export default function HomeRoute() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const submitReport = async (photo: NativePhoto, reason: 'abuse' | 'harassment' | 'sexual-content' | 'threats' | 'other') => {
+    if (reportingPhotoId) return;
+    setReportingPhotoId(photo.id);
+    try {
+      await callFunction('reportContent', { photoId: photo.id, reason });
+      showFeedback(t('report.sent'));
+    } catch {
+      showFeedback(t('report.error'));
+    } finally {
+      setReportingPhotoId(null);
+    }
+  };
+
+  const reportPhoto = (photo: NativePhoto) => {
+    Alert.alert(t('report.title'), t('report.body'), [
+      { text: t('common:actions.cancel'), style: 'cancel' },
+      { text: t('report.abuse'), onPress: () => void submitReport(photo, 'abuse') },
+      { text: t('report.harassment'), onPress: () => void submitReport(photo, 'harassment') },
+      { text: t('report.sexualContent'), onPress: () => void submitReport(photo, 'sexual-content') },
+      { text: t('report.threats'), onPress: () => void submitReport(photo, 'threats') },
+      { text: t('report.other'), onPress: () => void submitReport(photo, 'other') }
+    ]);
   };
 
   const discard = async () => {
@@ -425,7 +468,8 @@ export default function HomeRoute() {
     if (item.kind === 'camera') return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}>{renderCamera()}</Page>;
     if (item.kind === 'photo' && item.photo) {
       const canLike = Boolean(item.photo.senderId) && item.photo.senderId !== user?.uid;
-      return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><PhotoCard photo={item.photo} canLike={canLike} isMine={item.photo.senderId === user?.uid} partnerName={partnerProfile?.displayName || t('yourPerson')} onLike={() => void likePhoto(item.photo).catch(() => undefined)} onRetry={() => retryLocalPhoto(item.photo?.id || item.id)} onDelete={() => void deleteLocalPhoto(item.photo?.id || item.id)} imageSize={imageSize} /></Page>;
+      const canReport = Boolean(item.photo.senderId) && item.photo.senderId !== user?.uid;
+      return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><PhotoCard photo={item.photo} canLike={canLike} canReport={canReport} isMine={item.photo.senderId === user?.uid} partnerName={partnerProfile?.displayName || t('yourPerson')} onLike={() => void likePhoto(item.photo).catch(() => undefined)} onRetry={() => retryLocalPhoto(item.photo?.id || item.id)} onDelete={() => void deleteLocalPhoto(item.photo?.id || item.id)} onReport={() => reportPhoto(item.photo)} reportBusy={canReport && reportingPhotoId === item.photo.id} imageSize={imageSize} /></Page>;
     }
     if (item.kind === 'loading') return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><ActivityIndicator color={colors.accent} size="large" /></Page>;
     return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><View style={styles.emptyState}><Text style={styles.emptyTitle}>{t('empty.title')}</Text><Text style={styles.emptyBody}>{t('empty.body')}</Text></View></Page>;
@@ -491,6 +535,7 @@ const styles = StyleSheet.create({
   likeButton: { width: 54, height: 54, alignItems: 'center' as const, justifyContent: 'center' as const, borderRadius: 27, backgroundColor: 'rgba(22,22,22,0.66)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
   sentStatus: { minHeight: 38, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 14, borderRadius: 22, backgroundColor: 'rgba(31,28,27,0.33)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   sentStatusText: { color: colors.text, fontSize: 14, fontWeight: '800' as const },
+  reportButton: { width: 44, height: 44, alignItems: 'center' as const, justifyContent: 'center' as const, borderRadius: 22, backgroundColor: 'rgba(31,28,27,0.42)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   permissionState: { flex: 1, padding: spacing.lg, gap: spacing.sm },
   permissionTitle: { color: colors.text, fontSize: 18, fontWeight: '900' as const, textAlign: 'center' as const },
   permissionBody: { color: colors.muted, textAlign: 'center' as const },

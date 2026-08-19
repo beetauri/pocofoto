@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
-import { Image, Pressable, Text, View } from 'react-native';
+import { AppleAuthenticationButton, AppleAuthenticationButtonStyle, AppleAuthenticationButtonType } from 'expo-apple-authentication';
+import { Image, Platform, Pressable, Text, View } from 'react-native';
 import { useApp } from '../state/AppProvider';
 import { colors, globalStyles, spacing } from '../styles/global';
 
@@ -14,7 +15,7 @@ function errorMessage(error: unknown, fallback: string) {
 
 export default function AuthScreen() {
   const { t } = useTranslation('auth');
-  const { signIn } = useApp();
+  const { signIn, signInApple } = useApp();
   const buildVersion = Constants.expoConfig?.version || '0.0.1';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -25,6 +26,19 @@ export default function AuthScreen() {
     setError('');
     try {
       await signIn();
+    } catch (nextError) {
+      setError(errorMessage(nextError, t('errors.generic')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await signInApple();
     } catch (nextError) {
       setError(errorMessage(nextError, t('errors.generic')));
     } finally {
@@ -52,6 +66,15 @@ export default function AuthScreen() {
             {busy ? t('signingIn') : t('continueWithGoogle')}
           </Text>
         </Pressable>
+        {Platform.OS === 'ios' ? (
+          <AppleAuthenticationButton
+            buttonType={AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={12}
+            onPress={() => void handleAppleSignIn()}
+            style={{ width: '100%', height: 52, opacity: busy ? 0.55 : 1 }}
+          />
+        ) : null}
         <Text style={{ color: colors.muted, fontSize: 12 }}>v{buildVersion}</Text>
       </View>
     </View>

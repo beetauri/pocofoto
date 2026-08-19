@@ -1,5 +1,7 @@
 import admin from 'firebase-admin';
 import { pushCopy } from './pushCopy.js';
+import { buildAccountDeletionPlan, remainingCoupleUsers } from './accountDeletion.js';
+import { isCaptionAllowed, validateReportInput } from './safety.js';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -159,6 +161,130 @@ async function invalidateActiveCodesForUsers(userIds, reason) {
   }
 }
 
+async function getCoupleMembership(uid) {
+  const user = await getUser(uid);
+  const coupleId = typeof user.coupleId === 'string' ? user.coupleId : null;
+  if (!coupleId) throw new HttpsError('failed-precondition', 'You are not currently paired.');
+
+  const coupleSnap = await db.doc(`couples/${coupleId}`).get();
+  if (!coupleSnap.exists) throw new HttpsError('not-found', 'Pairing record not found.');
+  const users = Array.isArray(coupleSnap.data().users) ? coupleSnap.data().users : [];
+  if (!users.includes(uid)) throw new HttpsError('permission-denied', 'You are not a member of this pairing.');
+  return { user, coupleId, couple: coupleSnap.data(), users };
+}
+
+async function areUsersBlocked(uidA, uidB) {
+  const [blockedByA, blockedByB] = await Promise.all([
+    db.doc(`users/${uidA}/private/blockedUsers/${uidB}`).get(),
+    db.doc(`users/${uidB}/private/blockedUsers/${uidA}`).get()
+  ]);
+  return blockedByA.exists || blockedByB.exists;
+}
+
+function assertUsersNotBlocked(blockingUid, targetUid) {
+  return areUsersBlocked(blockingUid, targetUid).then((blocked) => {
+    if (blocked) throw new HttpsError('permission-denied', 'This user is blocked.');
+  });
+}
+
+async function removeFcmRegistryEntries(uid) {
+  const tokenSnap = await db.collection(`users/${uid}/fcmTokens`).get();
+  const batch = db.batch();
+  let count = 0;
+  tokenSnap.forEach((tokenDoc) => {
+    const fingerprint = tokenDoc.data().tokenFingerprint;
+    if (fingerprint) {
+      batch.delete(db.doc(`fcmTokenRegistry/${fingerprint}`));
+      count += 1;
+    }
+  });
+  if (count > 0) await batch.commit();
+}
+
+async function deleteUserOwnedFirestoreData(uid) {
+  await removeFcmRegistryEntries(uid);
+  await db.recursiveDelete(db.doc(`users/${uid}`));
+  await db.recursiveDelete(db.doc(`userContacts/${uid}`));
+}
+
+async function deleteUserStorageFiles(uid) {
+  const [files] = await admin.storage().bucket().getFiles({ prefix: `users/${uid}/` });
+  await Promise.all(files.map((file) => file.delete()));
+}
+
+async function deleteFirebaseAuthUser(uid) {
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (error) {
+    if (error?.code !== 'auth/user-not-found') throw error;
+  }
+}
+
+async function removePairingForUser(uid) {
+  const user = await getUser(uid);
+  const coupleId = user.coupleId;
+  if (!coupleId || typeof coupleId !== 'string') {
+    throw new HttpsError('failed-precondition', 'You are not currently paired.');
+  }
+
+  const coupleRef = db.doc(`couples/${coupleId}`);
+  let memberIds = [];
+
+  await db.runTransaction(async (transaction) => {
+    const coupleSnap = await transaction.get(coupleRef);
+    if (!coupleSnap.exists) throw new HttpsError('not-found', 'Pairing record not found.');
+
+    const couple = coupleSnap.data();
+    const users = Array.isArray(couple.users) ? couple.users : [];
+    if (!users.includes(uid)) throw new HttpsError('permission-denied', 'You are not a member of this pairing.');
+    memberIds = users;
+
+    const userRefs = users.map((memberUid) => db.doc(`users/${memberUid}`));
+    const userSnaps = await Promise.all(userRefs.map((ref) => transaction.get(ref)));
+    userSnaps.forEach((snap, index) => {
+      if (!snap.exists) return;
+      transaction.update(userRefs[index], {
+        coupleId: null,
+        lastUnpairedAt: FieldValue.serverTimestamp(),
+        lastUnpairedCoupleId: coupleId
+      });
+    });
+
+    transaction.update(coupleRef, {
+      status: 'archived',
+      archivedAt: FieldValue.serverTimestamp(),
+      archivedBy: uid,
+      active: false
+    });
+  });
+
+  const partnerIds = memberIds.filter((memberUid) => memberUid !== uid);
+  await invalidatePendingRequestsForUsers([uid, ...partnerIds], 'canceled');
+  await invalidateActiveCodesForUsers([uid, ...partnerIds], 'canceled');
+
+  const initiator = displaySnapshot(user);
+  await Promise.all(partnerIds.map(async (partnerId) => {
+    const notificationRef = await db.collection(`users/${partnerId}/notifications`).add({
+      type: 'pairing_removed',
+      status: 'unread',
+      coupleId,
+      initiator,
+      createdAt: FieldValue.serverTimestamp()
+    });
+    await sendEventBestEffort(partnerId, createPairingRemovedEvent({
+      coupleId,
+      removalId: notificationRef.id,
+      senderName: initiator.displayName
+    }), {
+      notificationType: 'pairing_removed',
+      coupleId,
+      senderId: uid
+    });
+  }));
+
+  return { coupleId, memberIds };
+}
+
 async function createCoupleForUsers(uidA, uidB, source) {
   const coupleId = [uidA, uidB].sort().join('_');
   const coupleRef = db.doc(`couples/${coupleId}`);
@@ -198,6 +324,10 @@ export const notifyPhotoReceived = onDocumentCreated('couples/{coupleId}/photos/
   const photo = event.data?.data();
   const senderId = photo?.senderId;
   const { coupleId, photoId } = event.params;
+  if (photo?.caption?.text && !isCaptionAllowed(photo.caption.text)) {
+    await event.data.ref.update({ caption: FieldValue.delete() });
+    console.warn('unsafe_caption_removed', { coupleId, photoId });
+  }
   console.log('notify_photo_received_started', {
     coupleId,
     photoId,
@@ -335,72 +465,91 @@ export const notifyPhotoLiked = onDocumentUpdated('couples/{coupleId}', async (e
 
 export const removePairing = onCall(async (request) => {
   const uid = requireUid(request);
-  const user = await getUser(uid);
-  const coupleId = user.coupleId;
-  if (!coupleId || typeof coupleId !== 'string') {
-    throw new HttpsError('failed-precondition', 'You are not currently paired.');
+  return { ok: true, ...(await removePairingForUser(uid)) };
+});
+
+export const deleteAccount = onCall(async (request) => {
+  const uid = requireUid(request);
+  const userRef = db.doc(`users/${uid}`);
+  const userSnap = await userRef.get();
+  const userData = userSnap.exists ? userSnap.data() : {};
+  const coupleId = typeof userData.coupleId === 'string' ? userData.coupleId : null;
+  const coupleUsers = [];
+
+  if (coupleId) {
+    await db.runTransaction(async (transaction) => {
+      const coupleRef = db.doc(`couples/${coupleId}`);
+      const coupleSnap = await transaction.get(coupleRef);
+      if (!coupleSnap.exists) return;
+      const users = Array.isArray(coupleSnap.data().users) ? coupleSnap.data().users : [];
+      coupleUsers.push(...users);
+      if (users.includes(uid)) {
+        transaction.update(coupleRef, { users: remainingCoupleUsers({ uid, coupleUsers: users }) });
+      }
+    });
   }
 
-  const coupleRef = db.doc(`couples/${coupleId}`);
-  let memberIds = [];
+  const plan = buildAccountDeletionPlan({ uid, coupleId, coupleUsers });
+  await invalidatePendingRequestsForUsers([uid], 'canceled');
+  await invalidateActiveCodesForUsers([uid], 'canceled');
 
-  await db.runTransaction(async (transaction) => {
-    const coupleSnap = await transaction.get(coupleRef);
-    if (!coupleSnap.exists) {
-      throw new HttpsError('not-found', 'Pairing record not found.');
-    }
+  const reports = await db.collection('contentReports').where('reporterId', '==', uid).get();
+  if (!reports.empty) {
+    const batch = db.batch();
+    reports.forEach((report) => batch.update(report.ref, {
+      reporterId: null,
+      reporterDeletedAt: FieldValue.serverTimestamp()
+    }));
+    await batch.commit();
+  }
 
-    const couple = coupleSnap.data();
-    const users = Array.isArray(couple.users) ? couple.users : [];
-    if (!users.includes(uid)) {
-      throw new HttpsError('permission-denied', 'You are not a member of this pairing.');
-    }
-    memberIds = users;
+  await deleteUserOwnedFirestoreData(uid);
+  await deleteUserStorageFiles(uid);
+  await deleteFirebaseAuthUser(uid);
+  return { ok: true, preservedCoupleId: plan.coupleId, preservedCouplePhotos: plan.deleteCouplePhotos === false };
+});
 
-    const userRefs = users.map((memberUid) => db.doc(`users/${memberUid}`));
-    const userSnaps = await Promise.all(userRefs.map((ref) => transaction.get(ref)));
-    userSnaps.forEach((snap, index) => {
-      if (!snap.exists) return;
-      transaction.update(userRefs[index], {
-        coupleId: null,
-        lastUnpairedAt: FieldValue.serverTimestamp(),
-        lastUnpairedCoupleId: coupleId
-      });
-    });
+export const reportContent = onCall(async (request) => {
+  const uid = requireUid(request);
+  const { photoId, reason } = validateReportInput(request.data || {});
+  const { coupleId } = await getCoupleMembership(uid);
+  const photoSnap = await db.doc(`couples/${coupleId}/photos/${photoId}`).get();
+  if (!photoSnap.exists) throw new HttpsError('not-found', 'Photo not found.');
 
-    transaction.update(coupleRef, {
-      status: 'archived',
-      archivedAt: FieldValue.serverTimestamp(),
-      archivedBy: uid,
-      active: false
-    });
+  const reportRef = db.collection('contentReports').doc();
+  await reportRef.set({
+    reporterId: uid,
+    coupleId,
+    photoId,
+    reportedUserId: photoSnap.data()?.senderId || null,
+    reason,
+    status: 'open',
+    createdAt: FieldValue.serverTimestamp()
+  });
+  return { ok: true, reportId: reportRef.id };
+});
+
+export const blockUser = onCall(async (request) => {
+  const uid = requireUid(request);
+  const blockedUid = typeof request.data?.blockedUid === 'string' ? request.data.blockedUid.trim() : '';
+  if (!blockedUid || blockedUid.includes('/') || blockedUid === uid) {
+    throw new HttpsError('invalid-argument', 'A different user ID is required.');
+  }
+  await getUser(blockedUid);
+
+  await db.doc(`users/${uid}/private/blockedUsers/${blockedUid}`).set({
+    blockedUid,
+    blockedAt: FieldValue.serverTimestamp()
   });
 
-  const partnerIds = memberIds.filter((memberUid) => memberUid !== uid);
-  await invalidatePendingRequestsForUsers([uid, ...partnerIds], 'canceled');
-  await invalidateActiveCodesForUsers([uid, ...partnerIds], 'canceled');
+  const userSnap = await db.doc(`users/${uid}`).get();
+  if (userSnap.data()?.coupleId) {
+    const coupleSnap = await db.doc(`couples/${userSnap.data().coupleId}`).get();
+    const coupleUsers = coupleSnap.exists && Array.isArray(coupleSnap.data().users) ? coupleSnap.data().users : [];
+    if (coupleUsers.includes(blockedUid)) await removePairingForUser(uid);
+  }
 
-  const initiator = displaySnapshot(user);
-  await Promise.all(partnerIds.map(async (partnerId) => {
-    const notificationRef = await db.collection(`users/${partnerId}/notifications`).add({
-      type: 'pairing_removed',
-      status: 'unread',
-      coupleId,
-      initiator,
-      createdAt: FieldValue.serverTimestamp()
-    });
-    await sendEventBestEffort(partnerId, createPairingRemovedEvent({
-      coupleId,
-      removalId: notificationRef.id,
-      senderName: initiator.displayName
-    }), {
-      notificationType: 'pairing_removed',
-      coupleId,
-      senderId: uid
-    });
-  }));
-
-  return { ok: true, coupleId };
+  return { ok: true };
 });
 
 async function getPartnerIdForUser(uid) {
@@ -548,6 +697,7 @@ export const acceptPairingRequest = onCall(async (request) => {
   if (data.status !== 'pending' || requestIsExpired(data)) {
     throw new HttpsError('failed-precondition', 'This pairing request is no longer active.');
   }
+  await assertUsersNotBlocked(data.senderId, uid);
 
   const coupleId = await createCoupleForUsers(data.senderId, data.recipientId, 'pairing_request');
   await requestRef.update({
@@ -667,6 +817,7 @@ export const redeemPairingCode = onCall(async (request) => {
   if (codeData.status !== 'active' || requestIsExpired(codeData)) {
     throw new HttpsError('failed-precondition', 'This pairing code has expired.');
   }
+  await assertUsersNotBlocked(codeData.creatorId, uid);
 
   const redeemer = await getUser(uid);
   assertUnpaired(redeemer, 'You');

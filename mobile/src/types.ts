@@ -17,6 +17,7 @@ export type NativePhoto = {
 export type MobileUser = User;
 
 export type UserProfile = {
+  uid?: string;
   displayName?: string;
   email?: string;
   normalizedEmail?: string;

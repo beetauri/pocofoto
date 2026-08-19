@@ -33,7 +33,9 @@ service cloud.firestore {
         && caption.text is string
         && caption.text.size() > 0
         && caption.text.size() <= 36
-        && !caption.text.matches('.*(\\n|\\r).*');
+        && !caption.text.matches('.*(\\n|\\r).*')
+        && !caption.text.matches('.*([Kk]ill|[Mm]urder|[Hh]urt).*[Yy]ou.*')
+        && !caption.text.matches('.*([Rr]ape|[Ss]exual assault|[Nn]azi|[Tt]errorist).*');
     }
 
     function hasValidOptionalCaption() {
@@ -106,7 +108,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow create: if ownUid(uid)
         && request.resource.data.coupleId == null
-        && request.resource.data.provider == 'google';
+        && request.resource.data.provider in ['google', 'apple'];
       allow read: if ownUid(uid)
         || (signedIn()
           && resource.data.coupleId is string
@@ -117,6 +119,10 @@ service cloud.firestore {
       match /private/{documentId} {
         allow read: if ownUid(uid);
         allow write: if false;
+      }
+
+      match /private/blockedUsers/{blockedUid} {
+        allow read, write: if false;
       }
 
       match /notifications/{notificationId} {
@@ -143,6 +149,10 @@ service cloud.firestore {
     }
 
     match /fcmTokenRegistry/{fingerprint} {
+      allow read, write: if false;
+    }
+
+    match /contentReports/{reportId} {
       allow read, write: if false;
     }
 
