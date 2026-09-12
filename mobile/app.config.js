@@ -55,6 +55,7 @@ export default ({ config }) => {
     googleServicesFile: process.env.IOS_GOOGLE_SERVICES_FILE || './GoogleService-Info.plist',
     infoPlist: {
       ...config.ios?.infoPlist,
+      ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription: 'Pocofoto uses your camera to share little moments with your person.',
       NSPhotoLibraryUsageDescription: 'Pocofoto uses your photo library for your profile picture.',
       UIBackgroundModes: ['remote-notification']
