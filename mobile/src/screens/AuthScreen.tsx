@@ -16,7 +16,7 @@ function errorMessage(error: unknown, fallback: string) {
 export default function AuthScreen() {
   const { t } = useTranslation('auth');
   const { signIn, signInApple } = useApp();
-  const buildVersion = Constants.expoConfig?.version || '0.0.4';
+  const buildVersion = Constants.expoConfig?.version || '0.0.5';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
