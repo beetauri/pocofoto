@@ -112,11 +112,16 @@ export function PhotosProvider({ children }: PropsWithChildren) {
   const deleteLocalPhoto = useCallback(async (photoId: string) => {
     const photo = localPhotosRef.current.find((item) => item.id === photoId);
     if (!photo) return;
-    const { deleteLocalPhotoFile } = await import('../services/localStore');
-    await Promise.all([
-      deleteLocalPhotoFile(photo.photoUrl).catch(() => undefined),
-      deleteLocalPhotoFile(photo.thumbnailUrl).catch(() => undefined)
-    ]);
+    try {
+      const { deleteLocalPhotoFile } = await import('../services/localStore');
+      await Promise.all([
+        deleteLocalPhotoFile(photo.photoUrl).catch(() => undefined),
+        deleteLocalPhotoFile(photo.thumbnailUrl).catch(() => undefined)
+      ]);
+    } catch {
+      // Storage module unavailable — drop the row anyway so the UI
+      // never sticks; orphaned cache files are pruned on next load.
+    }
     setLocalPhotos((current) => current.filter((item) => item.id !== photoId));
   }, []);
 

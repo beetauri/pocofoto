@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BlurTargetView, BlurView } from 'expo-blur';
 import { CameraView, useCameraPermissions, type CameraType, type FlashMode } from 'expo-camera';
@@ -53,7 +53,7 @@ function ReviewComposerInner({ imageSize, showFeedback }: { imageSize: number; s
   const cameraFrameRef = useRef<View>(null);
   const reviewSessionRef = useRef(0);
   const captionRef = useRef<TextInput>(null);
-  const shutterScale = useMemo(() => new Animated.Value(1), []);
+  const [shutterScale] = useState(() => new Animated.Value(1));
   const draftKey = user && coupleId ? `${user.uid}::${coupleId}` : null;
   const captionPillWidth = Math.min(280, Math.max(92, caption.length * 9 + 36));
   const lastSavedDraftRef = useRef<PendingDraft | null>(null);
@@ -227,8 +227,12 @@ function ReviewComposerInner({ imageSize, showFeedback }: { imageSize: number; s
     try {
       await enqueuePhoto({ fullUri: review.uri, thumbnailUri: review.thumbnailUri, caption });
       if (draftKey) {
-        const { clearReviewDraft } = await import('../../src/services/localStore');
-        await clearReviewDraft(draftKey).catch(() => undefined);
+        try {
+          const { clearReviewDraft } = await import('../../src/services/localStore');
+          await clearReviewDraft(draftKey);
+        } catch {
+          // Draft cleanup is best-effort; the photo is already queued.
+        }
       }
       cancelPendingDraftSave();
       lastSavedDraftRef.current = null;

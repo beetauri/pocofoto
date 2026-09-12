@@ -309,7 +309,8 @@ export default function HomeRoute() {
         maxToRenderPerBatch={3}
         updateCellsBatchingPeriod={50}
         windowSize={3}
-        removeClippedSubviews
+        // NOTE: no removeClippedSubviews — index 0 hosts the stateful
+        // camera cell and must stay mounted while paging.
       />
       {loadError ? <Text style={styles.loadError}>{t('photo.loadRetry')}</Text> : null}
       {feedback ? <Text accessibilityLiveRegion="polite" style={styles.feedback}>{feedback}</Text> : null}

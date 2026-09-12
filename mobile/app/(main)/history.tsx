@@ -30,7 +30,7 @@ export default function HistoryRoute() {
   const { width } = useWindowDimensions();
   const tileLength = useMemo(() => {
     const safeWidth = typeof width === 'number' && width > 0 ? width : 360;
-    return safeWidth / 3;
+    return (safeWidth - spacing.xs * 2) / 3;
   }, [width]);
 
   const handleTilePress = useCallback((photoId: string) => {

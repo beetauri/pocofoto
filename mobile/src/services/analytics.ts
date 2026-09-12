@@ -88,8 +88,14 @@ export function isAnalyticsEnabled() {
 export async function trackEvent(name: string, parameters: Record<string, string | number | boolean | null> = {}) {
   const client = analyticsClient;
   if (!analyticsEnabled || !client) return;
-  posthogClient?.capture(name, parameters);
-  if (amplitudeInitialized) amplitude.track(name, parameters);
+  // All providers are best-effort: callers fire-and-forget, so a sync
+  // throw here must never surface as an unhandled rejection.
+  try {
+    posthogClient?.capture(name, parameters);
+    if (amplitudeInitialized) amplitude.track(name, parameters);
+  } catch {
+    // Ignore analytics provider errors.
+  }
   // Fire-and-forget Firebase mirror so callers never wait on analytics.
   // logEvent is sync void (native fire-and-forget); defer to a microtask so trackEvent resolves immediately.
   void Promise.resolve()
