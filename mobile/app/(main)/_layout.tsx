@@ -7,7 +7,7 @@ import type { MaterialTopTabBarProps } from 'expo-router/js-top-tabs';
 import LiquidGlassTabBar from '../../src/components/LiquidGlassTabBar';
 import { useNotifications } from '../../src/hooks/useNotifications';
 import { PhotosProvider } from '../../src/state/PhotosProvider';
-import { useApp } from '../../src/state/AppProvider';
+import { useAppBase } from '../../src/state/AppProvider';
 import { MainUiProvider, useMainUi } from '../../src/state/MainUiProvider';
 import { colors } from '../../src/styles/global';
 
@@ -21,7 +21,7 @@ export default function MainLayout() {
 }
 
 function MainLayoutContent() {
-  const { user, coupleId, loading } = useApp();
+  const { user, coupleId, loading } = useAppBase();
   const { notificationIntent, clearNotificationIntent } = useNotifications();
   const router = useRouter();
   const blurTargetRef = useRef<View>(null);

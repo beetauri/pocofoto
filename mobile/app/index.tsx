@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 import { Image, Text, View } from 'react-native';
-import { useApp } from '../src/state/AppProvider';
+import { useAppBase } from '../src/state/AppProvider';
 import AuthScreen from '../src/screens/AuthScreen';
 import { colors, globalStyles, spacing } from '../src/styles/global';
 
@@ -14,7 +14,7 @@ function LoadingScreen() {
 }
 
 export default function IndexRoute() {
-  const { user, coupleId, pairStateKnown, loading } = useApp();
+  const { user, coupleId, pairStateKnown, loading } = useAppBase();
   if (loading) return <LoadingScreen />;
   if (!user) return <AuthScreen />;
   if (!pairStateKnown) return <LoadingScreen />;

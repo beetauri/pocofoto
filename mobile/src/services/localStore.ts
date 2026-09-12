@@ -152,6 +152,21 @@ export function saveReviewDraft(key: string, uri: string, thumbnailUri: string |
   return queueDraftOperation(key, async () => {
     const db = await getDatabase();
     const existing = await db.getFirstAsync<DraftRow>('SELECT draft_key, uri, thumbnail_uri, caption_text FROM review_drafts WHERE draft_key = ?', key);
+    // Skip redundant writes (e.g. repeated saves with identical content): no file
+    // copies and no INSERT when the persisted row already matches and is durable.
+    // Note saveReviewDraft preserves the existing thumbnail when the incoming
+    // thumbnail is null, so a null incoming thumbnail with unchanged uri/caption
+    // is still a no-op.
+    if (
+      existing &&
+      existing.uri === uri &&
+      existing.caption_text === captionText &&
+      isDurableDraftUri(uri) &&
+      (thumbnailUri === existing.thumbnail_uri || thumbnailUri == null) &&
+      (existing.thumbnail_uri == null || isDurableDraftUri(existing.thumbnail_uri))
+    ) {
+      return { uri: existing.uri, thumbnailUri: existing.thumbnail_uri };
+    }
     if (existing?.uri && existing.uri !== uri && FileSystem.documentDirectory) {
       await deleteLocalPhotoFile(`${FileSystem.documentDirectory}pocofoto-photos/${stableDraftId(key)}.jpg`);
     }
