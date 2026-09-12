@@ -1,41 +1,35 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { BlurTargetView, BlurView } from 'expo-blur';
-import { CameraView, useCameraPermissions, type CameraType, type FlashMode } from 'expo-camera';
 import {
   ActivityIndicator,
-  Animated,
   Alert,
   FlatList,
-  Image,
-  Keyboard,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
   type ListRenderItemInfo,
   type ViewToken
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Flag, Flashlight, Heart, RotateCcw, Send, SwitchCamera, Trash2, X } from 'lucide-react-native';
-import { useApp } from '../../src/state/AppProvider';
+import { Flag, Heart, RotateCcw, Send, Trash2 } from 'lucide-react-native';
+import { useAppBase } from '../../src/state/AppProvider';
 import { useMainUi } from '../../src/state/MainUiProvider';
 import { usePhotoContext } from '../../src/state/PhotosProvider';
 import NativePhotoImage from '../../src/components/NativePhotoImage';
-import ShutterIcon from '../../src/components/ShutterIcon';
-import { saveReviewDraft, clearReviewDraft, loadReviewDraft } from '../../src/services/localStore';
-import { preparePhoto } from '../../src/services/photoService';
 import { callFunction } from '../../src/services/firebase';
-import { triggerHaptic } from '../../src/services/haptics';
-import { canApplyReviewResult } from '../../src/domain/reviewSession';
-import { isCaptionAllowed } from '../../src/domain/captionSafety';
+import { timestampLabel } from '../../src/domain/feedTimestamp';
 import { colors, globalStyles, spacing } from '../../src/styles/global';
 import type { NativePhoto } from '../../src/types';
 
-type ReviewPhoto = { uri: string; thumbnailUri: string | null; width: number; height: number };
+// Lazy-load the camera/composer bundle (expo-camera + capture pipeline) so the
+// feed first paint doesn't pay its parse cost. The camera cell renders behind a
+// Suspense fallback until the chunk resolves; feed list behavior is unchanged.
+const ReviewComposer = lazy(() => import('./ReviewComposer'));
+
 type FeedItem =
   | { id: 'camera'; kind: 'camera' }
   | { id: 'loading' | 'empty'; kind: 'loading' | 'empty' }
@@ -43,18 +37,12 @@ type FeedItem =
 
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 58 };
 
-function timestampLabel(timestamp: NativePhoto['timestamp'], t: (key: string, options?: Record<string, number>) => string) {
-  const date = typeof timestamp === 'object' ? timestamp?.toDate?.() : timestamp ? new Date(timestamp) : null;
-  if (!date || Number.isNaN(date.getTime())) return t('time.justNow');
-  const diff = Math.max(0, Date.now() - date.getTime()) / 1000;
-  if (diff < 60) return t('time.justNow');
-  if (diff < 3600) return t('time.minutesAgo', { count: Math.floor(diff / 60) });
-  if (diff < 86400) return t('time.hoursAgo', { count: Math.floor(diff / 3600) });
-  return date.toLocaleDateString();
-}
-
 function Page({ height, topInset, bottomInset, children }: { height: number; topInset: number; bottomInset: number; children: ReactNode }) {
-  return <View style={[styles.page, { height, paddingTop: topInset + 18, paddingBottom: bottomInset + 112 }]}>{children}</View>;
+  const pageStyle = useMemo(
+    () => [styles.page, { height, paddingTop: topInset + 18, paddingBottom: bottomInset + 112 }],
+    [height, topInset, bottomInset]
+  );
+  return <View style={pageStyle}>{children}</View>;
 }
 
 const PhotoCard = memo(function PhotoCard({
@@ -72,10 +60,10 @@ const PhotoCard = memo(function PhotoCard({
 }: {
   photo: NativePhoto;
   canLike: boolean;
-  onLike: () => void;
-  onRetry: () => void;
-  onDelete: () => void;
-  onReport: () => void;
+  onLike: (photo: NativePhoto) => void;
+  onRetry: (photoId: string) => void;
+  onDelete: (photoId: string) => void;
+  onReport: (photo: NativePhoto) => void;
   reportBusy: boolean;
   canReport: boolean;
   imageSize: number;
@@ -86,9 +74,20 @@ const PhotoCard = memo(function PhotoCard({
   const photoFrameRef = useRef<View>(null);
   const failed = photo.localOnly && photo.localStatus === 'failed';
 
+  const timeLabel = useMemo(() => timestampLabel(photo.timestamp, t), [photo.timestamp, t]);
+  const cardStyle = useMemo(() => [styles.photoCard, { width: imageSize }], [imageSize]);
+  const frameStyle = useMemo(() => [styles.photoFrame, { width: imageSize, height: imageSize }], [imageSize]);
+  const metaRowStyle = useMemo(() => [styles.photoMetaRow, { width: imageSize }], [imageSize]);
+  const localMetaRowStyle = useMemo(() => [styles.photoMetaRow, styles.localStatusRow, { width: imageSize }], [imageSize]);
+
+  const handleLike = useCallback(() => onLike(photo), [onLike, photo]);
+  const handleRetry = useCallback(() => onRetry(photo.id), [onRetry, photo.id]);
+  const handleDelete = useCallback(() => onDelete(photo.id), [onDelete, photo.id]);
+  const handleReport = useCallback(() => onReport(photo), [onReport, photo]);
+
   return (
-    <View style={[styles.photoCard, { width: imageSize }]}>
-      <BlurTargetView ref={photoFrameRef} style={[styles.photoFrame, { width: imageSize, height: imageSize }]}>
+    <View style={cardStyle}>
+      <BlurTargetView ref={photoFrameRef} style={frameStyle}>
         <NativePhotoImage photo={photo} style={styles.photoImage} />
         {photo.caption?.text ? (
           <View pointerEvents="none" style={styles.photoCaptionPosition}>
@@ -99,22 +98,22 @@ const PhotoCard = memo(function PhotoCard({
         ) : null}
       </BlurTargetView>
       {photo.localOnly ? (
-        <View style={[styles.photoMetaRow, styles.localStatusRow, { width: imageSize }]}> 
+        <View style={localMetaRowStyle}>
           {failed ? (
             <>
-              <Pressable onPress={onRetry} style={styles.retryTextButton}><RotateCcw color={colors.text} size={17} /><Text style={styles.retryText}>{t('queue.retry')}</Text></Pressable>
-              <Pressable accessibilityLabel={t('queue.delete')} onPress={onDelete} style={styles.deleteTextButton}><Trash2 color={colors.danger} size={18} /></Pressable>
+              <Pressable onPress={handleRetry} style={styles.retryTextButton}><RotateCcw color={colors.text} size={17} /><Text style={styles.retryText}>{t('queue.retry')}</Text></Pressable>
+              <Pressable accessibilityLabel={t('queue.delete')} onPress={handleDelete} style={styles.deleteTextButton}><Trash2 color={colors.danger} size={18} /></Pressable>
             </>
           ) : <View style={styles.localSending}><ActivityIndicator color={colors.muted} size="small" /><Text style={styles.localSendingText}>{t('queue.sending')}</Text></View>}
         </View>
       ) : (
-        <View style={[styles.photoMetaRow, { width: imageSize }]}> 
+        <View style={metaRowStyle}>
           <View style={styles.photoMeta}>
             <Text numberOfLines={1} style={styles.photoSender}>{isMine ? t('you') : partnerName}</Text>
-            <Text style={styles.photoTime}>{timestampLabel(photo.timestamp, t)}</Text>
+            <Text style={styles.photoTime}>{timeLabel}</Text>
           </View>
           {canLike ? (
-            <Pressable accessibilityRole="button" accessibilityLabel={photo.liked ? t('photo.unlike') : t('photo.like')} onPress={onLike} style={styles.likeButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel={photo.liked ? t('photo.unlike') : t('photo.like')} onPress={handleLike} style={styles.likeButton}>
               <Heart color={photo.liked ? colors.accent : colors.text} fill={photo.liked ? colors.accent : 'transparent'} size={23} />
             </Pressable>
           ) : (
@@ -124,7 +123,7 @@ const PhotoCard = memo(function PhotoCard({
             </View>
           )}
           {canReport ? (
-            <Pressable accessibilityRole="button" accessibilityLabel={t('report.action')} disabled={reportBusy} onPress={onReport} style={[styles.reportButton, reportBusy && styles.controlDisabled]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('report.action')} disabled={reportBusy} onPress={handleReport} style={[styles.reportButton, reportBusy && styles.controlDisabled]}>
               {reportBusy ? <ActivityIndicator color={colors.text} size="small" /> : <Flag color={colors.text} size={18} />}
             </Pressable>
           ) : null}
@@ -136,68 +135,28 @@ const PhotoCard = memo(function PhotoCard({
 
 export default function HomeRoute() {
   const { t } = useTranslation(['camera', 'common']);
-  const { user, coupleId, partnerProfile, isOnline } = useApp();
-  const { photos, loadMore, hasMore, loading, loadingMore, loadError, enqueuePhoto, retryLocalPhoto, deleteLocalPhoto, likePhoto } = usePhotoContext();
-  const [permission, requestPermission] = useCameraPermissions();
-  const [cameraReady, setCameraReady] = useState(false);
-  const [facing, setFacing] = useState<CameraType>('back');
-  const [flash, setFlash] = useState<FlashMode>('off');
-  const [review, setReview] = useState<ReviewPhoto | null>(null);
-  const [caption, setCaption] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [preparingReview, setPreparingReview] = useState(false);
+  const { user, partnerProfile } = useAppBase();
+  const { photos, loadMore, hasMore, loading, loadingMore, loadError, retryLocalPhoto, deleteLocalPhoto, likePhoto } = usePhotoContext();
   const [feedback, setFeedback] = useState('');
-  const [cameraError, setCameraError] = useState('');
-  const [cameraAttempt, setCameraAttempt] = useState(0);
   const [reportingPhotoId, setReportingPhotoId] = useState<string | null>(null);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const { cameraInView, setCameraInView } = useMainUi();
-  const cameraRef = useRef<CameraView>(null);
-  const cameraFrameRef = useRef<View>(null);
-  const reviewSessionRef = useRef(0);
-  const captionRef = useRef<TextInput>(null);
   const feedRef = useRef<FlatList<FeedItem>>(null);
   const targetPhotoRef = useRef<string | null>(null);
   const targetPhotoLoadRef = useRef<string | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shutterScale = useRef(new Animated.Value(1)).current;
   const navigation = useNavigation();
   const router = useRouter();
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const draftKey = user && coupleId ? `${user.uid}::${coupleId}` : null;
-  const imageSize = Math.min(width, Math.max(220, height - insets.top - insets.bottom - 270));
-  const captionPillWidth = Math.min(280, Math.max(92, caption.length * 9 + 36));
+  const imageSize = useMemo(
+    () => Math.min(width, Math.max(220, height - insets.top - insets.bottom - 270)),
+    [width, height, insets.top, insets.bottom]
+  );
+  const userId = user?.uid;
+  const partnerName = partnerProfile?.displayName || t('yourPerson');
 
   const { photoId: rawPhotoId } = useLocalSearchParams<{ photoId?: string | string[] }>();
   const photoId = Array.isArray(rawPhotoId) ? rawPhotoId[0] : rawPhotoId;
-
-  useEffect(() => {
-    if (!permission) return;
-    if (!permission.granted && permission.canAskAgain) void requestPermission();
-  }, [permission, requestPermission]);
-
-  useEffect(() => {
-    if (!draftKey) return;
-    let active = true;
-    const session = reviewSessionRef.current;
-    void loadReviewDraft(draftKey).then((draft) => {
-      if (!active || !draft || !canApplyReviewResult(session, reviewSessionRef.current)) return;
-      setReview({ uri: draft.uri, thumbnailUri: draft.thumbnailUri || null, width: 1, height: 1 });
-      setCaption(draft.captionText || '');
-    });
-    return () => { active = false; };
-  }, [draftKey]);
-
-  useEffect(() => {
-    if (!draftKey || !review || preparingReview) return;
-    const session = reviewSessionRef.current;
-    const reviewUri = review.uri;
-    void saveReviewDraft(draftKey, reviewUri, review.thumbnailUri, caption).then(({ uri: durableUri, thumbnailUri }) => {
-      if (!canApplyReviewResult(session, reviewSessionRef.current)) return;
-      setReview((current) => current?.uri === reviewUri && (current.uri !== durableUri || current.thumbnailUri !== thumbnailUri) ? { ...current, uri: durableUri, thumbnailUri } : current);
-    }).catch(() => undefined);
-  }, [draftKey, preparingReview, review, caption]);
 
   const showFeedback = useCallback((message: string) => {
     setFeedback(message);
@@ -207,15 +166,6 @@ export default function HomeRoute() {
 
   useEffect(() => () => {
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
-  }, []);
-
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
   }, []);
 
   const scrollToCamera = useCallback(() => {
@@ -262,62 +212,7 @@ export default function HomeRoute() {
     });
   }, [hasMore, loadMore, loading, loadingMore, photoId, photos, router]);
 
-  const capture = async () => {
-    if (!cameraRef.current || !cameraReady || busy) return;
-    void triggerHaptic('tap');
-    setBusy(true);
-    try {
-      const picture = await cameraRef.current.takePictureAsync({ quality: 0.9, skipProcessing: false, mirror: false });
-      if (!picture?.uri) throw new Error('Capture returned no file.');
-      const capturedUri = picture.uri;
-      const session = ++reviewSessionRef.current;
-      setPreparingReview(true);
-
-      try {
-        const prepared = await preparePhoto(capturedUri, picture.width, picture.height);
-        if (!canApplyReviewResult(session, reviewSessionRef.current)) return;
-        setReview({ uri: prepared.fullUri, thumbnailUri: prepared.thumbnailUri, width: picture.width, height: picture.height });
-        setCaption('');
-      } catch {
-        if (canApplyReviewResult(session, reviewSessionRef.current)) setReview(null);
-        showFeedback(t('errors.capture'));
-      } finally {
-        if (canApplyReviewResult(session, reviewSessionRef.current)) {
-          setPreparingReview(false);
-          setBusy(false);
-        }
-      }
-    } catch {
-      showFeedback(t('errors.capture'));
-      setPreparingReview(false);
-      setBusy(false);
-    } finally {
-      shutterScale.setValue(1);
-    }
-  };
-
-  const send = async () => {
-    if (!review || busy || preparingReview) return;
-    if (!isCaptionAllowed(caption)) {
-      showFeedback(t('errors.captionUnsafe'));
-      return;
-    }
-    void triggerHaptic('tap');
-    setBusy(true);
-    try {
-      await enqueuePhoto({ fullUri: review.uri, thumbnailUri: review.thumbnailUri, caption });
-      if (draftKey) await clearReviewDraft(draftKey).catch(() => undefined);
-      setReview(null);
-      setCaption('');
-      if (!isOnline) showFeedback(t('queue.queued'));
-    } catch {
-      showFeedback(t('errors.upload'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitReport = async (photo: NativePhoto, reason: 'abuse' | 'harassment' | 'sexual-content' | 'threats' | 'other') => {
+  const submitReport = useCallback(async (photo: NativePhoto, reason: 'abuse' | 'harassment' | 'sexual-content' | 'threats' | 'other') => {
     if (reportingPhotoId) return;
     setReportingPhotoId(photo.id);
     try {
@@ -328,9 +223,9 @@ export default function HomeRoute() {
     } finally {
       setReportingPhotoId(null);
     }
-  };
+  }, [reportingPhotoId, showFeedback, t]);
 
-  const reportPhoto = (photo: NativePhoto) => {
+  const handleReportPhoto = useCallback((photo: NativePhoto) => {
     Alert.alert(t('report.title'), t('report.body'), [
       { text: t('common:actions.cancel'), style: 'cancel' },
       { text: t('report.abuse'), onPress: () => void submitReport(photo, 'abuse') },
@@ -339,48 +234,19 @@ export default function HomeRoute() {
       { text: t('report.threats'), onPress: () => void submitReport(photo, 'threats') },
       { text: t('report.other'), onPress: () => void submitReport(photo, 'other') }
     ]);
-  };
+  }, [submitReport, t]);
 
-  const discard = async () => {
-    if (busy) return;
-    reviewSessionRef.current += 1;
-    setBusy(true);
-    setReview(null);
-    setCaption('');
-    try {
-      if (draftKey) await clearReviewDraft(draftKey);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const handleLikePhoto = useCallback((photo: NativePhoto) => {
+    void likePhoto(photo).catch(() => undefined);
+  }, [likePhoto]);
 
-  const retryCamera = () => {
-    setCameraReady(false);
-    setCameraError('');
-    setCameraAttempt((current) => current + 1);
-  };
+  const handleRetryPhoto = useCallback((photoId: string) => {
+    retryLocalPhoto(photoId);
+  }, [retryLocalPhoto]);
 
-  const animateShutter = (toValue: number) => {
-    Animated.spring(shutterScale, {
-      toValue,
-      useNativeDriver: true,
-      speed: 26,
-      bounciness: 5
-    }).start();
-  };
-
-  const toggleFlash = () => {
-    const nextFlash: FlashMode = flash === 'on' ? 'off' : 'on';
-    setFlash(nextFlash);
-  };
-
-  const switchCamera = () => {
-    setFacing((value) => {
-      const nextFacing = value === 'back' ? 'front' : 'back';
-      if (nextFacing === 'front') setFlash('off');
-      return nextFacing;
-    });
-  };
+  const handleDeletePhoto = useCallback((photoId: string) => {
+    void deleteLocalPhoto(photoId);
+  }, [deleteLocalPhoto]);
 
   const feedItems = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = [{ id: 'camera', kind: 'camera' }];
@@ -393,93 +259,38 @@ export default function HomeRoute() {
     setCameraInView(viewableItems.some((item) => item.index === 0));
   }, [setCameraInView]);
 
-  const renderCamera = () => (
-    <>
-      <BlurTargetView ref={cameraFrameRef} style={[styles.cameraFrame, keyboardVisible && styles.keyboardCameraFrame, { width: imageSize, height: imageSize }]}>
-        {permission?.granted ? (
-          <CameraView
-            key={cameraAttempt}
-            ref={cameraRef}
-            style={styles.camera}
-            active={!review}
-            facing={facing}
-            flash={flash}
-            mirror={false}
-            onCameraReady={() => { setCameraReady(true); setCameraError(''); }}
-            onMountError={(event) => { setCameraReady(false); setCameraError(event.message || t('errors.start')); showFeedback(event.message || t('errors.start')); }}
-          />
-        ) : (
-          <View style={[globalStyles.centered, styles.permissionState]}>
-            <Text style={styles.permissionTitle}>{t(permission?.canAskAgain === false ? 'startup.blocked' : 'startup.title')}</Text>
-            <Text style={styles.permissionBody}>{t(permission?.canAskAgain === false ? 'errors.denied' : 'startup.body')}</Text>
-            {permission?.canAskAgain ? <Pressable onPress={() => void requestPermission()} style={[globalStyles.button, globalStyles.buttonPrimary]}><Text style={styles.buttonText}>{t('startup.retry')}</Text></Pressable> : null}
-          </View>
-        )}
-        {cameraError && !review ? <View style={styles.cameraErrorOverlay}><Text style={styles.permissionTitle}>{t('startup.unavailable')}</Text><Text style={styles.permissionBody}>{cameraError}</Text><Pressable onPress={retryCamera} style={[globalStyles.button, globalStyles.buttonPrimary]}><Text style={styles.buttonText}>{t('startup.retry')}</Text></Pressable></View> : null}
-        {review ? (
-          <View style={[styles.reviewOverlay, keyboardVisible && styles.keyboardReviewOverlay]}>
-            <Image fadeDuration={0} source={{ uri: review.uri }} resizeMode="cover" style={styles.photoImage} />
-            <View style={styles.captionPosition}>
-              <BlurView blurMethod="dimezisBlurView" blurTarget={cameraFrameRef} intensity={38} tint="dark" style={[styles.captionBlur, { width: captionPillWidth }]}>
-                <TextInput
-                  ref={captionRef}
-                  accessibilityLabel={t('review.captionLabel')}
-                  blurOnSubmit
-                  keyboardAppearance="dark"
-                  maxLength={36}
-                  multiline={false}
-                  onChangeText={setCaption}
-                  onSubmitEditing={() => captionRef.current?.blur()}
-                  placeholder={t('review.captionPlaceholder')}
-                  placeholderTextColor="rgba(255,255,255,0.58)"
-                  returnKeyType="done"
-                  selectionColor={colors.accent}
-                  style={styles.captionInput}
-                  textAlign="center"
-                  underlineColorAndroid="transparent"
-                  value={caption}
-                />
-              </BlurView>
-            </View>
-          </View>
-        ) : null}
-      </BlurTargetView>
+  const keyExtractor = useCallback((item: FeedItem) => item.id, []);
 
-      <View style={styles.cameraControls}>
-        <Pressable accessibilityLabel={review ? t('review.discard') : t('controls.flash')} onPress={review ? () => void discard() : toggleFlash} style={[styles.cameraToolButton, !review && flash === 'on' && styles.cameraToolButtonActive]}>
-          {review ? <X color={colors.text} size={24} /> : <Flashlight color={flash === 'on' ? colors.accent : colors.text} size={24} />}
-        </Pressable>
-        <Animated.View style={[styles.shutterAnimated, { transform: [{ scale: shutterScale }] }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={review ? t('review.send') : t('controls.capture')} disabled={busy || preparingReview || (!review && !cameraReady)} onPress={() => void (review ? send() : capture())} onPressIn={() => animateShutter(0.92)} onPressOut={() => animateShutter(1)} style={({ pressed }) => [styles.shutterButton, (busy || preparingReview || (!review && !cameraReady)) && styles.controlDisabled, pressed && styles.controlPressed]}>
-            <ShutterIcon size={88} />
-            {review && !busy && !preparingReview ? <Send color="#111111" size={27} style={styles.shutterOverlayIcon} /> : null}
-            {busy || preparingReview ? <ActivityIndicator color="#111111" size="small" style={styles.shutterOverlayIcon} /> : null}
-          </Pressable>
-        </Animated.View>
-        <Pressable accessibilityLabel={review ? t('review.addCaption') : t('controls.switchCamera')} onPress={review ? () => captionRef.current?.focus() : switchCamera} style={styles.cameraToolButton}>
-          {review ? <Text style={styles.captionTool}>Aa</Text> : <SwitchCamera color={colors.text} size={24} />}
-        </Pressable>
-      </View>
-    </>
-  );
+  const handleEndReached = useCallback(() => {
+    if (hasMore && !loadingMore) void loadMore();
+  }, [hasMore, loadMore, loadingMore]);
 
-  const renderItem = ({ item }: ListRenderItemInfo<FeedItem>) => {
-    if (item.kind === 'camera') return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}>{renderCamera()}</Page>;
+  const handleScrollToIndexFailed = useCallback(({ index }: { index: number }) => {
+    feedRef.current?.scrollToOffset({ offset: index * height, animated: false });
+    requestAnimationFrame(() => feedRef.current?.scrollToIndex({ index, animated: false }));
+  }, [height]);
+
+  const getItemLayout = useCallback((_: ArrayLike<FeedItem> | null | undefined, index: number) => (
+    { length: height, offset: height * index, index }
+  ), [height]);
+
+  const renderItem = useCallback(({ item }: ListRenderItemInfo<FeedItem>) => {
+    if (item.kind === 'camera') return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><Suspense fallback={<ActivityIndicator color={colors.accent} size="large" />}><ReviewComposer imageSize={imageSize} showFeedback={showFeedback} /></Suspense></Page>;
     if (item.kind === 'photo' && item.photo) {
-      const canLike = Boolean(item.photo.senderId) && item.photo.senderId !== user?.uid;
-      const canReport = Boolean(item.photo.senderId) && item.photo.senderId !== user?.uid;
-      return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><PhotoCard photo={item.photo} canLike={canLike} canReport={canReport} isMine={item.photo.senderId === user?.uid} partnerName={partnerProfile?.displayName || t('yourPerson')} onLike={() => void likePhoto(item.photo).catch(() => undefined)} onRetry={() => retryLocalPhoto(item.photo?.id || item.id)} onDelete={() => void deleteLocalPhoto(item.photo?.id || item.id)} onReport={() => reportPhoto(item.photo)} reportBusy={canReport && reportingPhotoId === item.photo.id} imageSize={imageSize} /></Page>;
+      const canLike = Boolean(item.photo.senderId) && item.photo.senderId !== userId;
+      const canReport = Boolean(item.photo.senderId) && item.photo.senderId !== userId;
+      return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><PhotoCard photo={item.photo} canLike={canLike} canReport={canReport} isMine={item.photo.senderId === userId} partnerName={partnerName} onLike={handleLikePhoto} onRetry={handleRetryPhoto} onDelete={handleDeletePhoto} onReport={handleReportPhoto} reportBusy={canReport && reportingPhotoId === item.photo.id} imageSize={imageSize} /></Page>;
     }
     if (item.kind === 'loading') return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><ActivityIndicator color={colors.accent} size="large" /></Page>;
     return <Page height={height} topInset={insets.top} bottomInset={insets.bottom}><View style={styles.emptyState}><Text style={styles.emptyTitle}>{t('empty.title')}</Text><Text style={styles.emptyBody}>{t('empty.body')}</Text></View></Page>;
-  };
+  }, [handleDeletePhoto, handleLikePhoto, handleReportPhoto, handleRetryPhoto, height, imageSize, insets.bottom, insets.top, partnerName, reportingPhotoId, showFeedback, t, userId]);
 
   return (
     <View style={globalStyles.screen}>
       <FlatList
         ref={feedRef}
         data={feedItems}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         directionalLockEnabled
@@ -488,19 +299,17 @@ export default function HomeRoute() {
         decelerationRate="fast"
         disableIntervalMomentum
         bounces={false}
-        onEndReached={() => { if (hasMore && !loadingMore) void loadMore(); }}
+        onEndReached={handleEndReached}
         onEndReachedThreshold={0.65}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={VIEWABILITY_CONFIG}
-        onScrollToIndexFailed={({ index }) => {
-          feedRef.current?.scrollToOffset({ offset: index * height, animated: false });
-          requestAnimationFrame(() => feedRef.current?.scrollToIndex({ index, animated: false }));
-        }}
-        getItemLayout={(_, index) => ({ length: height, offset: height * index, index })}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
+        getItemLayout={getItemLayout}
         initialNumToRender={2}
         maxToRenderPerBatch={3}
         updateCellsBatchingPeriod={50}
         windowSize={3}
+        removeClippedSubviews
       />
       {loadError ? <Text style={styles.loadError}>{t('photo.loadRetry')}</Text> : null}
       {feedback ? <Text accessibilityLiveRegion="polite" style={styles.feedback}>{feedback}</Text> : null}
@@ -510,11 +319,6 @@ export default function HomeRoute() {
 
 const styles = StyleSheet.create({
   page: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 0, overflow: 'hidden' as const },
-  cameraFrame: { borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.surface },
-  keyboardCameraFrame: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
-  camera: { flex: 1 },
-  reviewOverlay: { position: 'absolute' as const, top: 0, right: 0, bottom: 0, left: 0, borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.background },
-  keyboardReviewOverlay: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   photoFrame: { borderRadius: 44, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: colors.surface },
   photoImage: { width: '100%' as const, height: '100%' as const },
   photoCaptionPosition: { position: 'absolute' as const, left: 0, right: 0, bottom: 8, alignItems: 'center' as const },
@@ -535,23 +339,7 @@ const styles = StyleSheet.create({
   sentStatus: { minHeight: 38, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 14, borderRadius: 22, backgroundColor: 'rgba(31,28,27,0.33)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   sentStatusText: { color: colors.text, fontSize: 14, fontWeight: '800' as const },
   reportButton: { width: 44, height: 44, alignItems: 'center' as const, justifyContent: 'center' as const, borderRadius: 22, backgroundColor: 'rgba(31,28,27,0.42)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  permissionState: { flex: 1, padding: spacing.lg, gap: spacing.sm },
-  permissionTitle: { color: colors.text, fontSize: 18, fontWeight: '900' as const, textAlign: 'center' as const },
-  permissionBody: { color: colors.muted, textAlign: 'center' as const },
-  cameraErrorOverlay: { position: 'absolute' as const, top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center' as const, justifyContent: 'center' as const, gap: spacing.sm, padding: spacing.lg, backgroundColor: 'rgba(17,17,17,0.96)' },
-  buttonText: { color: colors.text, fontWeight: '800' as const },
-  captionPosition: { position: 'absolute' as const, left: 26, right: 26, bottom: 8, alignItems: 'center' as const },
-  captionBlur: { alignSelf: 'center' as const, minHeight: 42, maxWidth: '100%' as const, borderRadius: 24, borderCurve: 'continuous' as const, overflow: 'hidden' as const, backgroundColor: 'rgba(31,28,27,0.42)' },
-  captionInput: { minHeight: 42, paddingHorizontal: 18, paddingVertical: 8, color: colors.text, fontSize: 16, fontWeight: '500' as const, backgroundColor: 'transparent', textAlignVertical: 'center' as const },
-  cameraControls: { width: '100%' as const, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: spacing.md, paddingTop: spacing.md },
-  cameraToolButton: { width: 54, height: 54, borderRadius: 27, borderCurve: 'continuous' as const, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.surfaceRaised },
-  cameraToolButtonActive: { backgroundColor: 'rgba(79,114,252,0.18)', borderWidth: 1, borderColor: 'rgba(79,114,252,0.42)' },
-  captionTool: { color: colors.text, fontSize: 19, fontWeight: '900' as const },
-  shutterAnimated: { width: 88, height: 88 },
-  shutterButton: { width: 88, height: 88, borderRadius: 44, alignItems: 'center' as const, justifyContent: 'center' as const },
-  shutterOverlayIcon: { position: 'absolute' as const },
   controlDisabled: { opacity: 0.45 },
-  controlPressed: { opacity: 0.72 },
   emptyState: { alignItems: 'center' as const, gap: spacing.sm, padding: spacing.xl },
   emptyTitle: { color: colors.text, fontSize: 20, fontWeight: '900' as const, textAlign: 'center' as const },
   emptyBody: { color: colors.muted, textAlign: 'center' as const },

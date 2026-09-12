@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View, type ImageStyle, type StyleProp } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ImageStyle, type StyleProp } from 'react-native';
+import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react-native';
 import { colors } from '../styles/global';
@@ -40,6 +41,10 @@ export default function NativePhotoImage({ photo, style, preferThumbnail = false
     <View style={[style, styles.container]}>
       <Image
         accessibilityLabel={t('capturedPreview')}
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        priority={preferThumbnail ? 'low' : 'normal'}
+        recyclingKey={sources[sourceIndex]}
         onError={() => {
           if (sourceIndex < sources.length - 1) {
             setSourceIndex((current) => current + 1);
@@ -50,7 +55,6 @@ export default function NativePhotoImage({ photo, style, preferThumbnail = false
           }
         }}
         onLoad={() => setLoading(false)}
-        resizeMode="cover"
         source={{ uri: sources[sourceIndex] }}
         style={StyleSheet.absoluteFill}
       />

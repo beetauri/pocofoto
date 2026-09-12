@@ -86,10 +86,15 @@ export function isAnalyticsEnabled() {
 }
 
 export async function trackEvent(name: string, parameters: Record<string, string | number | boolean | null> = {}) {
-  if (!analyticsEnabled || !analyticsClient) return;
+  const client = analyticsClient;
+  if (!analyticsEnabled || !client) return;
   posthogClient?.capture(name, parameters);
   if (amplitudeInitialized) amplitude.track(name, parameters);
-  await logEvent(analyticsClient, name as never, parameters);
+  // Fire-and-forget Firebase mirror so callers never wait on analytics.
+  // logEvent is sync void (native fire-and-forget); defer to a microtask so trackEvent resolves immediately.
+  void Promise.resolve()
+    .then(() => logEvent(client, name as never, parameters))
+    .catch(() => {});
 }
 
 export function syncSentryUser(user: { uid?: string; email?: string | null; displayName?: string | null } | null) {

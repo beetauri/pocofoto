@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { collection, onSnapshot, query, where } from '@react-native-firebase/firestore';
+import { collection, limit, onSnapshot, query, where } from '@react-native-firebase/firestore';
 import { callFunction, firestoreClient } from '../services/firebase';
 import { trackEvent } from '../services/analytics';
 import { useNotifications } from '../hooks/useNotifications';
@@ -59,7 +59,8 @@ export default function PairingScreen() {
     const incomingQuery = query(
       collection(firestoreClient, 'pairingRequests'),
       where('recipientId', '==', user.uid),
-      where('status', '==', 'pending')
+      where('status', '==', 'pending'),
+      limit(20)
     );
     return onSnapshot(incomingQuery, (snapshot) => {
       setIncoming(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as PairingRequest)));
@@ -71,7 +72,8 @@ export default function PairingScreen() {
     const outgoingQuery = query(
       collection(firestoreClient, 'pairingRequests'),
       where('senderId', '==', user.uid),
-      where('status', '==', 'pending')
+      where('status', '==', 'pending'),
+      limit(20)
     );
     return onSnapshot(outgoingQuery, (snapshot) => {
       const next = snapshot.docs[0];

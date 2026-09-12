@@ -25,15 +25,13 @@ import { disableNotifications } from '../services/notifications';
 import { decidePairListenerError, decidePairSnapshot } from '../domain/pairRoute';
 import type { UserProfile } from '../types';
 
-type AppContextValue = {
+type AppBaseValue = {
   user: User | null;
   profile: UserProfile | null;
   partnerProfile: UserProfile | null;
   coupleId: string | null;
   pairStateKnown: boolean;
   loading: boolean;
-  connection: ConnectionState;
-  isOnline: boolean;
   signIn: () => Promise<void>;
   signInApple: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -41,7 +39,15 @@ type AppContextValue = {
   setCoupleId: (coupleId: string | null) => void;
 };
 
-const AppContext = createContext<AppContextValue | null>(null);
+type NetworkValue = {
+  connection: ConnectionState;
+  isOnline: boolean;
+};
+
+type AppContextValue = AppBaseValue & NetworkValue;
+
+const AppContext = createContext<AppBaseValue | null>(null);
+const NetworkContext = createContext<NetworkValue | null>(null);
 
 function profileFromSnapshot(snapshot: DocumentSnapshot): UserProfile | null {
   return snapshot.exists() ? { uid: snapshot.id, ...(snapshot.data() as UserProfile) } : null;
@@ -218,6 +224,11 @@ export function AppProvider({ children }: PropsWithChildren) {
     }
   }, [user]);
 
+  const networkValue = useMemo<NetworkValue>(() => ({
+    connection,
+    isOnline: connection !== 'offline'
+  }), [connection]);
+
   const value = useMemo(() => ({
     user,
     profile,
@@ -225,20 +236,36 @@ export function AppProvider({ children }: PropsWithChildren) {
     coupleId,
     pairStateKnown,
     loading,
-    connection,
-    isOnline: connection !== 'offline',
     signIn,
     signInApple,
     signOut,
     deleteAccount,
     setCoupleId
-  }), [user, profile, partnerProfile, coupleId, pairStateKnown, loading, connection, signIn, signInApple, signOut, deleteAccount, setCoupleId]);
+  }), [user, profile, partnerProfile, coupleId, pairStateKnown, loading, signIn, signInApple, signOut, deleteAccount, setCoupleId]);
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      <NetworkContext.Provider value={networkValue}>{children}</NetworkContext.Provider>
+    </AppContext.Provider>
+  );
 }
 
-export function useApp() {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used inside AppProvider');
+export function useNetwork() {
+  const context = useContext(NetworkContext);
+  if (!context) throw new Error('useNetwork must be used inside AppProvider');
   return context;
+}
+
+export function useAppBase(): AppBaseValue {
+  const app = useContext(AppContext);
+  if (!app) throw new Error('useAppBase must be used inside AppProvider');
+  return app;
+}
+
+export function useApp(): AppContextValue {
+  const app = useContext(AppContext);
+  const network = useContext(NetworkContext);
+  if (!app) throw new Error('useApp must be used inside AppProvider');
+  if (!network) throw new Error('useApp must be used inside AppProvider');
+  return useMemo(() => ({ ...app, ...network }), [app, network]);
 }

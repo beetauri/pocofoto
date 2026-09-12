@@ -4,8 +4,9 @@ import { useApp } from './AppProvider';
 import { usePhotos } from '../hooks/usePhotos';
 import { firestoreClient } from '../services/firebase';
 import { trackEvent } from '../services/analytics';
-import { copyFileToDurableStorage, deleteLocalPhotoFile, loadPhotoQueue, savePhotoQueue } from '../services/localStore';
-import { uploadPhoto } from '../services/photoService';
+// NOTE: localStore (expo-sqlite/expo-file-system) and photoService
+// (expo-image-manipulator) are loaded via dynamic import() at the call sites
+// below so the feed/history first paint doesn't pay their parse cost.
 import {
   findNextUploadableLocalPhoto,
   markLocalPhotoFailed,
@@ -47,23 +48,33 @@ export function PhotosProvider({ children }: PropsWithChildren) {
     let active = true;
     setLocalPhotos([]);
     setQueueLoaded(false);
-    void loadPhotoQueue(user.uid, coupleId).then((photos) => {
-      if (!active) return;
-      setLocalPhotos(photos);
-      setQueueLoaded(true);
-    }).catch(() => {
-      if (active) setQueueLoaded(true);
-    });
+    const queuedUserId = user.uid;
+    const queuedCoupleId = coupleId;
+    void import('../services/localStore')
+      .then(({ loadPhotoQueue }) => loadPhotoQueue(queuedUserId, queuedCoupleId))
+      .then((photos) => {
+        if (!active) return;
+        setLocalPhotos(photos);
+        setQueueLoaded(true);
+      }).catch(() => {
+        if (active) setQueueLoaded(true);
+      });
     return () => { active = false; };
   }, [user, coupleId]);
 
   useEffect(() => {
     if (!user || !coupleId || !queueLoaded) return;
-    void savePhotoQueue(user.uid, coupleId, localPhotos).catch(() => undefined);
+    const queuedUserId = user.uid;
+    const queuedCoupleId = coupleId;
+    const snapshot = localPhotos;
+    void import('../services/localStore')
+      .then(({ savePhotoQueue }) => savePhotoQueue(queuedUserId, queuedCoupleId, snapshot))
+      .catch(() => undefined);
   }, [user, coupleId, localPhotos, queueLoaded]);
 
   const enqueuePhoto = useCallback(async ({ fullUri, thumbnailUri, caption }: { fullUri: string; thumbnailUri?: string | null; caption: string }) => {
     if (!user || !coupleId) return;
+    const { copyFileToDurableStorage, deleteLocalPhotoFile } = await import('../services/localStore');
     const id = `local-photo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     let durableFullUri: string | null = null;
     let durableThumbnailUri: string | null = null;
@@ -101,6 +112,7 @@ export function PhotosProvider({ children }: PropsWithChildren) {
   const deleteLocalPhoto = useCallback(async (photoId: string) => {
     const photo = localPhotosRef.current.find((item) => item.id === photoId);
     if (!photo) return;
+    const { deleteLocalPhotoFile } = await import('../services/localStore');
     await Promise.all([
       deleteLocalPhotoFile(photo.photoUrl).catch(() => undefined),
       deleteLocalPhotoFile(photo.thumbnailUrl).catch(() => undefined)
@@ -115,25 +127,33 @@ export function PhotosProvider({ children }: PropsWithChildren) {
     queueInFlightRef.current = true;
     setLocalPhotos((current) => current.map((photo) => photo.id === nextPhoto.id ? markLocalPhotoUploading(photo) : photo));
 
-    void uploadPhoto({
-      coupleId,
-      senderId: user.uid,
-      fullUri: nextPhoto.photoUrl,
-      thumbnailUri: nextPhoto.thumbnailUrl,
-      caption: nextPhoto.caption?.text || null
-    }).then(async (serverPhoto) => {
-      if (serverPhoto.thumbnailFailed) {
-        console.warn('Thumbnail upload failed, photo sent without thumbnail.', { photoId: serverPhoto.id });
-        trackEvent('photo_thumbnail_failed', { coupleId, photoId: serverPhoto.id });
-      }
-      await Promise.all([
-        deleteLocalPhotoFile(nextPhoto.photoUrl).catch(() => undefined),
-        deleteLocalPhotoFile(nextPhoto.thumbnailUrl).catch(() => undefined)
+    const uploadCoupleId = coupleId;
+    const uploadSenderId = user.uid;
+    void (async () => {
+      const [{ uploadPhoto }, { deleteLocalPhotoFile }] = await Promise.all([
+        import('../services/photoService'),
+        import('../services/localStore')
       ]);
-      setLocalPhotos((current) => current.filter((photo) => photo.id !== nextPhoto.id));
-      photosApi.insertServerPhotoLocal(serverPhoto as NativePhoto);
-      trackEvent('photo_sent', { coupleId, photoId: serverPhoto.id });
-    }).catch((error) => {
+      return uploadPhoto({
+        coupleId: uploadCoupleId,
+        senderId: uploadSenderId,
+        fullUri: nextPhoto.photoUrl,
+        thumbnailUri: nextPhoto.thumbnailUrl,
+        caption: nextPhoto.caption?.text || null
+      }).then(async (serverPhoto) => {
+        if (serverPhoto.thumbnailFailed) {
+          console.warn('Thumbnail upload failed, photo sent without thumbnail.', { photoId: serverPhoto.id });
+          trackEvent('photo_thumbnail_failed', { coupleId: uploadCoupleId, photoId: serverPhoto.id });
+        }
+        await Promise.all([
+          deleteLocalPhotoFile(nextPhoto.photoUrl).catch(() => undefined),
+          deleteLocalPhotoFile(nextPhoto.thumbnailUrl).catch(() => undefined)
+        ]);
+        setLocalPhotos((current) => current.filter((photo) => photo.id !== nextPhoto.id));
+        photosApi.insertServerPhotoLocal(serverPhoto as NativePhoto);
+        trackEvent('photo_sent', { coupleId: uploadCoupleId, photoId: serverPhoto.id });
+      });
+    })().catch((error) => {
       setLocalPhotos((current) => current.map((photo) => photo.id === nextPhoto.id ? markLocalPhotoFailed(photo, error?.message || 'Upload failed') : photo));
     }).finally(() => {
       queueInFlightRef.current = false;
