@@ -29,7 +29,8 @@
         "UIBackgroundModes": [
           "remote-notification"
         ]
-      }
+      },
+      "buildNumber": "2"
     }
   }
 }
