@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import {
   AuthorizationStatus,
   deleteToken,
@@ -22,10 +23,29 @@ export function permissionFromStatus(status: number): NotificationPermission {
 }
 
 export async function getDeviceId() {
-  const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);
-  if (existing) return existing;
+  try {
+    const secured = await SecureStore.getItemAsync(DEVICE_ID_KEY);
+    if (secured) return secured;
+  } catch {
+    // SecureStore unavailable (e.g. web) — fall through to AsyncStorage.
+  }
+  // One-time migration: adopt a device id previously stored unencrypted.
+  const legacy = await AsyncStorage.getItem(DEVICE_ID_KEY);
+  if (legacy) {
+    try {
+      await SecureStore.setItemAsync(DEVICE_ID_KEY, legacy);
+      await AsyncStorage.removeItem(DEVICE_ID_KEY);
+    } catch {
+      // Keep the AsyncStorage copy when SecureStore writes fail.
+    }
+    return legacy;
+  }
   const next = `native-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  await AsyncStorage.setItem(DEVICE_ID_KEY, next);
+  try {
+    await SecureStore.setItemAsync(DEVICE_ID_KEY, next);
+  } catch {
+    await AsyncStorage.setItem(DEVICE_ID_KEY, next);
+  }
   return next;
 }
 
@@ -49,8 +69,29 @@ export async function enableNotifications() {
   const permission = await requestPermission(messagingClient);
   const permissionState = permissionFromStatus(permission);
   if (permissionState !== 'granted') return { status: 'denied' as const, permission: permissionState };
-  await registerDeviceForRemoteMessages(messagingClient).catch(() => undefined);
-  const token = await getToken(messagingClient);
+  try {
+    await registerDeviceForRemoteMessages(messagingClient);
+  } catch (error) {
+    console.warn('[notifications] registerDeviceForRemoteMessages failed', error);
+    return {
+      status: 'unavailable' as const,
+      permission: permissionState,
+      reason: 'registration-failed' as const,
+      message: error instanceof Error ? error.message : 'Device registration for remote messages failed.'
+    };
+  }
+  let token: string;
+  try {
+    token = await getToken(messagingClient);
+  } catch (error) {
+    console.warn('[notifications] getToken failed', error);
+    return {
+      status: 'unavailable' as const,
+      permission: permissionState,
+      reason: 'token-failed' as const,
+      message: error instanceof Error ? error.message : 'Unable to get FCM token.'
+    };
+  }
   const deviceId = await getDeviceId();
   const result = await callFunction('registerFcmToken', {
     token,
@@ -64,8 +105,13 @@ export async function enableNotifications() {
 
 export async function disableNotifications() {
   const deviceId = await getDeviceId();
-  await callFunction('removeFcmToken', { deviceId }).catch(() => undefined);
-  await deleteToken(messagingClient).catch(() => undefined);
+  try {
+    await callFunction('removeFcmToken', { deviceId });
+  } catch (error) {
+    console.warn('[notifications] removeFcmToken failed, keeping enabled state', error);
+    throw new Error('Failed to remove push token from server. Notifications remain enabled.');
+  }
+  await deleteToken(messagingClient).catch((error) => console.warn('[notifications] deleteToken failed', error));
   await setNotificationsEnabled(false);
 }
 

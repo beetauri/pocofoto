@@ -21,7 +21,7 @@ export function configureNotificationBootstrap() {
   if (Platform.OS === 'android') {
     void Notifications.setNotificationChannelAsync('default', {
       name: 'Pocofoto',
-      importance: Notifications.AndroidImportance.DEFAULT
+      importance: Notifications.AndroidImportance.HIGH
     });
   }
 
@@ -31,7 +31,7 @@ export function configureNotificationBootstrap() {
     const body = typeof data.body === 'string' ? data.body : 'A little update from your person.';
     await Notifications.scheduleNotificationAsync({
       content: { title, body, data },
-      trigger: null
+      trigger: { channelId: 'default' }
     });
   });
 }

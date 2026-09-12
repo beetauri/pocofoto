@@ -64,9 +64,9 @@ export default {
     body: 'Tap the shutter to send the first moment to your person.'
   },
   errors: {
-    unavailable: 'This browser can’t use the camera.',
-    denied: 'Camera access is blocked. Allow it in your browser settings and try again.',
-    timeout: 'Check the browser camera prompt, then try again.',
+    unavailable: 'This device can’t use the camera.',
+    denied: 'Camera access is blocked. Open Settings > Pocofoto and allow Camera, then try again.',
+    timeout: 'Check the camera permission prompt, then try again.',
     start: 'The camera couldn’t start. Give it another try.',
     switch: 'We couldn’t switch cameras.',
     restore: 'We couldn’t bring the camera back. Try again.',

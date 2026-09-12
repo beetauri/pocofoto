@@ -1,13 +1,46 @@
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { version: packageVersion } = require('./package.json');
+
 const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'sixth-bonbon-402909';
 const iosBundleIdentifier = process.env.IOS_BUNDLE_IDENTIFIER || 'com.pocofoto.app';
 const androidPackage = process.env.ANDROID_PACKAGE || 'com.pocofoto.app';
-const iosGoogleUrlScheme = process.env.GOOGLE_IOS_URL_SCHEME || 'com.googleusercontent.apps.REPLACE_ME';
+const PLACEHOLDER_IOS_URL_SCHEME = 'com.googleusercontent.apps.REPLACE_ME';
 
-export default ({ config }) => ({
+function resolveIosGoogleUrlScheme() {
+  const configured = process.env.GOOGLE_IOS_URL_SCHEME;
+  if (configured) return configured;
+  const message =
+    '[app.config] Missing GOOGLE_IOS_URL_SCHEME env var — iOS Google Sign-In will be broken. ' +
+    'Set it to the Reversed Client ID from GoogleService-Info.plist (e.g. com.googleusercontent.apps.xxx). ' +
+    'To intentionally skip Google auth, set EAS_NO_GOOGLE=1.';
+  if (process.env.EAS_NO_GOOGLE) {
+    console.warn(`${message} Building with placeholder scheme because EAS_NO_GOOGLE is set.`);
+    return PLACEHOLDER_IOS_URL_SCHEME;
+  }
+  const profile = process.env.EAS_BUILD_PROFILE;
+  const isDevBuild = profile === 'development' || (!profile && process.env.NODE_ENV !== 'production');
+  if (isDevBuild) {
+    console.warn(`${message} Using placeholder scheme for development build only.`);
+    return PLACEHOLDER_IOS_URL_SCHEME;
+  }
+  throw new Error(message);
+}
+
+export default ({ config }) => {
+  const iosGoogleUrlScheme = resolveIosGoogleUrlScheme();
+  if (!process.env.ANDROID_GOOGLE_SERVICES_FILE) {
+    console.warn(
+      '[app.config] ANDROID_GOOGLE_SERVICES_FILE is not set — Android builds need google-services.json. ' +
+      'Set ANDROID_GOOGLE_SERVICES_FILE to its path (EAS secret file or local path).'
+    );
+  }
+  return {
   ...config,
   name: 'Pocofoto',
   slug: 'pocofoto',
-  version: '0.0.4',
+  version: packageVersion,
   orientation: 'portrait',
   scheme: 'pocofoto',
   userInterfaceStyle: 'dark',
@@ -18,7 +51,7 @@ export default ({ config }) => ({
     supportsTablet: false,
     usesAppleSignIn: true,
     appleTeamId: process.env.APPLE_TEAM_ID || '6S3HV7A5HH',
-    icon: './assets/Pocoface_v2.icon',
+    icon: './assets/pocoface-icon-1024.png',
     googleServicesFile: process.env.IOS_GOOGLE_SERVICES_FILE || './GoogleService-Info.plist',
     infoPlist: {
       ...config.ios?.infoPlist,
@@ -50,7 +83,7 @@ export default ({ config }) => ({
       foregroundImage: './assets/pocoface-icon-1024.png',
       monochromeImage: './assets/android-icon-monochrome.png'
     },
-    permissions: ['POST_NOTIFICATIONS']
+    permissions: ['android.permission.POST_NOTIFICATIONS', 'android.permission.CAMERA']
   },
   plugins: [
     'expo-router',
@@ -75,4 +108,5 @@ export default ({ config }) => ({
     firebaseFunctionsRegion: process.env.EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION || 'us-central1',
     googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || ''
   }
-});
+  };
+};

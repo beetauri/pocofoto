@@ -1,4 +1,4 @@
-import { doc, updateDoc } from '@react-native-firebase/firestore';
+import { doc, writeBatch } from '@react-native-firebase/firestore';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import { useApp } from './AppProvider';
 import { usePhotos } from '../hooks/usePhotos';
@@ -122,6 +122,10 @@ export function PhotosProvider({ children }: PropsWithChildren) {
       thumbnailUri: nextPhoto.thumbnailUrl,
       caption: nextPhoto.caption?.text || null
     }).then(async (serverPhoto) => {
+      if (serverPhoto.thumbnailFailed) {
+        console.warn('Thumbnail upload failed, photo sent without thumbnail.', { photoId: serverPhoto.id });
+        trackEvent('photo_thumbnail_failed', { coupleId, photoId: serverPhoto.id });
+      }
       await Promise.all([
         deleteLocalPhotoFile(nextPhoto.photoUrl).catch(() => undefined),
         deleteLocalPhotoFile(nextPhoto.thumbnailUrl).catch(() => undefined)
@@ -142,11 +146,13 @@ export function PhotosProvider({ children }: PropsWithChildren) {
     const nextLiked = !photo.liked;
     photosApi.updatePhotoLocal(photo.id, { liked: nextLiked });
     try {
-      await updateDoc(doc(firestoreClient, 'couples', coupleId, 'photos', photo.id), { liked: nextLiked });
-      await updateDoc(doc(firestoreClient, 'couples', coupleId), {
+      const batch = writeBatch(firestoreClient);
+      batch.update(doc(firestoreClient, 'couples', coupleId, 'photos', photo.id), { liked: nextLiked });
+      batch.update(doc(firestoreClient, 'couples', coupleId), {
         liked: nextLiked,
         lastLike: nextLiked ? { userId: user.uid, timestamp: new Date().toISOString(), photoId: photo.id } : null
       });
+      await batch.commit();
       trackEvent('photo_liked', { coupleId, photoId: photo.id, liked: nextLiked });
     } catch (error) {
       photosApi.updatePhotoLocal(photo.id, { liked: photo.liked });

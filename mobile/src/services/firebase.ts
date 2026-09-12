@@ -13,12 +13,35 @@ import {
   getFirebaseEmulatorHost
 } from './config';
 
-export const firebaseApp = getApp();
-export const authClient = getAuth(firebaseApp);
-export const firestoreClient = getFirestore(firebaseApp);
-export const storageClient = getStorage(firebaseApp);
-export const functionsClient = getFunctions(firebaseApp, FIREBASE_FUNCTIONS_REGION);
-export const messagingClient = getMessaging(firebaseApp);
+export const firebaseApp = (() => {
+  try {
+    return getApp();
+  } catch (error) {
+    throw new Error(
+      '[firebase] Firebase app is not configured. Add GoogleService-Info.plist (iOS) and google-services.json (Android) ' +
+        'via the IOS_GOOGLE_SERVICES_FILE / ANDROID_GOOGLE_SERVICES_FILE paths in app.config.js, then rebuild the native app. ' +
+        `Cause: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+})();
+let authClient: ReturnType<typeof getAuth>;
+let firestoreClient: ReturnType<typeof getFirestore>;
+let storageClient: ReturnType<typeof getStorage>;
+let functionsClient: ReturnType<typeof getFunctions>;
+let messagingClient: ReturnType<typeof getMessaging>;
+try {
+  authClient = getAuth(firebaseApp);
+  firestoreClient = getFirestore(firebaseApp);
+  storageClient = getStorage(firebaseApp);
+  functionsClient = getFunctions(firebaseApp, FIREBASE_FUNCTIONS_REGION);
+  messagingClient = getMessaging(firebaseApp);
+} catch (error) {
+  throw new Error(
+    '[firebase] Failed to initialize Firebase clients. Ensure native Firebase modules are linked and GoogleService files are present, then rebuild. ' +
+      `Cause: ${error instanceof Error ? error.message : String(error)}`
+  );
+}
+export { authClient, firestoreClient, storageClient, functionsClient, messagingClient };
 
 let emulatorsConnected = false;
 
@@ -26,10 +49,26 @@ function configureEmulators() {
   if (!USE_FIREBASE_EMULATORS || emulatorsConnected) return;
 
   const host = getFirebaseEmulatorHost();
-  connectAuthEmulator(authClient, `http://${host}:9099`, { disableWarnings: true });
-  connectFirestoreEmulator(firestoreClient, host, 8080);
-  connectStorageEmulator(storageClient, host, 9199);
-  connectFunctionsEmulator(functionsClient, host, 5001);
+  try {
+    connectAuthEmulator(authClient, `http://${host}:9099`, { disableWarnings: true });
+  } catch (error) {
+    console.warn('[firebase] Auth emulator already connected or failed, skipping.', error);
+  }
+  try {
+    connectFirestoreEmulator(firestoreClient, host, 8080);
+  } catch (error) {
+    console.warn('[firebase] Firestore emulator already connected or failed, skipping.', error);
+  }
+  try {
+    connectStorageEmulator(storageClient, host, 9199);
+  } catch (error) {
+    console.warn('[firebase] Storage emulator already connected or failed, skipping.', error);
+  }
+  try {
+    connectFunctionsEmulator(functionsClient, host, 5001);
+  } catch (error) {
+    console.warn('[firebase] Functions emulator already connected or failed, skipping.', error);
+  }
   emulatorsConnected = true;
 }
 

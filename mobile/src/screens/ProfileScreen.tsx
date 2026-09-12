@@ -156,7 +156,7 @@ export default function ProfileScreen() {
   const fallbackProfilePic = user?.photoURL || '';
   const partnerName = partnerProfile?.displayName || partnerProfile?.email?.split('@')[0] || t('pairedWith');
   const partnerPic = partnerProfile?.profilePic || partnerProfile?.photoURL || '';
-  const buildVersion = Constants.expoConfig?.version || '0.0.0';
+  const buildVersion = Constants.expoConfig?.version || '0.0.4';
   const buildCommit = process.env.EXPO_PUBLIC_BUILD_COMMIT || 'dev';
 
   useEffect(() => {

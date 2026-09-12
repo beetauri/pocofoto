@@ -76,8 +76,8 @@ export default function PairingScreen() {
     return onSnapshot(outgoingQuery, (snapshot) => {
       const next = snapshot.docs[0];
       setOutgoing(next ? ({ id: next.id, ...next.data() } as PairingRequest) : null);
-    });
-  }, [user]);
+    }, () => setError(t('errors.offline')));
+  }, [t, user]);
 
   const sortedIncoming = useMemo(() => [...incoming].sort((a, b) => {
     const aTime = (a as PairingRequest & { createdAt?: { toMillis?: () => number } }).createdAt?.toMillis?.() || 0;

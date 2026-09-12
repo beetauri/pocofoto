@@ -17,8 +17,17 @@ export const GOOGLE_WEB_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || extra.googleWebClientId || '';
 
 export const USE_FIREBASE_EMULATORS =
-  __DEV__ && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS !== 'false';
+  process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS === 'true';
 
 export function getFirebaseEmulatorHost(): string {
-  return process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST || (Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1');
+  const override = process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST;
+  if (override) return override;
+  const fallback = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+  if (Platform.OS === 'android' || Platform.OS === 'ios') {
+    console.warn(
+      `[firebase] EXPO_PUBLIC_FIREBASE_EMULATOR_HOST is not set, falling back to ${fallback}. ` +
+      'On a physical device this will not reach your machine — set EXPO_PUBLIC_FIREBASE_EMULATOR_HOST to your LAN IP.'
+    );
+  }
+  return fallback;
 }

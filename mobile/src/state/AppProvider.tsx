@@ -72,10 +72,16 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true);
   const coupleIdRef = useRef<string | null>(null);
   const connection = useConnectionState();
+  const connectionRef = useRef(connection);
+  const coupleListenerSeqRef = useRef(0);
 
   useEffect(() => {
     coupleIdRef.current = coupleId;
   }, [coupleId]);
+
+  useEffect(() => {
+    connectionRef.current = connection;
+  }, [connection]);
 
   useEffect(() => {
     void initAnalytics();
@@ -131,7 +137,7 @@ export function AppProvider({ children }: PropsWithChildren) {
             : clearCachedUserRoute(user.uid));
         }
       }, (error) => {
-        captureHandledException(error, { operation: 'user-route-listener', online: connection !== 'offline' });
+        captureHandledException(error, { operation: 'user-route-listener', online: connectionRef.current !== 'offline' });
         const decision = decidePairListenerError(coupleIdRef.current, cachedRoute?.coupleId || null);
         setCoupleIdState(decision.coupleId);
         setPairStateKnown(false);
@@ -143,20 +149,26 @@ export function AppProvider({ children }: PropsWithChildren) {
       active = false;
       stopUserListener?.();
     };
-  }, [user, connection]);
+  }, [user]);
 
   useEffect(() => {
     if (!user || !coupleId) {
       setPartnerProfile(null);
       return undefined;
     }
+    const seq = ++coupleListenerSeqRef.current;
+    let coupleSeq = 0;
+    let disposed = false;
     let stopPartnerListener: (() => void) | undefined;
     const stopCoupleListener = onSnapshot(doc(firestoreClient, 'couples', coupleId), (snapshot) => {
+      if (disposed || seq !== coupleListenerSeqRef.current) return;
+      const mySeq = ++coupleSeq;
       const users = (snapshot.data()?.users as string[] | undefined) || [];
       const partnerId = users.find((id) => id !== user.uid);
       stopPartnerListener?.();
       stopPartnerListener = partnerId
         ? onSnapshot(doc(firestoreClient, 'users', partnerId), (partnerSnapshot) => {
+          if (disposed || seq !== coupleListenerSeqRef.current || mySeq !== coupleSeq) return;
           setPartnerProfile(profileFromSnapshot(partnerSnapshot));
         }, (error) => captureHandledException(error, { operation: 'partner-profile-listener' }))
         : undefined;
@@ -164,6 +176,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     }, (error) => captureHandledException(error, { operation: 'couple-profile-listener' }));
 
     return () => {
+      disposed = true;
       stopPartnerListener?.();
       stopCoupleListener();
     };

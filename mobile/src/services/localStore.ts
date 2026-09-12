@@ -83,7 +83,9 @@ function rowToPhoto(row: QueueRow): LocalPhoto {
 }
 
 export async function copyFileToDurableStorage(uri: string, id: string, extension = 'jpg'): Promise<string> {
-  if (!FileSystem.documentDirectory) throw new Error('Native document storage is unavailable.');
+  if (!FileSystem.documentDirectory) {
+    throw new Error('Local photo storage is only available on native builds (iOS/Android) — documentDirectory is unavailable here (e.g. web).');
+  }
   const directory = `${FileSystem.documentDirectory}pocofoto-photos/`;
   await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
   const destination = `${directory}${id}.${extension}`;

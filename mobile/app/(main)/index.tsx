@@ -235,6 +235,8 @@ export default function HomeRoute() {
   }, [cameraInView, navigation, scrollToCamera]);
 
   useEffect(() => {
+    // Deep-link clear: expo-router setParams types `undefined` as the param-clear
+    // value (Record<string, undefined | string | ...>); `null` would be a type error, so keep undefined.
     if (!photoId) {
       targetPhotoRef.current = null;
       targetPhotoLoadRef.current = null;
@@ -262,7 +264,7 @@ export default function HomeRoute() {
 
   const capture = async () => {
     if (!cameraRef.current || !cameraReady || busy) return;
-    await triggerHaptic('tap');
+    void triggerHaptic('tap');
     setBusy(true);
     try {
       const picture = await cameraRef.current.takePictureAsync({ quality: 0.9, skipProcessing: false, mirror: false });
@@ -296,21 +298,18 @@ export default function HomeRoute() {
 
   const send = async () => {
     if (!review || busy || preparingReview) return;
-    if (!isOnline) {
-      showFeedback(t('errors.offlineSend'));
-      return;
-    }
     if (!isCaptionAllowed(caption)) {
       showFeedback(t('errors.captionUnsafe'));
       return;
     }
-    await triggerHaptic('tap');
+    void triggerHaptic('tap');
     setBusy(true);
     try {
       await enqueuePhoto({ fullUri: review.uri, thumbnailUri: review.thumbnailUri, caption });
       if (draftKey) await clearReviewDraft(draftKey).catch(() => undefined);
       setReview(null);
       setCaption('');
+      if (!isOnline) showFeedback(t('queue.queued'));
     } catch {
       showFeedback(t('errors.upload'));
     } finally {
@@ -451,7 +450,7 @@ export default function HomeRoute() {
           {review ? <X color={colors.text} size={24} /> : <Flashlight color={flash === 'on' ? colors.accent : colors.text} size={24} />}
         </Pressable>
         <Animated.View style={[styles.shutterAnimated, { transform: [{ scale: shutterScale }] }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={review ? t('review.send') : t('controls.capture')} disabled={busy || preparingReview || (!review && !cameraReady) || (Boolean(review) && !isOnline)} onPress={() => void (review ? send() : capture())} onPressIn={() => animateShutter(0.92)} onPressOut={() => animateShutter(1)} style={({ pressed }) => [styles.shutterButton, (busy || preparingReview || (!review && !cameraReady) || (Boolean(review) && !isOnline)) && styles.controlDisabled, pressed && styles.controlPressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={review ? t('review.send') : t('controls.capture')} disabled={busy || preparingReview || (!review && !cameraReady)} onPress={() => void (review ? send() : capture())} onPressIn={() => animateShutter(0.92)} onPressOut={() => animateShutter(1)} style={({ pressed }) => [styles.shutterButton, (busy || preparingReview || (!review && !cameraReady)) && styles.controlDisabled, pressed && styles.controlPressed]}>
             <ShutterIcon size={88} />
             {review && !busy && !preparingReview ? <Send color="#111111" size={27} style={styles.shutterOverlayIcon} /> : null}
             {busy || preparingReview ? <ActivityIndicator color="#111111" size="small" style={styles.shutterOverlayIcon} /> : null}

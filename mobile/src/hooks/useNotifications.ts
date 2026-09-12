@@ -35,7 +35,7 @@ function intentFromData(data: Record<string, unknown>): NotificationIntent | nul
   const type = String(data.type || '');
   const photoId = data.photoId ? String(data.photoId) : '';
   if ((type === 'photo_received' || type === 'like_received') && photoId) return { type: 'photo', photoId };
-  if (type === 'pairing_request' || type === 'pairing_removed') return { type: 'pairing' };
+  if (type === 'pairing_request' || type === 'pairing_accepted' || type === 'pairing_removed') return { type: 'pairing' };
   return null;
 }
 
@@ -52,6 +52,7 @@ function useNotificationsController() {
   const [busy, setBusy] = useState(false);
   const [diagnostics, setDiagnostics] = useState<Record<string, any>>({});
   const [foregroundMessage, setForegroundMessage] = useState('');
+  const [notificationError, setNotificationError] = useState('');
   const [notificationIntent, setNotificationIntent] = useState<NotificationIntent | null>(null);
   const recentEventIdsRef = useRef<string[]>([]);
 
@@ -108,14 +109,23 @@ function useNotificationsController() {
 
   const clearNotificationIntent = useCallback(() => setNotificationIntent(null), []);
   const clearForegroundMessage = useCallback(() => setForegroundMessage(''), []);
+  const clearNotificationError = useCallback(() => setNotificationError(''), []);
 
   const enable = useCallback(async () => {
     setBusy(true);
+    setNotificationError('');
     try {
       const result = await enableNotifications();
       setPermission(result.permission);
       setEnabled(result.status === 'registered');
+      if (result.status === 'unavailable') {
+        setNotificationError(result.message || 'Push notifications are unavailable on this device.');
+      }
       return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to enable notifications.';
+      setNotificationError(message);
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -123,9 +133,16 @@ function useNotificationsController() {
 
   const disable = useCallback(async () => {
     setBusy(true);
+    setNotificationError('');
     try {
       await disableNotifications();
       setEnabled(false);
+      return { status: 'disabled' as const };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to disable notifications.';
+      console.warn('[notifications] disable failed, keeping enabled state', error);
+      setNotificationError(message);
+      return { status: 'failed' as const, message };
     } finally {
       setBusy(false);
     }
@@ -162,6 +179,8 @@ function useNotificationsController() {
     dismissPrompt,
     diagnostics,
     busy,
+    error: notificationError,
+    clearNotificationError,
     foregroundMessage,
     clearForegroundMessage,
     notificationIntent,
@@ -172,7 +191,7 @@ function useNotificationsController() {
     refreshDiagnostics,
     testThisDevice: testThisDeviceAction,
     testPartnerDevices: testPartnerDevicesAction
-  }), [busy, clearForegroundMessage, clearNotificationIntent, diagnostics, disable, dismissPrompt, enable, enabled, foregroundMessage, notificationIntent, permission, refreshDiagnostics, showPrompt, testPartnerDevicesAction, testThisDeviceAction]);
+  }), [busy, clearForegroundMessage, clearNotificationError, clearNotificationIntent, diagnostics, disable, dismissPrompt, enable, enabled, foregroundMessage, notificationError, notificationIntent, permission, refreshDiagnostics, showPrompt, testPartnerDevicesAction, testThisDeviceAction]);
 }
 
 type NotificationsContextValue = ReturnType<typeof useNotificationsController>;

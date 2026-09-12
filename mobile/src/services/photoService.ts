@@ -1,9 +1,8 @@
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import {
-  addDoc,
   collection,
   doc,
-  updateDoc
+  writeBatch
 } from '@react-native-firebase/firestore';
 import { getDownloadURL, putFile, ref } from '@react-native-firebase/storage';
 import { firestoreClient, storageClient } from './firebase';
@@ -42,15 +41,28 @@ export async function uploadPhoto({
   paletteV2?: { version: 2; topColor: string; bottomColor: string; colors: string[] } | null;
 }) {
   const timestamp = new Date().toISOString();
-  const fileKey = `${Date.now()}`;
+  const uniqueSuffix = `${senderId.slice(0, 8)}_${Math.random().toString(36).slice(2, 8)}`;
+  const fileKey = `${Date.now()}_${uniqueSuffix}`;
   const photoRef = ref(storageClient, `couples/${coupleId}/${fileKey}.jpg`);
-  const thumbnailRef = thumbnailUri ? ref(storageClient, `couples/${coupleId}/thumbnails/${timestamp}.webp`) : null;
-  const [photoUrl, thumbnailUrl] = await Promise.all([
-    putFile(photoRef, fullUri, { contentType: 'image/jpeg' }).then(() => getDownloadURL(photoRef)),
-    thumbnailRef && thumbnailUri
-      ? putFile(thumbnailRef, thumbnailUri, { contentType: 'image/webp' }).then(() => getDownloadURL(thumbnailRef)).catch(() => null)
-      : Promise.resolve(null)
-  ]);
+  const thumbnailRef = thumbnailUri ? ref(storageClient, `couples/${coupleId}/thumbnails/${fileKey}_thumb.webp`) : null;
+  const photoUrl = (await putFile(photoRef, fullUri, { contentType: 'image/jpeg' }).then(() => getDownloadURL(photoRef))) as string;
+
+  let thumbnailUrl: string | null = null;
+  let thumbnailFailed = false;
+  if (thumbnailRef && thumbnailUri) {
+    const uploadThumbnailOnce = (): Promise<string> =>
+      putFile(thumbnailRef, thumbnailUri, { contentType: 'image/webp' }).then(() => getDownloadURL(thumbnailRef)) as unknown as Promise<string>;
+    try {
+      thumbnailUrl = await uploadThumbnailOnce();
+    } catch {
+      try {
+        thumbnailUrl = await uploadThumbnailOnce();
+      } catch (error) {
+        thumbnailFailed = true;
+        console.warn('Thumbnail upload failed after retry, proceeding without thumbnail.', error);
+      }
+    }
+  }
 
   const photoPayload: Record<string, unknown> = {
     photoUrl,
@@ -67,13 +79,17 @@ export async function uploadPhoto({
   const captionPayload = buildCaptionPayload(caption);
   if (captionPayload) photoPayload.caption = captionPayload;
 
-  const created = await addDoc(collection(firestoreClient, 'couples', coupleId, 'photos'), photoPayload);
-  await updateDoc(doc(firestoreClient, 'couples', coupleId), {
+  const photosCollection = collection(firestoreClient, 'couples', coupleId, 'photos');
+  const newPhotoRef = doc(photosCollection);
+  const batch = writeBatch(firestoreClient);
+  batch.set(newPhotoRef, photoPayload);
+  batch.update(doc(firestoreClient, 'couples', coupleId), {
     currentPhotoUrl: photoUrl,
     senderId,
     timestamp,
     liked: false,
     lastLike: null
   });
-  return { id: created.id, ...photoPayload };
+  await batch.commit();
+  return { id: newPhotoRef.id, ...photoPayload, thumbnailFailed };
 }
